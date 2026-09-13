@@ -27,3 +27,6 @@ Thumbs.db
 *.db-wal
 *.db-shm
 secrets.json
+
+## Local-only project documents (planning / feasibility / audit reports)
+docs/
