@@ -23,6 +23,7 @@
     <!-- Crypto / platform -->
     <PackageVersion Include="Sodium.Core" Version="1.4.1" />
     <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.Win32.SystemEvents" Version="10.0.12" />
 
     <!-- Testing -->
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.10.0" />

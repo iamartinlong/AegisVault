@@ -7,5 +7,6 @@
   <Folder Name="/tests/">
     <Project Path="tests/AegisVault.App.Tests/AegisVault.App.Tests.csproj" />
     <Project Path="tests/AegisVault.Core.Tests/AegisVault.Core.Tests.csproj" />
+    <Project Path="tests/AegisVault.Platform.Tests/AegisVault.Platform.Tests.csproj" />
   </Folder>
 </Solution>
