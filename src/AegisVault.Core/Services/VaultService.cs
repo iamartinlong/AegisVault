@@ -21,6 +21,9 @@ public enum VaultUnlockStatus
 /// </summary>
 public sealed class VaultService : IDisposable
 {
+    private const int DeviceKeyPayloadVersion = 1;
+    private const int DeviceKeyPayloadSize = 1 + 32 + KeyEnvelope.DekSize;
+
     private readonly VaultDatabase _database;
     private readonly List<PasswordEntry> _entries = [];
 
@@ -144,25 +147,7 @@ public sealed class VaultService : IDisposable
             return VaultUnlockStatus.WrongPassword;
         }
 
-        List<PasswordEntry> loaded;
-        try
-        {
-            loaded = LoadEntries(dek);
-        }
-        catch (Exception exception) when (exception is CryptographicException or JsonException or InvalidDataException)
-        {
-            dek.Dispose();
-            return VaultUnlockStatus.Corrupted;
-        }
-
-        dek.ProtectReadOnly();
-
-        _entries.Clear();
-        _entries.AddRange(loaded);
-
-        _dek?.Dispose();
-        _dek = dek;
-        return VaultUnlockStatus.Success;
+        return EstablishSession(dek);
     }
 
     /// <summary>Clears all decrypted state and zeroes the session key.</summary>
@@ -198,6 +183,9 @@ public sealed class VaultService : IDisposable
 
         _database.WriteMeta(updated);
         _header = updated;
+
+        // Ciphertext of the wrapped DEK changed; remembered device keys no longer match.
+        _database.DeleteAllDeviceKeys();
     }
 
     public PasswordEntry AddEntry(PasswordEntry entry)
@@ -289,6 +277,101 @@ public sealed class VaultService : IDisposable
         File.Copy(VaultPath, destination, overwrite: true);
     }
 
+    /// <summary>Whether a usable device key is stored for the given protector.</summary>
+    public bool HasDeviceKey(IKeyProtector protector)
+    {
+        ThrowIfDisposed();
+        ArgumentNullException.ThrowIfNull(protector);
+        return protector.IsAvailable && _database.ReadDeviceKey(protector.Id) is not null;
+    }
+
+    /// <summary>
+    /// Stores the session DEK protected by the OS key protector so the vault can
+    /// be unlocked without the master password on this device.
+    /// </summary>
+    public void RememberDevice(IKeyProtector protector)
+    {
+        ThrowIfDisposed();
+        EnsureUnlocked();
+        ArgumentNullException.ThrowIfNull(protector);
+
+        if (!protector.IsAvailable)
+        {
+            throw new InvalidOperationException("The key protector is not available on this machine.");
+        }
+
+        var payload = BuildDeviceKeyPayload();
+        try
+        {
+            var blob = protector.Protect(payload);
+            _database.UpsertDeviceKey(protector.Id, blob, DateTimeOffset.UtcNow);
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(payload);
+        }
+    }
+
+    public void ForgetDevice(IKeyProtector protector)
+    {
+        ThrowIfDisposed();
+        ArgumentNullException.ThrowIfNull(protector);
+        _database.DeleteDeviceKey(protector.Id);
+    }
+
+    /// <summary>
+    /// Attempts to unlock using a previously remembered device key. Returns
+    /// <c>false</c> when no key exists, it belongs to another vault state, or
+    /// the entries cannot be decrypted.
+    /// </summary>
+    public bool TryUnlockWithDeviceKey(IKeyProtector protector)
+    {
+        ThrowIfDisposed();
+        ArgumentNullException.ThrowIfNull(protector);
+
+        if (!protector.IsAvailable || _header.FormatVersion > VaultHeader.CurrentFormatVersion)
+        {
+            return false;
+        }
+
+        var blob = _database.ReadDeviceKey(protector.Id);
+        if (blob is null)
+        {
+            return false;
+        }
+
+        byte[] payload;
+        try
+        {
+            payload = protector.Unprotect(blob);
+        }
+        catch (Exception exception) when (exception is CryptographicException or PlatformNotSupportedException)
+        {
+            return false;
+        }
+
+        try
+        {
+            if (payload.Length != DeviceKeyPayloadSize || payload[0] != DeviceKeyPayloadVersion)
+            {
+                return false;
+            }
+
+            var expected = SHA256.HashData(_header.WrappedDek);
+            if (!CryptographicOperations.FixedTimeEquals(payload.AsSpan(1, 32), expected))
+            {
+                return false;
+            }
+
+            var dek = SecureBuffer.From(payload.AsSpan(33, KeyEnvelope.DekSize));
+            return EstablishSession(dek) == VaultUnlockStatus.Success;
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(payload);
+        }
+    }
+
     public void Dispose()
     {
         if (_disposed)
@@ -336,6 +419,38 @@ public sealed class VaultService : IDisposable
         {
             throw new InvalidOperationException("The vault is locked.");
         }
+    }
+
+    private byte[] BuildDeviceKeyPayload()
+    {
+        var payload = new byte[DeviceKeyPayloadSize];
+        payload[0] = DeviceKeyPayloadVersion;
+        SHA256.HashData(_header.WrappedDek).CopyTo(payload.AsSpan(1, 32));
+        _dek!.ReadOnlySpan.CopyTo(payload.AsSpan(33));
+        return payload;
+    }
+
+    private VaultUnlockStatus EstablishSession(SecureBuffer dek)
+    {
+        List<PasswordEntry> loaded;
+        try
+        {
+            loaded = LoadEntries(dek);
+        }
+        catch (Exception exception) when (exception is CryptographicException or JsonException or InvalidDataException)
+        {
+            dek.Dispose();
+            return VaultUnlockStatus.Corrupted;
+        }
+
+        dek.ProtectReadOnly();
+
+        _entries.Clear();
+        _entries.AddRange(loaded);
+
+        _dek?.Dispose();
+        _dek = dek;
+        return VaultUnlockStatus.Success;
     }
 
     private void ThrowIfDisposed()

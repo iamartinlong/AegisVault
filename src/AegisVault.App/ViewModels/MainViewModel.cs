@@ -82,6 +82,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
         UpdateTotp();
     }
 
+    partial void OnTotpCodeChanged(string value) => OnPropertyChanged(nameof(IsTotpValid));
+
+    /// <summary>True when a numeric TOTP code is currently displayed.</summary>
+    public bool IsTotpValid => TotpCode.Length is 6 or 8 && TotpCode.All(char.IsDigit);
+
     [RelayCommand]
     private void AddEntry()
     {

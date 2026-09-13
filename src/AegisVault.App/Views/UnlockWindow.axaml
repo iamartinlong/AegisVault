@@ -3,6 +3,7 @@
         xmlns:vm="using:AegisVault.App.ViewModels"
         x:Class="AegisVault.App.Views.UnlockWindow"
         x:DataType="vm:UnlockViewModel"
+        Icon="/Assets/app.png"
         Title="AegisVault"
         Width="520" Height="460"
         CanResize="False"
@@ -13,12 +14,21 @@
 
         <StackPanel Spacing="4">
             <TextBlock Text="密码库文件" FontSize="12" Opacity="0.7" />
-            <TextBox Text="{Binding VaultPath}" />
+            <Grid ColumnDefinitions="*,8,Auto">
+                <TextBox Grid.Column="0" Text="{Binding VaultPath}" />
+                <Button Grid.Column="2" Content="浏览…" Click="OnBrowseClicked" />
+            </Grid>
         </StackPanel>
 
         <StackPanel Spacing="4">
             <TextBlock Text="主密码" FontSize="12" Opacity="0.7" />
-            <TextBox PasswordChar="●" Text="{Binding MasterPassword, Mode=TwoWay}" />
+            <Grid ColumnDefinitions="*,8,Auto">
+                <TextBox Grid.Column="0" PasswordChar="●" Text="{Binding MasterPassword, Mode=TwoWay}" />
+                <Button Grid.Column="2"
+                        Content="安全输入"
+                        IsVisible="{Binding SecureInputAvailable}"
+                        Click="OnSecureInputClicked" />
+            </Grid>
         </StackPanel>
 
         <StackPanel Spacing="4" IsVisible="{Binding CreateNew}">
@@ -27,6 +37,9 @@
         </StackPanel>
 
         <CheckBox Content="创建新密码库" IsChecked="{Binding CreateNew, Mode=TwoWay}" />
+        <CheckBox Content="记住此设备（使用 Windows 凭据保护）"
+                  IsChecked="{Binding RememberDevice, Mode=TwoWay}"
+                  IsVisible="{Binding CanRememberDevice}" />
 
         <TextBlock Text="{Binding ErrorMessage}"
                    Foreground="#E5484D"

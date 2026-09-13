@@ -227,6 +227,43 @@ internal sealed class VaultDatabase : IDisposable
         ExecuteNonQuery(_connection, null, "PRAGMA wal_checkpoint(FULL);");
     }
 
+    public void UpsertDeviceKey(string protectorId, byte[] blob, DateTimeOffset createdAt)
+    {
+        using var command = _connection.CreateCommand();
+        command.CommandText = """
+            INSERT INTO device_keys (protector, blob, created_at)
+            VALUES ($protector, $blob, $createdAt)
+            ON CONFLICT(protector) DO UPDATE SET
+                blob       = excluded.blob,
+                created_at = excluded.created_at;
+            """;
+        command.Parameters.AddWithValue("$protector", protectorId);
+        command.Parameters.AddWithValue("$blob", blob);
+        command.Parameters.AddWithValue("$createdAt", createdAt.ToString("O", CultureInfo.InvariantCulture));
+        command.ExecuteNonQuery();
+    }
+
+    public byte[]? ReadDeviceKey(string protectorId)
+    {
+        using var command = _connection.CreateCommand();
+        command.CommandText = "SELECT blob FROM device_keys WHERE protector = $protector;";
+        command.Parameters.AddWithValue("$protector", protectorId);
+        return command.ExecuteScalar() as byte[];
+    }
+
+    public void DeleteDeviceKey(string protectorId)
+    {
+        using var command = _connection.CreateCommand();
+        command.CommandText = "DELETE FROM device_keys WHERE protector = $protector;";
+        command.Parameters.AddWithValue("$protector", protectorId);
+        command.ExecuteNonQuery();
+    }
+
+    public void DeleteAllDeviceKeys()
+    {
+        ExecuteNonQuery(_connection, null, "DELETE FROM device_keys;");
+    }
+
     public void Dispose()
     {
         _connection.Dispose();

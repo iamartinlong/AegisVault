@@ -4,6 +4,7 @@
         xmlns:models="using:AegisVault.Core.Models"
         x:Class="AegisVault.App.Views.MainWindow"
         x:DataType="vm:MainViewModel"
+        Icon="/Assets/app.png"
         Title="AegisVault"
         Width="1000" Height="660"
         WindowStartupLocation="CenterScreen">
@@ -71,6 +72,14 @@
                         <TextBlock Text="{Binding TotpRemaining, StringFormat='{}{0}s'}"
                                    VerticalAlignment="Bottom"
                                    Opacity="0.6" />
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
+                        <Button Content="复制密码" Click="OnCopyPasswordClicked" />
+                        <Button Content="复制验证码"
+                                IsVisible="{Binding HasTotp}"
+                                Click="OnCopyTotpClicked" />
+                        <Button Content="生成密码" Click="OnGeneratePasswordClicked" />
                     </StackPanel>
 
                     <StackPanel Spacing="4">

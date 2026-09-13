@@ -9,6 +9,12 @@ public partial class UnlockViewModel : ObservableObject
 {
     public event Action<VaultService>? VaultOpened;
 
+    public IKeyProtector? DeviceKeyProtector { get; set; }
+
+    public bool CanRememberDevice => DeviceKeyProtector?.IsAvailable == true;
+
+    public bool SecureInputAvailable { get; init; }
+
     [ObservableProperty]
     private string vaultPath = GetDefaultVaultPath();
 
@@ -22,10 +28,59 @@ public partial class UnlockViewModel : ObservableObject
     private bool createNew;
 
     [ObservableProperty]
+    private bool rememberDevice;
+
+    [ObservableProperty]
     private string? errorMessage;
 
     [ObservableProperty]
     private bool isBusy;
+
+    /// <summary>
+    /// Attempts a password-less unlock using the remembered device key.
+    /// Raises <see cref="VaultOpened"/> on success; otherwise does nothing.
+    /// </summary>
+    public async Task TryDeviceUnlockAsync()
+    {
+        if (DeviceKeyProtector is not { IsAvailable: true } protector)
+        {
+            return;
+        }
+
+        var path = VaultPath.Trim();
+        if (string.IsNullOrEmpty(path) || !File.Exists(path))
+        {
+            return;
+        }
+
+        VaultService? vault = null;
+        var unlocked = false;
+
+        await Task.Run(() =>
+        {
+            try
+            {
+                vault = VaultService.Open(path);
+                unlocked = vault.TryUnlockWithDeviceKey(protector);
+                if (!unlocked)
+                {
+                    vault.Dispose();
+                    vault = null;
+                }
+            }
+            catch (Exception)
+            {
+                vault?.Dispose();
+                vault = null;
+                unlocked = false;
+            }
+        });
+
+        if (unlocked)
+        {
+            VaultOpened?.Invoke(vault!);
+        }
+    }
 
     [RelayCommand]
     private async Task UnlockAsync()
@@ -74,6 +129,7 @@ public partial class UnlockViewModel : ObservableObject
                 {
                     case VaultUnlockStatus.Success:
                         MasterPassword = string.Empty;
+                        RememberDeviceIfRequested(vault!);
                         VaultOpened?.Invoke(vault!);
                         break;
                     case VaultUnlockStatus.WrongPassword:
@@ -148,6 +204,7 @@ public partial class UnlockViewModel : ObservableObject
 
                 MasterPassword = string.Empty;
                 ConfirmPassword = string.Empty;
+                RememberDeviceIfRequested(vault!);
                 VaultOpened?.Invoke(vault!);
             }
             finally
@@ -162,6 +219,22 @@ public partial class UnlockViewModel : ObservableObject
         finally
         {
             IsBusy = false;
+        }
+    }
+
+    private void RememberDeviceIfRequested(VaultService vault)
+    {
+        if (!RememberDevice || DeviceKeyProtector is not { IsAvailable: true } protector)
+        {
+            return;
+        }
+
+        try
+        {
+            vault.RememberDevice(protector);
+        }
+        catch (Exception)
+        {
         }
     }
 

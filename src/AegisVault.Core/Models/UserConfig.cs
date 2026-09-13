@@ -5,7 +5,7 @@ public sealed record UserConfig
 {
     public int AutoLockMinutes { get; init; } = 5;
 
-    public bool LockOnMinimize { get; init; }
+    public bool LockOnMinimize { get; init; } = true;
 
     public bool LockOnScreenLock { get; init; } = true;
 

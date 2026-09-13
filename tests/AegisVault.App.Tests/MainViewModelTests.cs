@@ -114,6 +114,20 @@ public sealed class MainViewModelTests : IDisposable
     });
 
     [Fact]
+    public Task IsTotpValidReflectsCode() => Headless.Run(() =>
+    {
+        using var vault = CreateVaultWithEntries();
+        using var viewModel = new MainViewModel(vault);
+
+        viewModel.SelectedEntry = vault.Entries.Single(entry => entry.Title == "GitHub");
+        viewModel.EditTotpSecret = "JBSWY3DPEHPK3PXP";
+        Assert.True(viewModel.IsTotpValid);
+
+        viewModel.EditTotpSecret = "not valid base32!";
+        Assert.False(viewModel.IsTotpValid);
+    });
+
+    [Fact]
     public Task MainWindowCanBeConstructedWithViewModel() => Headless.Run(() =>
     {
         using var vault = CreateVaultWithEntries();

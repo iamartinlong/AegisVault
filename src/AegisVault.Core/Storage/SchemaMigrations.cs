@@ -5,7 +5,7 @@ namespace AegisVault.Core.Storage;
 /// <summary>Versioned schema creation and upgrades.</summary>
 internal static class SchemaMigrations
 {
-    public const int CurrentSchemaVersion = 1;
+    public const int CurrentSchemaVersion = 2;
 
     public static void Apply(SqliteConnection connection)
     {
@@ -52,6 +52,17 @@ internal static class SchemaMigrations
                   nonce      BLOB    NOT NULL,
                   ciphertext BLOB    NOT NULL,
                   tag        BLOB    NOT NULL
+                );
+                """);
+        }
+
+        if (version < 2)
+        {
+            Execute(connection, transaction, """
+                CREATE TABLE device_keys (
+                  protector  TEXT PRIMARY KEY,
+                  blob       BLOB NOT NULL,
+                  created_at TEXT NOT NULL
                 );
                 """);
         }
