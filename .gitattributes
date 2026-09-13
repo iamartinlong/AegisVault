@@ -1,0 +1,8 @@
+# Normalize line endings in the repository; checkouts follow the platform default.
+* text=auto
+
+# Binary assets
+*.png binary
+*.ico binary
+*.pfx binary
+*.snk binary

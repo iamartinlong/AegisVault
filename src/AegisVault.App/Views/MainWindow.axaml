@@ -1,0 +1,97 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:AegisVault.App.ViewModels"
+        xmlns:models="using:AegisVault.Core.Models"
+        x:Class="AegisVault.App.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Title="AegisVault"
+        Width="1000" Height="660"
+        WindowStartupLocation="CenterScreen">
+    <Grid RowDefinitions="Auto,Auto,*" Margin="16">
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8">
+            <TextBox Width="340"
+                     Text="{Binding SearchText}"
+                     PlaceholderText="搜索标题、用户名、网址、标签" />
+            <Button Content="新建条目" Command="{Binding AddEntryCommand}" />
+            <Button Content="锁定" Command="{Binding LockCommand}" />
+            <TextBlock Text="{Binding StatusMessage}"
+                       VerticalAlignment="Center"
+                       Opacity="0.7" />
+        </StackPanel>
+
+        <Grid Grid.Row="2" ColumnDefinitions="340,16,*" Margin="0,14,0,0">
+            <ListBox Grid.Column="0"
+                     ItemsSource="{Binding FilteredEntries}"
+                     SelectedItem="{Binding SelectedEntry}">
+                <ListBox.ItemTemplate>
+                    <DataTemplate DataType="models:PasswordEntry">
+                        <StackPanel Spacing="2">
+                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding Username}" FontSize="11" Opacity="0.6" />
+                        </StackPanel>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+
+            <ScrollViewer Grid.Column="2" IsVisible="{Binding HasSelection}">
+                <StackPanel Spacing="10">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="标题" FontSize="12" Opacity="0.7" />
+                        <TextBox Text="{Binding EditTitle}" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="用户名" FontSize="12" Opacity="0.7" />
+                        <TextBox Text="{Binding EditUsername}" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="密码" FontSize="12" Opacity="0.7" />
+                        <TextBox PasswordChar="●"
+                                 RevealPassword="True"
+                                 Text="{Binding EditPassword, Mode=TwoWay}" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="网址" FontSize="12" Opacity="0.7" />
+                        <TextBox Text="{Binding EditUrl}" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="TOTP 密钥（Base32）" FontSize="12" Opacity="0.7" />
+                        <TextBox Text="{Binding EditTotpSecret}" />
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding HasTotp}">
+                        <TextBlock Text="动态验证码:" VerticalAlignment="Center" Opacity="0.7" />
+                        <TextBlock Text="{Binding TotpCode}"
+                                   FontSize="22"
+                                   FontFamily="Consolas, Menlo, monospace"
+                                   FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding TotpRemaining, StringFormat='{}{0}s'}"
+                                   VerticalAlignment="Bottom"
+                                   Opacity="0.6" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="标签（逗号分隔）" FontSize="12" Opacity="0.7" />
+                        <TextBox Text="{Binding EditTags}" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="备注" FontSize="12" Opacity="0.7" />
+                        <TextBox Text="{Binding EditNotes}"
+                                 AcceptsReturn="True"
+                                 TextWrapping="Wrap"
+                                 Height="100" />
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
+                        <Button Content="删除" Command="{Binding DeleteEntryCommand}" />
+                        <Button Content="保存" Command="{Binding SaveEntryCommand}" />
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</Window>

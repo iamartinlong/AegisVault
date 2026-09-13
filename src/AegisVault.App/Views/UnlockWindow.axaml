@@ -1,0 +1,42 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:AegisVault.App.ViewModels"
+        x:Class="AegisVault.App.Views.UnlockWindow"
+        x:DataType="vm:UnlockViewModel"
+        Title="AegisVault"
+        Width="520" Height="460"
+        CanResize="False"
+        WindowStartupLocation="CenterScreen">
+    <StackPanel Margin="36" Spacing="14">
+        <TextBlock Text="AegisVault" FontSize="30" FontWeight="SemiBold" />
+        <TextBlock Text="盾匣 · 本地加密密码库" Opacity="0.6" />
+
+        <StackPanel Spacing="4">
+            <TextBlock Text="密码库文件" FontSize="12" Opacity="0.7" />
+            <TextBox Text="{Binding VaultPath}" />
+        </StackPanel>
+
+        <StackPanel Spacing="4">
+            <TextBlock Text="主密码" FontSize="12" Opacity="0.7" />
+            <TextBox PasswordChar="●" Text="{Binding MasterPassword, Mode=TwoWay}" />
+        </StackPanel>
+
+        <StackPanel Spacing="4" IsVisible="{Binding CreateNew}">
+            <TextBlock Text="确认主密码" FontSize="12" Opacity="0.7" />
+            <TextBox PasswordChar="●" Text="{Binding ConfirmPassword, Mode=TwoWay}" />
+        </StackPanel>
+
+        <CheckBox Content="创建新密码库" IsChecked="{Binding CreateNew, Mode=TwoWay}" />
+
+        <TextBlock Text="{Binding ErrorMessage}"
+                   Foreground="#E5484D"
+                   TextWrapping="Wrap"
+                   MinHeight="20" />
+        <TextBlock Text="正在处理，请稍候…" IsVisible="{Binding IsBusy}" Opacity="0.6" />
+
+        <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
+            <Button Content="创建" Command="{Binding CreateCommand}" IsVisible="{Binding CreateNew}" />
+            <Button Content="解锁" Command="{Binding UnlockCommand}" IsDefault="True" />
+        </StackPanel>
+    </StackPanel>
+</Window>

@@ -1,0 +1,16 @@
+<Project>
+
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <VersionPrefix>0.1.0</VersionPrefix>
+    <Product>AegisVault</Product>
+    <Authors>AegisVault contributors</Authors>
+    <RepositoryType>git</RepositoryType>
+  </PropertyGroup>
+
+</Project>

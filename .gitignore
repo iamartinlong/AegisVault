@@ -1,0 +1,29 @@
+## .NET build outputs
+bin/
+obj/
+publish/
+artifacts/
+
+## IDE
+.vs/
+.idea/
+*.user
+*.suo
+*.userosscache
+
+## Packages / test results
+*.nupkg
+TestResults/
+*.trx
+
+## OS
+Thumbs.db
+.DS_Store
+
+## Local vaults and secrets (never commit)
+*.aegis
+*.aegis.bak
+*.db
+*.db-wal
+*.db-shm
+secrets.json

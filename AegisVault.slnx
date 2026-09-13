@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/AegisVault.App/AegisVault.App.csproj" />
+    <Project Path="src/AegisVault.Core/AegisVault.Core.csproj" />
+    <Project Path="src/AegisVault.Platform/AegisVault.Platform.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/AegisVault.App.Tests/AegisVault.App.Tests.csproj" />
+    <Project Path="tests/AegisVault.Core.Tests/AegisVault.Core.Tests.csproj" />
+  </Folder>
+</Solution>
