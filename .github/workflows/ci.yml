@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    name: build-test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-22.04, macos-14]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+          cache: true
+          cache-dependency-path: '**/Directory.Packages.props'
+
+      - name: Use official NuGet feed
+        shell: bash
+        run: |
+          cat > nuget.config <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <configuration>
+            <packageSources>
+              <clear />
+              <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
+            </packageSources>
+          </configuration>
+          EOF
+
+      - name: Restore
+        run: dotnet restore AegisVault.slnx
+
+      - name: Build
+        run: dotnet build AegisVault.slnx -c Release --no-restore -warnaserror
+
+      # Vulnerability audit is enforced by -warnaserror (NU1901-NU1904); this step is informational.
+      - name: Vulnerability scan
+        run: dotnet list AegisVault.slnx package --vulnerable --include-transitive
+
+      - name: Test
+        run: dotnet test AegisVault.slnx -c Release --no-build
