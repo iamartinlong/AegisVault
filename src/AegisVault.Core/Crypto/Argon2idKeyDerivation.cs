@@ -28,7 +28,8 @@ public sealed class Argon2idKeyDerivation : IKeyDerivation
         }
 
         var iterations = parameters.Iterations;
-        if (iterations < 1 || iterations > 16)
+        // libsodium (via Sodium.Core) enforces a minimum of 3 passes.
+        if (iterations < 3 || iterations > 16)
         {
             throw new ArgumentOutOfRangeException(nameof(parameters), "Argon2id iterations out of range.");
         }

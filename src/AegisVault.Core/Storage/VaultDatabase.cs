@@ -42,6 +42,11 @@ internal sealed class VaultDatabase : IDisposable
             Directory.CreateDirectory(directory);
         }
 
+        if (File.Exists(fullPath) && !IsVaultFile(fullPath))
+        {
+            throw new InvalidDataException("The file is not an AegisVault vault.");
+        }
+
         var connectionString = new SqliteConnectionStringBuilder
         {
             DataSource = fullPath,
@@ -225,6 +230,29 @@ internal sealed class VaultDatabase : IDisposable
     public void Dispose()
     {
         _connection.Dispose();
+    }
+
+    private static bool IsVaultFile(string path)
+    {
+        var connectionString = new SqliteConnectionStringBuilder
+        {
+            DataSource = path,
+            Mode = SqliteOpenMode.ReadOnly,
+            Pooling = false,
+        }.ToString();
+
+        try
+        {
+            using var connection = new SqliteConnection(connectionString);
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'vault_meta';";
+            return Convert.ToInt64(command.ExecuteScalar(), CultureInfo.InvariantCulture) == 1;
+        }
+        catch (SqliteException)
+        {
+            return false;
+        }
     }
 
     private static void ExecuteNonQuery(SqliteConnection connection, SqliteTransaction? transaction, string sql)

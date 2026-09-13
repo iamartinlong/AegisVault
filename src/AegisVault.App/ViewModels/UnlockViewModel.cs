@@ -79,6 +79,9 @@ public partial class UnlockViewModel : ObservableObject
                     case VaultUnlockStatus.WrongPassword:
                         ErrorMessage = "主密码错误。";
                         break;
+                    case VaultUnlockStatus.UnsupportedVersion:
+                        ErrorMessage = "该密码库由更高版本的 AegisVault 创建，请升级应用。";
+                        break;
                     default:
                         ErrorMessage = "密码库文件已损坏或无法识别。";
                         break;

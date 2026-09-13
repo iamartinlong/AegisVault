@@ -224,6 +224,65 @@ public sealed class VaultServiceTests : IDisposable
         Assert.Equal(plaintext, decrypted);
     }
 
+    [Fact]
+    public void NewerFormatVersionReturnsUnsupportedVersion()
+    {
+        using (VaultService.CreateNew(_vaultPath, Password, FastOptions))
+        {
+        }
+
+        using (var connection = new SqliteConnection($"Data Source={_vaultPath}"))
+        {
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = "UPDATE vault_meta SET format_version = 99 WHERE id = 1;";
+            command.ExecuteNonQuery();
+        }
+
+        using var vault = VaultService.Open(_vaultPath);
+        Assert.Equal(VaultUnlockStatus.UnsupportedVersion, vault.Unlock(Password));
+    }
+
+    [Fact]
+    public void NewerEntryVersionReportsCorrupted()
+    {
+        using (var vault = VaultService.CreateNew(_vaultPath, Password, FastOptions))
+        {
+            vault.AddEntry(TestEntry("GitHub"));
+        }
+
+        using (var connection = new SqliteConnection($"Data Source={_vaultPath}"))
+        {
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = "UPDATE entries SET version = 99;";
+            command.ExecuteNonQuery();
+        }
+
+        using var reopened = VaultService.Open(_vaultPath);
+        Assert.Equal(VaultUnlockStatus.Corrupted, reopened.Unlock(Password));
+    }
+
+    [Fact]
+    public void OpenNonVaultFileThrowsWithoutModifyingIt()
+    {
+        var bogusPath = Path.Combine(_directory, "notes.txt");
+        var content = Encoding.UTF8.GetBytes("this is not a vault");
+        File.WriteAllBytes(bogusPath, content);
+
+        Assert.Throws<InvalidDataException>(() => VaultService.Open(bogusPath));
+        Assert.Equal(content, File.ReadAllBytes(bogusPath));
+    }
+
+    [Fact]
+    public void OpenMissingFileThrowsWithoutCreatingIt()
+    {
+        var missingPath = Path.Combine(_directory, "missing.aegis");
+
+        Assert.Throws<InvalidDataException>(() => VaultService.Open(missingPath));
+        Assert.False(File.Exists(missingPath));
+    }
+
     private static PasswordEntry TestEntry(string title) => new()
     {
         Title = title,

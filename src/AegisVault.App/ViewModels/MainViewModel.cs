@@ -87,7 +87,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
     {
         var entry = _vault.AddEntry(new PasswordEntry { Title = "新条目" });
         Entries.Add(entry);
-        ApplyFilter();
+        if (MatchesFilter(entry))
+        {
+            FilteredEntries.Add(entry);
+        }
+
         SelectedEntry = entry;
         StatusMessage = "已创建新条目。";
     }
@@ -130,10 +134,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        if (_vault.DeleteEntry(SelectedEntry.Id))
+        var target = SelectedEntry;
+        if (_vault.DeleteEntry(target.Id))
         {
-            Entries.Remove(SelectedEntry);
-            ApplyFilter();
+            Entries.Remove(target);
+            FilteredEntries.Remove(target);
             SelectedEntry = null;
             StatusMessage = "已删除条目。";
         }
@@ -176,34 +181,46 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     private void ApplyFilter()
     {
-        var query = SearchText?.Trim() ?? string.Empty;
-        IEnumerable<PasswordEntry> source = Entries;
-
-        if (query.Length > 0)
-        {
-            source = Entries.Where(entry =>
-                Contains(entry.Title, query) ||
-                Contains(entry.Username, query) ||
-                Contains(entry.Url, query) ||
-                entry.Tags.Any(tag => Contains(tag, query)));
-        }
-
         FilteredEntries.Clear();
-        foreach (var entry in source)
+        foreach (var entry in Entries.Where(MatchesFilter))
         {
             FilteredEntries.Add(entry);
         }
     }
 
-    private void ReplaceInList(PasswordEntry updated)
+    private bool MatchesFilter(PasswordEntry entry)
     {
-        var index = Entries.IndexOf(SelectedEntry!);
-        if (index >= 0)
+        var query = SearchText?.Trim() ?? string.Empty;
+        if (query.Length == 0)
         {
-            Entries[index] = updated;
+            return true;
         }
 
-        ApplyFilter();
+        return Contains(entry.Title, query) ||
+               Contains(entry.Username, query) ||
+               Contains(entry.Url, query) ||
+               entry.Tags.Any(tag => Contains(tag, query));
+    }
+
+    private void ReplaceInList(PasswordEntry updated)
+    {
+        var previous = SelectedEntry;
+        if (previous is null)
+        {
+            return;
+        }
+
+        var allIndex = Entries.IndexOf(previous);
+        if (allIndex >= 0)
+        {
+            Entries[allIndex] = updated;
+        }
+
+        var filteredIndex = FilteredEntries.IndexOf(previous);
+        if (filteredIndex >= 0)
+        {
+            FilteredEntries[filteredIndex] = updated;
+        }
     }
 
     private void UpdateTotp()

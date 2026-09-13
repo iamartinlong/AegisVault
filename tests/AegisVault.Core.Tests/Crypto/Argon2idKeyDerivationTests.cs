@@ -97,6 +97,16 @@ public sealed class Argon2idKeyDerivationTests
     }
 
     [Fact]
+    public void RejectsTooFewIterations()
+    {
+        var derivation = new Argon2idKeyDerivation();
+        var parameters = FastParameters with { Iterations = 2 };
+
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            derivation.DeriveKey(Password, RandomNumberGenerator.GetBytes(16), parameters));
+    }
+
+    [Fact]
     public void RejectsShortSalt()
     {
         var derivation = new Argon2idKeyDerivation();

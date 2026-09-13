@@ -11,6 +11,7 @@ public enum VaultUnlockStatus
     Success,
     WrongPassword,
     Corrupted,
+    UnsupportedVersion,
 }
 
 /// <summary>
@@ -73,11 +74,10 @@ public sealed class VaultService : IDisposable
 
                 database.WriteMeta(header);
 
-                var service = new VaultService(database, header)
-                {
-                    _dek = SecureBuffer.From(dekBytes),
-                };
-                return service;
+                var dek = SecureBuffer.From(dekBytes);
+                dek.ProtectReadOnly();
+
+                return new VaultService(database, header) { _dek = dek };
             }
             finally
             {
@@ -94,6 +94,11 @@ public sealed class VaultService : IDisposable
     /// <summary>Opens an existing vault file without unlocking it.</summary>
     public static VaultService Open(string path)
     {
+        if (!File.Exists(path))
+        {
+            throw new InvalidDataException("The file is not an AegisVault vault (file not found).");
+        }
+
         var database = VaultDatabase.OpenOrCreate(path);
         try
         {
@@ -112,6 +117,11 @@ public sealed class VaultService : IDisposable
     public VaultUnlockStatus Unlock(ReadOnlySpan<byte> password)
     {
         ThrowIfDisposed();
+
+        if (_header.FormatVersion > VaultHeader.CurrentFormatVersion)
+        {
+            return VaultUnlockStatus.UnsupportedVersion;
+        }
 
         IKeyDerivation derivation;
         try
@@ -144,6 +154,8 @@ public sealed class VaultService : IDisposable
             dek.Dispose();
             return VaultUnlockStatus.Corrupted;
         }
+
+        dek.ProtectReadOnly();
 
         _entries.Clear();
         _entries.AddRange(loaded);
@@ -294,6 +306,12 @@ public sealed class VaultService : IDisposable
         var loaded = new List<PasswordEntry>();
         foreach (var record in _database.ReadEntries())
         {
+            if (record.Version > EntryRepository.EntryFormatVersion)
+            {
+                throw new InvalidDataException(
+                    $"Entry format version {record.Version} is newer than this application supports.");
+            }
+
             loaded.Add(EntryRepository.Decrypt(
                 dek.ReadOnlySpan,
                 record.Id,
