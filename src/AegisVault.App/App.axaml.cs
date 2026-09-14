@@ -336,6 +336,7 @@ public partial class App : Application
             var viewModel = new QuickAccessViewModel(_mainViewModel, _clipboard);
             viewModel.EntryActivated += ShowMainWindow;
             _quickAccess = new QuickAccessWindow { DataContext = viewModel };
+            _quickAccess.Closed += (_, _) => viewModel.Dispose();
         }
 
         if (_quickAccess.IsVisible)

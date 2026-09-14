@@ -11,7 +11,7 @@ namespace AegisVault.App.ViewModels;
 /// Backs the global quick-access overlay: type-to-filter entries and copy or
 /// jump to the selected one, entirely from the keyboard.
 /// </summary>
-public partial class QuickAccessViewModel : ObservableObject
+public partial class QuickAccessViewModel : ObservableObject, IDisposable
 {
     private readonly MainViewModel _main;
     private readonly ClipboardService? _clipboard;
@@ -29,6 +29,8 @@ public partial class QuickAccessViewModel : ObservableObject
         _main.Entries.CollectionChanged += OnEntriesChanged;
         ApplyFilter();
     }
+
+    public void Dispose() => _main.Entries.CollectionChanged -= OnEntriesChanged;
 
     public ObservableCollection<PasswordEntry> FilteredEntries { get; } = [];
 

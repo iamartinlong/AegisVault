@@ -25,6 +25,7 @@ public partial class MainWindow : Window
     {
         ClipboardToast.IsVisible = false;
         LockOverlay.IsVisible = true;
+        UnlockButton.Focus();
     }
 
     public void HideLockOverlay() => LockOverlay.IsVisible = false;
@@ -56,6 +57,21 @@ public partial class MainWindow : Window
 
     protected override void OnKeyDown(KeyEventArgs e)
     {
+        if (LockOverlay.IsVisible)
+        {
+            // While locked in place the window must not react to any shortcut.
+            if (e.Key is Key.Enter or Key.Space && e.KeyModifiers == KeyModifiers.None)
+            {
+                UnlockRequested?.Invoke();
+                e.Handled = true;
+                return;
+            }
+
+            e.Handled = true;
+            base.OnKeyDown(e);
+            return;
+        }
+
         if (DataContext is not MainViewModel viewModel)
         {
             base.OnKeyDown(e);

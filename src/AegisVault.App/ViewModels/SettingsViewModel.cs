@@ -242,14 +242,16 @@ public partial class SettingsViewModel : ObservableObject
     }
 
     /// <summary>Imports entries from a CSV file (Bitwarden or generic layout).</summary>
-    public ImportResult ImportCsvFrom(string path)
+    public async Task<ImportResult> ImportCsvFromAsync(string path)
     {
         try
         {
-            var result = VaultCsvImporter.Import(_vault, File.ReadAllText(path));
-            StatusMessage = $"导入完成：新增 {result.Imported} 条，跳过 {result.Skipped} 条。";
+            // Parsing + vault writes run off the UI thread; the completion
+            // message and reload marshalled back by the callers.
+            var (imported, skipped) = await Task.Run(() => VaultCsvImporter.Import(_vault, File.ReadAllText(path)));
+            StatusMessage = $"导入完成：新增 {imported} 条，跳过 {skipped} 条。";
             _imported?.Invoke();
-            return result;
+            return new ImportResult(imported, skipped);
         }
         catch (Exception)
         {

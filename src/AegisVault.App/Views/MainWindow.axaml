@@ -340,7 +340,8 @@
                                    FontSize="12"
                                    Opacity="0.65"
                                    HorizontalAlignment="Center" />
-                        <Button Content="解锁"
+                        <Button x:Name="UnlockButton"
+                                Content="解锁"
                                 MinWidth="120"
                                 HorizontalAlignment="Center"
                                 Click="OnUnlockClicked" />

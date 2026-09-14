@@ -59,7 +59,7 @@ public partial class SettingsWindow : Window
 
             if (files is { Count: 1 })
             {
-                await Task.Run(() => viewModel.ImportCsvFrom(files[0].Path.LocalPath));
+                await viewModel.ImportCsvFromAsync(files[0].Path.LocalPath);
             }
         }
         catch (Exception)
