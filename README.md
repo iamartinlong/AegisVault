@@ -16,8 +16,13 @@
 - ⏱️ **TOTP 验证码**：RFC 6238（SHA-1/256/512），倒计时展示与一键复制
 - 🎲 **密码生成器**：长度/字符集/排除易混淆字符/熵强度预估
 - 📋 **剪贴板保护**：复制密文后按配置延时自动清除（仅在内容未被替换时，且仅保留哈希指纹）
-- 🔒 **自动锁定**：空闲超时（默认 5 分钟）、最小化、系统锁屏、挂起
-- 🖥️ **桌面集成**：系统托盘 + 最小化到托盘、托盘菜单一键锁定
+- 🔒 **自动锁定**：空闲超时（默认 5 分钟）、最小化、系统锁屏、挂起；锁定即清内存并显示遮罩，一键解锁
+- 🖥️ **桌面集成**：系统托盘（打开/快速访问/设置/锁定/退出）、可选悬浮球、最小化到托盘
+- ⚡ **快速访问**：`Ctrl+Shift+Space` 全局热键呼出浮层（Windows），搜索 + 键盘复制 + 跳转条目
+- 🩺 **安全健康面板**：弱密码与跨条目复用检测，一键过滤问题条目
+- 📥 **导入**：Bitwarden CSV 与通用格式（自动识别），后台导入
+- 📋 **剪贴板保护**：复制密文后按配置延时自动清除（仅在内容未被替换时，且仅保留哈希指纹），带倒计时提示与"立即清除"
+- 🛡️ **防截屏**（Windows）：窗口内容排除在截屏/录屏之外（默认开启，可关闭）
 - 💻 **记住设备**（Windows）：DPAPI 保护设备密钥，下次启动免密解锁；更换主密码即自动失效
 - 🛡️ **进程硬化**：禁用核心转储（Windows `SetErrorMode` / Unix `setrlimit`）、锁屏/挂起监听
 - ⌨️ **安全输入**（Windows，实验性）：系统安全桌面凭据对话框，阻断常规键盘记录
@@ -33,7 +38,7 @@
 | 存储 | SQLite（Microsoft.Data.Sqlite 10.0.12 + SQLitePCLRaw 2.1.12 / SQLite 3.53.3） |
 | 密码学 | libsodium（Sodium.Core，Argon2id）+ BCL AES-256-GCM |
 | 平台安全 | Windows DPAPI / CredUI（macOS Keychain、Linux libsecret 预留接口） |
-| 测试 | xUnit（146 项：Core / Platform / Headless UI） |
+| 测试 | xUnit（201 项：Core / Platform / Headless UI） |
 
 ## 快速开始
 
@@ -46,7 +51,7 @@ dotnet build -c Release
 # 运行（开发）
 dotnet run --project src/AegisVault.App
 
-# 测试（146 项）
+# 测试（201 项）
 dotnet test -c Release
 
 # NativeAOT 单文件发布（示例：Windows x64）
@@ -96,10 +101,10 @@ DEK(随机 32B) ──AES-256-GCM(每条目随机 nonce)──▶ 条目密文�
 ## 路线图
 
 - [x] M0–M7：工程基线、密码学内核、加密存储、核心服务、UI、桌面集成、安全硬化、CI/CD
-- [ ] 导入（CSV / Bitwarden / Chrome）与密码历史
-- [ ] 悬浮球与全局热键
+- [x] P0–P3：解锁重构、三栏主窗口、快速访问/热键/悬浮球/防截屏、健康面板、CSV 导入
+- [ ] i18n（中英）与自动填充（增强复制流 → 浏览器扩展）
 - [ ] macOS Keychain / Linux libsecret 完整实现
-- [ ] 自动填充、附件、多库管理与同步
+- [ ] 附件、多库管理与同步
 - [ ] 代码签名与 macOS 公证
 
 ## 许可证
