@@ -22,6 +22,7 @@ public partial class SettingsViewModel : ObservableObject
     private readonly Action<string>? _applyTheme;
     private readonly Action<bool>? _applyScreenGuard;
     private readonly Action<bool>? _applyFloatingBall;
+    private readonly Action? _imported;
 
     public SettingsViewModel(
         VaultService vault,
@@ -32,7 +33,8 @@ public partial class SettingsViewModel : ObservableObject
         bool screenGuardSupported = false,
         Action<bool>? applyScreenGuard = null,
         bool showFloatingBall = false,
-        Action<bool>? applyFloatingBall = null)
+        Action<bool>? applyFloatingBall = null,
+        Action? imported = null)
     {
         _vault = vault;
         _config = config;
@@ -40,6 +42,7 @@ public partial class SettingsViewModel : ObservableObject
         _applyTheme = applyTheme;
         _applyScreenGuard = applyScreenGuard;
         _applyFloatingBall = applyFloatingBall;
+        _imported = imported;
 
         var user = config.Current;
         SelectedAutoLock = AutoLockOptions.FirstOrDefault(option => option.Minutes == user.AutoLockMinutes) ?? AutoLockOptions[0];
@@ -235,6 +238,23 @@ public partial class SettingsViewModel : ObservableObject
         catch (Exception)
         {
             StatusMessage = "备份失败。";
+        }
+    }
+
+    /// <summary>Imports entries from a CSV file (Bitwarden or generic layout).</summary>
+    public ImportResult ImportCsvFrom(string path)
+    {
+        try
+        {
+            var result = VaultCsvImporter.Import(_vault, File.ReadAllText(path));
+            StatusMessage = $"导入完成：新增 {result.Imported} 条，跳过 {result.Skipped} 条。";
+            _imported?.Invoke();
+            return result;
+        }
+        catch (Exception)
+        {
+            StatusMessage = "导入失败：无法读取该 CSV 文件。";
+            return new ImportResult(0, 0);
         }
     }
 

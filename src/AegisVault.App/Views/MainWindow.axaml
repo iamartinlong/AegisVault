@@ -31,9 +31,22 @@
         </Grid>
 
         <Grid Grid.Row="1" ColumnDefinitions="210,4,330,4,*" Margin="12,0,12,12">
-            <ListBox Grid.Column="0"
-                     ItemsSource="{Binding Categories}"
-                     SelectedItem="{Binding SelectedCategory}">
+            <Grid Grid.Column="0" RowDefinitions="Auto,Auto,*">
+                <Button Grid.Row="0"
+                        HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Stretch"
+                        Padding="8,6"
+                        Command="{Binding ShowSecurityCommand}"
+                        ToolTip.Tip="查看弱密码与重复密码条目">
+                    <TextBlock Text="{Binding HealthSummary}"
+                               FontSize="11"
+                               TextWrapping="Wrap"
+                               HorizontalAlignment="Left" />
+                </Button>
+                <TextBlock Grid.Row="1" Text="分类" FontSize="11" Opacity="0.5" Margin="4,8,0,4" />
+                <ListBox Grid.Row="2"
+                         ItemsSource="{Binding Categories}"
+                         SelectedItem="{Binding SelectedCategory}">
                 <ListBox.ItemTemplate>
                     <DataTemplate DataType="vm:CategoryItem">
                         <Grid ColumnDefinitions="*,Auto">
@@ -48,7 +61,8 @@
                         </Grid>
                     </DataTemplate>
                 </ListBox.ItemTemplate>
-            </ListBox>
+                </ListBox>
+            </Grid>
 
             <GridSplitter Grid.Column="1" Width="4" Background="Transparent" />
 

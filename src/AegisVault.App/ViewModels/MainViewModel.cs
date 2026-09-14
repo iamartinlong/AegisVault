@@ -15,6 +15,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
 {
     private const string AllCategoryKey = "all";
     private const string FavoritesCategoryKey = "favorites";
+    private const string WeakCategoryKey = "weak";
 
     private readonly VaultService _vault;
     private readonly ClipboardService? _clipboard;
@@ -22,6 +23,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private readonly DispatcherTimer _toastTimer;
     private bool _loadingEditor;
     private PasswordStrengthResult? _editPasswordStrength;
+    private VaultHealthReport _health = new(0, 0, 0, 0, new HashSet<Guid>(), new HashSet<Guid>());
 
     public event Action? LockRequested;
 
@@ -111,6 +113,16 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private int clipboardToastRemaining;
 
     public string ClipboardToastText => $"已复制到剪贴板，{ClipboardToastRemaining} 秒后自动清除。";
+
+    public VaultHealthReport Health => _health;
+
+    public bool HasSecurityIssues => _health.WeakCount > 0 || _health.ReusedCount > 0;
+
+    public string HealthSummary => _health.TotalEntries == 0
+        ? "密码库为空"
+        : HasSecurityIssues
+            ? $"安全：{_health.WeakCount} 条弱密码，{_health.ReusedCount} 条重复"
+            : $"安全：{_health.TotalEntries} 条密码全部良好";
 
     public bool HasSelection => SelectedEntry is not null;
 
@@ -282,6 +294,16 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private void TogglePasswordReveal() => IsPasswordRevealed = !IsPasswordRevealed;
 
     [RelayCommand]
+    private void ShowSecurity()
+    {
+        var category = Categories.FirstOrDefault(item => item.Key == WeakCategoryKey);
+        if (category is not null)
+        {
+            SelectedCategory = category;
+        }
+    }
+
+    [RelayCommand]
     private async Task CopyPasswordAsync()
     {
         if (_clipboard is null || string.IsNullOrEmpty(EditPassword))
@@ -343,6 +365,20 @@ public partial class MainViewModel : ObservableObject, IDisposable
         LockRequested?.Invoke();
     }
 
+    /// <summary>Rebuilds the entry list from the vault (e.g. after an import).</summary>
+    public void ReloadFromVault()
+    {
+        SelectedEntry = null;
+        Entries.Clear();
+        foreach (var entry in _vault.Entries)
+        {
+            Entries.Add(entry);
+        }
+
+        RefreshCategories();
+        ApplyFilter();
+    }
+
     public void Dispose()
     {
         _totpTimer.Stop();
@@ -391,6 +427,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
     {
         var selectedKey = SelectedCategory?.Key;
 
+        _health = VaultHealth.Analyze(Entries);
+        OnPropertyChanged(nameof(Health));
+        OnPropertyChanged(nameof(HasSecurityIssues));
+        OnPropertyChanged(nameof(HealthSummary));
+
         Categories.Clear();
         Categories.Add(new CategoryItem(AllCategoryKey, "全部条目", null, false, Entries.Count));
         Categories.Add(new CategoryItem(
@@ -399,6 +440,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
             null,
             true,
             Entries.Count(entry => entry.IsFavorite)));
+
+        var issueCount = _health.IssueCount;
+        if (issueCount > 0)
+        {
+            Categories.Add(new CategoryItem(WeakCategoryKey, "安全", null, false, issueCount));
+        }
 
         var tags = Entries
             .SelectMany(entry => entry.Tags)
@@ -426,12 +473,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
         }
 
         FilteredEntries.Clear();
-        foreach (var entry in Entries)
+        foreach (var entry in Entries
+                     .Where(entry => MatchesCategory(entry) && MatchesSearch(entry))
+                     .OrderByDescending(static entry => entry.IsFavorite)
+                     .ThenBy(static entry => entry.Title, StringComparer.OrdinalIgnoreCase))
         {
-            if (MatchesCategory(entry) && MatchesSearch(entry))
-            {
-                FilteredEntries.Add(entry);
-            }
+            FilteredEntries.Add(entry);
         }
 
         if (SelectedEntry is not null && !FilteredEntries.Contains(SelectedEntry))
@@ -447,6 +494,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
         if (SelectedCategory is null || SelectedCategory.Key == AllCategoryKey)
         {
             return true;
+        }
+
+        if (SelectedCategory.Key == WeakCategoryKey)
+        {
+            return _health.WeakEntryIds.Contains(entry.Id) || _health.ReusedEntryIds.Contains(entry.Id);
         }
 
         if (SelectedCategory.IsFavorites)

@@ -40,4 +40,30 @@ public partial class SettingsWindow : Window
         {
         }
     }
+
+    private async void OnImportClicked(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (DataContext is not SettingsViewModel viewModel)
+            {
+                return;
+            }
+
+            var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = "选择要导入的 CSV 文件",
+                AllowMultiple = false,
+                FileTypeFilter = [new FilePickerFileType("CSV 导出") { Patterns = ["*.csv"] }],
+            });
+
+            if (files is { Count: 1 })
+            {
+                await Task.Run(() => viewModel.ImportCsvFrom(files[0].Path.LocalPath));
+            }
+        }
+        catch (Exception)
+        {
+        }
+    }
 }

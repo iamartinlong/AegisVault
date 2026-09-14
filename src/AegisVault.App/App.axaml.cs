@@ -431,7 +431,8 @@ public partial class App : Application
                 _preferences = _preferences with { ShowFloatingBall = show };
                 SavePreferences();
                 UpdateFloatingBall();
-            });
+            },
+            imported: () => _mainViewModel?.ReloadFromVault());
         var window = new SettingsWindow { DataContext = viewModel };
         _ = window.ShowDialog(_mainWindow);
     }
