@@ -13,6 +13,7 @@ using Avalonia.Markup.Xaml;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Styling;
+using Avalonia.Threading;
 
 namespace AegisVault.App;
 
@@ -30,6 +31,10 @@ public partial class App : Application
     private SessionLockWatcher? _sessionWatcher;
     private SecureConfigService? _configService;
     private TrayIcon? _trayIcon;
+    private QuickAccessWindow? _quickAccess;
+    private FloatingBallWindow? _floatingBall;
+    private HotKeyService? _hotKey;
+    private bool _unlockDialogOpen;
 
     public override void Initialize()
     {
@@ -49,6 +54,7 @@ public partial class App : Application
             _preferences = _preferencesStore.Load();
             ApplyThemeVariant(_preferences.Theme);
             InitializeTray();
+            InitializeHotKey();
             ShowUnlock(desktop);
         }
 
@@ -68,6 +74,9 @@ public partial class App : Application
 
             var menu = new NativeMenu();
             menu.Add(CreateMenuItem("打开 AegisVault", OnTrayOpenClicked));
+            menu.Add(CreateMenuItem("快速访问", OnTrayQuickAccessClicked));
+            menu.Add(CreateMenuItem("设置", OnTraySettingsClicked));
+            menu.Add(new NativeMenuItemSeparator());
             menu.Add(CreateMenuItem("锁定", OnTrayLockClicked));
             menu.Add(new NativeMenuItemSeparator());
             menu.Add(CreateMenuItem("退出", OnTrayExitClicked));
@@ -127,10 +136,23 @@ public partial class App : Application
         sessionWatcher.ScreenLocked += autoLock.ReportScreenLocked;
         sessionWatcher.Suspended += autoLock.ReportSuspended;
         var viewModel = new MainViewModel(vault, clipboard);
-        var window = new MainWindow();
+        var window = _mainWindow;
+
+        if (window is null)
+        {
+            window = new MainWindow();
+            _mainWindow = window;
+            window.Closed += (_, _) =>
+            {
+                if (ReferenceEquals(_mainWindow, window))
+                {
+                    CleanupSession();
+                }
+            };
+            desktop.MainWindow = window;
+        }
 
         _vault = vault;
-        _mainWindow = window;
         _mainViewModel = viewModel;
         _autoLock = autoLock;
         _clipboard = clipboard;
@@ -142,17 +164,15 @@ public partial class App : Application
         window.Attach(viewModel, clipboard, autoLock, ShowSettings);
         viewModel.LockRequested += LockVault;
         autoLock.LockTriggered += _ => LockVault();
-        window.Closed += (_, _) =>
-        {
-            if (ReferenceEquals(_mainWindow, window))
-            {
-                CleanupSession();
-            }
-        };
+        window.UnlockRequested += OnUnlockRequested;
 
-        desktop.MainWindow = window;
         window.Show();
+        window.WindowState = WindowState.Normal;
+        window.Activate();
         unlockWindow.Close();
+
+        ApplyScreenGuard(window);
+        UpdateFloatingBall();
     }
 
     private void LockVault()
@@ -162,19 +182,60 @@ public partial class App : Application
             return;
         }
 
-        var window = _mainWindow;
-        CleanupSession();
+        _quickAccess?.Hide();
 
-        if (_desktop is { } desktop)
+        var window = _mainWindow;
+        if (window is null)
         {
-            ShowUnlock(desktop);
+            CleanupSession();
+            if (_desktop is { } desktop)
+            {
+                ShowUnlock(desktop);
+            }
+            return;
         }
 
-        window?.Close();
+        window.UnlockRequested -= OnUnlockRequested;
+        CleanupSession(keepWindow: true);
+        window.DataContext = new LockViewModel();
+        window.ShowLockOverlay();
+        window.Activate();
     }
 
-    private void CleanupSession()
+    private async void OnUnlockRequested()
     {
+        if (_mainWindow is null || _unlockDialogOpen)
+        {
+            return;
+        }
+
+        _unlockDialogOpen = true;
+        try
+        {
+            var viewModel = new UnlockViewModel
+            {
+                DeviceKeyProtector = CreateKeyProtector(),
+                SecureInputAvailable = OperatingSystem.IsWindows(),
+            };
+            viewModel.ApplyPreferences(_preferences);
+            var window = new UnlockWindow { DataContext = viewModel };
+            viewModel.VaultOpened += vault => ShowMain(_desktop!, window, vault);
+            await window.ShowDialog(_mainWindow);
+        }
+        catch (Exception)
+        {
+        }
+        finally
+        {
+            _unlockDialogOpen = false;
+        }
+    }
+
+    private void CleanupSession(bool keepWindow = false)
+    {
+        _quickAccess?.Hide();
+        _quickAccess = null;
+
         _sessionWatcher?.Dispose();
         _sessionWatcher = null;
 
@@ -195,7 +256,10 @@ public partial class App : Application
 
         _vault?.Dispose();
         _vault = null;
-        _mainWindow = null;
+        if (!keepWindow)
+        {
+            _mainWindow = null;
+        }
     }
 
     private void ShowMainWindow()
@@ -214,12 +278,115 @@ public partial class App : Application
 
     private void OnTrayOpenClicked(object? sender, EventArgs e) => ShowMainWindow();
 
+    private void OnTrayQuickAccessClicked(object? sender, EventArgs e) => ToggleQuickAccess();
+
+    private void OnTraySettingsClicked(object? sender, EventArgs e)
+    {
+        ShowMainWindow();
+        ShowSettings();
+    }
+
     private void OnTrayLockClicked(object? sender, EventArgs e) => LockVault();
 
     private void OnTrayExitClicked(object? sender, EventArgs e)
     {
         CleanupSession();
+        _hotKey?.Dispose();
+        _floatingBall?.Close();
         _desktop?.Shutdown();
+    }
+
+    private void InitializeHotKey()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        try
+        {
+            var hotKey = new HotKeyService();
+            if (hotKey.TryRegister(HotKeyService.ModControl | HotKeyService.ModShift, 0x20 /* VK_SPACE */))
+            {
+                hotKey.HotKeyPressed += () => Dispatcher.UIThread.Post(ToggleQuickAccess);
+                _hotKey = hotKey;
+            }
+            else
+            {
+                hotKey.Dispose();
+            }
+        }
+        catch (Exception)
+        {
+            // Global hotkey is best effort; quick access stays available via tray.
+        }
+    }
+
+    private void ToggleQuickAccess()
+    {
+        if (_mainViewModel is null || _mainWindow is null)
+        {
+            // Locked or not yet unlocked: bring the main window up instead.
+            ShowMainWindow();
+            return;
+        }
+
+        if (_quickAccess is null)
+        {
+            var viewModel = new QuickAccessViewModel(_mainViewModel, _clipboard);
+            viewModel.EntryActivated += ShowMainWindow;
+            _quickAccess = new QuickAccessWindow { DataContext = viewModel };
+        }
+
+        if (_quickAccess.IsVisible)
+        {
+            _quickAccess.Hide();
+            _mainWindow.Activate();
+            return;
+        }
+
+        _quickAccess.Show();
+        _quickAccess.Activate();
+        ApplyScreenGuard(_quickAccess);
+    }
+
+    private void UpdateFloatingBall()
+    {
+        if (_mainWindow is null || !_preferences.ShowFloatingBall)
+        {
+            _floatingBall?.Hide();
+            return;
+        }
+
+        if (_floatingBall is null)
+        {
+            _floatingBall = new FloatingBallWindow();
+            _floatingBall.BallClicked += ToggleQuickAccess;
+        }
+
+        if (!_floatingBall.IsVisible)
+        {
+            _floatingBall.Show();
+        }
+    }
+
+    private void ApplyScreenGuard(Avalonia.Controls.Window window)
+    {
+        var exclude = _configService?.Current.DisableScreenCapture != false;
+        if (!exclude)
+        {
+            return;
+        }
+
+        try
+        {
+            var handle = window.TryGetPlatformHandle()?.Handle ?? 0;
+            ScreenCaptureGuard.TrySetExcluded(handle, true);
+        }
+        catch (Exception)
+        {
+            // Screen capture exclusion is best effort.
+        }
     }
 
     private static IKeyProtector? CreateKeyProtector()
@@ -249,7 +416,22 @@ public partial class App : Application
             _configService,
             CreateKeyProtector(),
             ApplyTheme,
-            _preferences.Theme);
+            _preferences.Theme,
+            screenGuardSupported: ScreenCaptureGuard.IsSupported,
+            applyScreenGuard: _ =>
+            {
+                if (_mainWindow is { } window)
+                {
+                    ApplyScreenGuard(window);
+                }
+            },
+            showFloatingBall: _preferences.ShowFloatingBall,
+            applyFloatingBall: show =>
+            {
+                _preferences = _preferences with { ShowFloatingBall = show };
+                SavePreferences();
+                UpdateFloatingBall();
+            });
         var window = new SettingsWindow { DataContext = viewModel };
         _ = window.ShowDialog(_mainWindow);
     }

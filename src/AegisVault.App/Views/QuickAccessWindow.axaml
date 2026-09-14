@@ -1,0 +1,75 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:AegisVault.App.ViewModels"
+        xmlns:models="using:AegisVault.Core.Models"
+        x:Class="AegisVault.App.Views.QuickAccessWindow"
+        x:DataType="vm:QuickAccessViewModel"
+        Width="520" SizeToContent="Height"
+        MaxHeight="420" MinHeight="120"
+        CanResize="False"
+        ShowInTaskbar="False"
+        Topmost="True"
+        WindowDecorations="None"
+        TransparencyLevelHint="Transparent"
+        Background="Transparent"
+        ExtendClientAreaToDecorationsHint="True"
+        WindowStartupLocation="CenterScreen">
+    <Panel Margin="16">
+        <Border CornerRadius="12"
+                BorderThickness="1"
+                BorderBrush="#40808080"
+                Background="{DynamicResource SystemRegionBrush}"
+                Padding="12"
+                BoxShadow="0 8 24 0 #40000000">
+            <Grid RowDefinitions="Auto,*" Margin="4">
+                <TextBox x:Name="SearchBox"
+                         Grid.Row="0"
+                         Text="{Binding SearchText}"
+                         PlaceholderText="搜索条目，Enter 跳转，Esc 关闭…" />
+
+                <Panel Grid.Row="1" Margin="0,8,0,0" MinHeight="60">
+                    <ListBox x:Name="ResultsList"
+                             ItemsSource="{Binding FilteredEntries}"
+                             SelectedItem="{Binding SelectedEntry}">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate DataType="models:PasswordEntry">
+                                <Grid ColumnDefinitions="*,Auto" Margin="2,4">
+                                    <StackPanel Grid.Column="0" Spacing="2">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <TextBlock Text="★"
+                                                       Foreground="#FAAD14"
+                                                       IsVisible="{Binding IsFavorite}" />
+                                            <TextBlock Text="{Binding Title}"
+                                                       FontWeight="SemiBold"
+                                                       TextTrimming="CharacterEllipsis" />
+                                        </StackPanel>
+                                        <TextBlock Text="{Binding Username}"
+                                                   FontSize="11"
+                                                   Opacity="0.6"
+                                                   TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1"
+                                                Orientation="Horizontal"
+                                                Spacing="2"
+                                                VerticalAlignment="Center">
+                                        <Button Content="👤"
+                                                ToolTip.Tip="复制用户名"
+                                                Click="OnCopyUsernameClicked" />
+                                        <Button Content="🔑"
+                                                ToolTip.Tip="复制密码"
+                                                Click="OnCopyPasswordClicked" />
+                                    </StackPanel>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                    <TextBlock Text="没有匹配的条目"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               Opacity="0.45"
+                               IsVisible="{Binding !HasResults}" />
+                </Panel>
+            </Grid>
+        </Border>
+    </Panel>
+</Window>

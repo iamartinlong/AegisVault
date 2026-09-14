@@ -9,7 +9,8 @@
         Width="1100" Height="700"
         MinWidth="900" MinHeight="560"
         WindowStartupLocation="CenterScreen">
-    <Grid RowDefinitions="Auto,*">
+    <Panel>
+        <Grid RowDefinitions="Auto,*">
         <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="20,14,20,10">
             <TextBlock Grid.Column="0"
                        Text="AegisVault"
@@ -282,5 +283,56 @@
                 </ScrollViewer>
             </Panel>
         </Grid>
-    </Grid>
+        </Grid>
+
+        <Border x:Name="ClipboardToast"
+                IsVisible="False"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Bottom"
+                Margin="0,0,0,24"
+                CornerRadius="8"
+                Padding="14,8"
+                Background="#E6303030"
+                BoxShadow="0 4 12 0 #40000000">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+                <TextBlock Text="{Binding ClipboardToastText}"
+                           Foreground="White"
+                           VerticalAlignment="Center" />
+                <Button Content="立即清除"
+                        Command="{Binding ClearClipboardNowCommand}" />
+            </StackPanel>
+        </Border>
+
+        <Border x:Name="LockOverlay"
+                IsVisible="False"
+                Background="{DynamicResource SystemRegionBrush}">
+            <Panel>
+                <Border HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        CornerRadius="12"
+                        BorderThickness="1"
+                        BorderBrush="#40808080"
+                        Padding="36,28"
+                        BoxShadow="0 8 24 0 #30000000">
+                    <StackPanel Spacing="14" HorizontalAlignment="Center">
+                        <TextBlock Text="🔒"
+                                   FontSize="40"
+                                   HorizontalAlignment="Center" />
+                        <TextBlock Text="密码库已锁定"
+                                   FontSize="20"
+                                   FontWeight="SemiBold"
+                                   HorizontalAlignment="Center" />
+                        <TextBlock Text="内容已在内存中清除，输入主密码即可继续。"
+                                   FontSize="12"
+                                   Opacity="0.65"
+                                   HorizontalAlignment="Center" />
+                        <Button Content="解锁"
+                                MinWidth="120"
+                                HorizontalAlignment="Center"
+                                Click="OnUnlockClicked" />
+                    </StackPanel>
+                </Border>
+            </Panel>
+        </Border>
+    </Panel>
 </Window>

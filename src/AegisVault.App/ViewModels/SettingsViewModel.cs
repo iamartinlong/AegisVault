@@ -20,18 +20,26 @@ public partial class SettingsViewModel : ObservableObject
     private readonly SecureConfigService _config;
     private readonly IKeyProtector? _protector;
     private readonly Action<string>? _applyTheme;
+    private readonly Action<bool>? _applyScreenGuard;
+    private readonly Action<bool>? _applyFloatingBall;
 
     public SettingsViewModel(
         VaultService vault,
         SecureConfigService config,
         IKeyProtector? protector,
         Action<string>? applyTheme,
-        string currentTheme)
+        string currentTheme,
+        bool screenGuardSupported = false,
+        Action<bool>? applyScreenGuard = null,
+        bool showFloatingBall = false,
+        Action<bool>? applyFloatingBall = null)
     {
         _vault = vault;
         _config = config;
         _protector = protector;
         _applyTheme = applyTheme;
+        _applyScreenGuard = applyScreenGuard;
+        _applyFloatingBall = applyFloatingBall;
 
         var user = config.Current;
         SelectedAutoLock = AutoLockOptions.FirstOrDefault(option => option.Minutes == user.AutoLockMinutes) ?? AutoLockOptions[0];
@@ -46,6 +54,10 @@ public partial class SettingsViewModel : ObservableObject
 
         DeviceKeySupported = protector?.IsAvailable == true;
         HasDeviceKey = DeviceKeySupported && vault.HasDeviceKey(protector!);
+
+        ScreenGuardSupported = screenGuardSupported;
+        DisableScreenCapture = user.DisableScreenCapture;
+        ShowFloatingBall = showFloatingBall;
     }
 
     public IReadOnlyList<AutoLockOption> AutoLockOptions { get; } =
@@ -85,6 +97,15 @@ public partial class SettingsViewModel : ObservableObject
     private ThemeOption? selectedTheme;
 
     [ObservableProperty]
+    private bool screenGuardSupported;
+
+    [ObservableProperty]
+    private bool disableScreenCapture;
+
+    [ObservableProperty]
+    private bool showFloatingBall;
+
+    [ObservableProperty]
     private bool deviceKeySupported;
 
     [ObservableProperty]
@@ -113,6 +134,7 @@ public partial class SettingsViewModel : ObservableObject
             LockOnScreenLock = LockOnScreenLock,
             LockOnSuspend = LockOnSuspend,
             ClipboardClearSeconds = SelectedClipboard?.Seconds ?? current.ClipboardClearSeconds,
+            DisableScreenCapture = DisableScreenCapture,
             Generator = current.Generator with
             {
                 Length = (int)Math.Round(GeneratorLength),
@@ -123,6 +145,8 @@ public partial class SettingsViewModel : ObservableObject
 
         _config.Save(updated);
         _applyTheme?.Invoke(SelectedTheme?.Value ?? "system");
+        _applyScreenGuard?.Invoke(!DisableScreenCapture);
+        _applyFloatingBall?.Invoke(ShowFloatingBall);
         StatusMessage = "设置已保存。";
     }
 

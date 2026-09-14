@@ -29,6 +29,10 @@
                 <CheckBox Content="最小化到托盘时锁定" IsChecked="{Binding LockOnMinimize, Mode=TwoWay}" />
                 <CheckBox Content="系统锁屏时锁定" IsChecked="{Binding LockOnScreenLock, Mode=TwoWay}" />
                 <CheckBox Content="系统挂起时锁定" IsChecked="{Binding LockOnSuspend, Mode=TwoWay}" />
+                <CheckBox x:Name="ScreenGuardCheckBox"
+                          IsEnabled="{Binding ScreenGuardSupported}"
+                          IsChecked="{Binding DisableScreenCapture, Mode=TwoWay}"
+                          Content="防止窗口内容被截屏/录屏（Windows）" />
 
                 <StackPanel Spacing="4">
                     <TextBlock Text="剪贴板自动清除" FontSize="12" Opacity="0.7" />
@@ -91,6 +95,8 @@
                         </ComboBox.ItemTemplate>
                     </ComboBox>
                 </StackPanel>
+                <CheckBox Content="显示悬浮球（点击打开快速访问）"
+                          IsChecked="{Binding ShowFloatingBall, Mode=TwoWay}" />
 
                 <TextBlock Text="生成器默认" FontSize="16" FontWeight="SemiBold" Margin="0,8,0,0" />
                 <Slider Minimum="8" Maximum="64"

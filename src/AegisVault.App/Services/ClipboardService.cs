@@ -28,6 +28,9 @@ public sealed class ClipboardService : IDisposable
         _timer.Tick += OnTimerTick;
     }
 
+    /// <summary>Raised after a secret was copied, with the auto-clear delay (infinite when disabled).</summary>
+    public event Action<TimeSpan>? CopyStarted;
+
     public async Task CopyAsync(string? secret)
     {
         if (string.IsNullOrEmpty(secret))
@@ -44,6 +47,7 @@ public sealed class ClipboardService : IDisposable
         {
             _timer.Interval = delay;
             _timer.Start();
+            CopyStarted?.Invoke(delay);
         }
     }
 

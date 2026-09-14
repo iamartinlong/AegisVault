@@ -13,10 +13,23 @@ public partial class MainWindow : Window
     private AutoLockService? _autoLock;
     private Action? _openSettings;
 
+    /// <summary>Raised when the user asks to unlock from the lock overlay.</summary>
+    public event Action? UnlockRequested;
+
     public MainWindow()
     {
         InitializeComponent();
     }
+
+    public void ShowLockOverlay()
+    {
+        ClipboardToast.IsVisible = false;
+        LockOverlay.IsVisible = true;
+    }
+
+    public void HideLockOverlay() => LockOverlay.IsVisible = false;
+
+    private void OnUnlockClicked(object? sender, RoutedEventArgs e) => UnlockRequested?.Invoke();
 
     public void Attach(MainViewModel viewModel, ClipboardService clipboard, AutoLockService autoLock, Action? openSettings = null)
     {
@@ -24,6 +37,7 @@ public partial class MainWindow : Window
         _clipboard = clipboard;
         _autoLock = autoLock;
         _openSettings = openSettings;
+        HideLockOverlay();
 
         AddHandler(PointerMovedEvent, (_, _) => _autoLock.ReportActivity(), RoutingStrategies.Tunnel);
         AddHandler(KeyDownEvent, (_, _) => _autoLock.ReportActivity(), RoutingStrategies.Tunnel);

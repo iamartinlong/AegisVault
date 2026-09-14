@@ -14,5 +14,8 @@ public sealed record UserConfig
     /// <summary>Seconds after which copied secrets are removed from the clipboard (0 disables).</summary>
     public int ClipboardClearSeconds { get; init; } = 30;
 
+    /// <summary>Keeps window content out of screenshots/recordings (Windows only).</summary>
+    public bool DisableScreenCapture { get; init; } = true;
+
     public PasswordGeneratorOptions Generator { get; init; } = new();
 }

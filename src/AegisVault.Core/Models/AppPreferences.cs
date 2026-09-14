@@ -11,4 +11,7 @@ public sealed record AppPreferences
 
     /// <summary>"system" | "light" | "dark".</summary>
     public string Theme { get; init; } = "system";
+
+    /// <summary>Shows the optional floating quick-access ball (default off).</summary>
+    public bool ShowFloatingBall { get; init; }
 }

@@ -19,6 +19,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private readonly VaultService _vault;
     private readonly ClipboardService? _clipboard;
     private readonly DispatcherTimer _totpTimer;
+    private readonly DispatcherTimer _toastTimer;
     private bool _loadingEditor;
     private PasswordStrengthResult? _editPasswordStrength;
 
@@ -39,6 +40,14 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _totpTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _totpTimer.Tick += (_, _) => UpdateTotp();
         _totpTimer.Start();
+
+        _toastTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+        _toastTimer.Tick += (_, _) => OnToastTimerTick();
+
+        if (_clipboard is not null)
+        {
+            _clipboard.CopyStarted += OnClipboardCopyStarted;
+        }
     }
 
     public ObservableCollection<PasswordEntry> Entries { get; }
@@ -94,6 +103,14 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     private string? statusMessage;
+
+    [ObservableProperty]
+    private bool isClipboardToastVisible;
+
+    [ObservableProperty]
+    private int clipboardToastRemaining;
+
+    public string ClipboardToastText => $"已复制到剪贴板，{ClipboardToastRemaining} 秒后自动清除。";
 
     public bool HasSelection => SelectedEntry is not null;
 
@@ -329,6 +346,45 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public void Dispose()
     {
         _totpTimer.Stop();
+        _toastTimer.Stop();
+
+        if (_clipboard is not null)
+        {
+            _clipboard.CopyStarted -= OnClipboardCopyStarted;
+        }
+    }
+
+    private void OnClipboardCopyStarted(TimeSpan delay)
+    {
+        var seconds = Math.Max(1, (int)Math.Ceiling(delay.TotalSeconds));
+        ClipboardToastRemaining = seconds;
+        IsClipboardToastVisible = true;
+        _toastTimer.Stop();
+        _toastTimer.Start();
+    }
+
+    private void OnToastTimerTick()
+    {
+        if (ClipboardToastRemaining <= 1)
+        {
+            _toastTimer.Stop();
+            IsClipboardToastVisible = false;
+            ClipboardToastRemaining = 0;
+            return;
+        }
+
+        ClipboardToastRemaining--;
+    }
+
+    [RelayCommand]
+    private async Task ClearClipboardNowAsync()
+    {
+        _toastTimer.Stop();
+        IsClipboardToastVisible = false;
+        if (_clipboard is not null)
+        {
+            await _clipboard.ClearIfUnchangedAsync();
+        }
     }
 
     private void RefreshCategories()
@@ -461,6 +517,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
             FilteredEntries[filteredIndex] = updated;
         }
     }
+
+    partial void OnClipboardToastRemainingChanged(int value) => OnPropertyChanged(nameof(ClipboardToastText));
 
     private void UpdateTotp()
     {

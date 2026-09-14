@@ -1,0 +1,130 @@
+using System.Collections.ObjectModel;
+using System.Collections.Specialized;
+using AegisVault.App.Services;
+using AegisVault.Core.Models;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+
+namespace AegisVault.App.ViewModels;
+
+/// <summary>
+/// Backs the global quick-access overlay: type-to-filter entries and copy or
+/// jump to the selected one, entirely from the keyboard.
+/// </summary>
+public partial class QuickAccessViewModel : ObservableObject
+{
+    private readonly MainViewModel _main;
+    private readonly ClipboardService? _clipboard;
+
+    /// <summary>Raised when the overlay should hide itself.</summary>
+    public event Action? HideRequested;
+
+    /// <summary>Raised after an entry was activated (jump to main window).</summary>
+    public event Action? EntryActivated;
+
+    public QuickAccessViewModel(MainViewModel main, ClipboardService? clipboard = null)
+    {
+        _main = main;
+        _clipboard = clipboard;
+        _main.Entries.CollectionChanged += OnEntriesChanged;
+        ApplyFilter();
+    }
+
+    public ObservableCollection<PasswordEntry> FilteredEntries { get; } = [];
+
+    [ObservableProperty]
+    private string searchText = string.Empty;
+
+    [ObservableProperty]
+    private PasswordEntry? selectedEntry;
+
+    public bool HasResults => FilteredEntries.Count > 0;
+
+    partial void OnSearchTextChanged(string value) => ApplyFilter();
+
+    partial void OnSelectedEntryChanged(PasswordEntry? value) => OnPropertyChanged(nameof(HasSelection));
+
+    public bool HasSelection => SelectedEntry is not null;
+
+    /// <summary>Selects the highlighted entry in the main window and hides the overlay.</summary>
+    [RelayCommand]
+    private void Activate()
+    {
+        if (SelectedEntry is null)
+        {
+            return;
+        }
+
+        _main.SelectedEntry = SelectedEntry;
+        EntryActivated?.Invoke();
+        HideRequested?.Invoke();
+    }
+
+    [RelayCommand]
+    private async Task CopyPasswordAsync(PasswordEntry? entry)
+    {
+        if (_clipboard is null || string.IsNullOrEmpty(entry?.Password))
+        {
+            return;
+        }
+
+        await _clipboard.CopyAsync(entry.Password);
+    }
+
+    [RelayCommand]
+    private async Task CopyUsernameAsync(PasswordEntry? entry)
+    {
+        if (_clipboard is null || string.IsNullOrEmpty(entry?.Username))
+        {
+            return;
+        }
+
+        await _clipboard.CopyAsync(entry.Username);
+    }
+
+    public void MoveSelection(int delta)
+    {
+        if (FilteredEntries.Count == 0)
+        {
+            return;
+        }
+
+        var index = SelectedEntry is null ? 0 : FilteredEntries.IndexOf(SelectedEntry);
+        if (index < 0)
+        {
+            index = 0;
+        }
+
+        index = Math.Clamp(index + delta, 0, FilteredEntries.Count - 1);
+        SelectedEntry = FilteredEntries[index];
+    }
+
+    private void OnEntriesChanged(object? sender, NotifyCollectionChangedEventArgs e) => ApplyFilter();
+
+    private void ApplyFilter()
+    {
+        var query = SearchText?.Trim() ?? string.Empty;
+        FilteredEntries.Clear();
+        foreach (var entry in _main.Entries)
+        {
+            if (query.Length == 0 ||
+                Contains(entry.Title, query) ||
+                Contains(entry.Username, query) ||
+                Contains(entry.Url, query) ||
+                entry.Tags.Any(tag => Contains(tag, query)))
+            {
+                FilteredEntries.Add(entry);
+            }
+        }
+
+        if (SelectedEntry is not null && !FilteredEntries.Contains(SelectedEntry))
+        {
+            SelectedEntry = FilteredEntries.Count > 0 ? FilteredEntries[0] : null;
+        }
+
+        OnPropertyChanged(nameof(HasResults));
+    }
+
+    private static bool Contains(string? value, string query)
+        => value is not null && value.Contains(query, StringComparison.OrdinalIgnoreCase);
+}
