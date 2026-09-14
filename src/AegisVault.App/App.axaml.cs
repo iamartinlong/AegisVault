@@ -373,16 +373,13 @@ public partial class App : Application
 
     private void ApplyScreenGuard(Avalonia.Controls.Window window)
     {
+        // null config (locked) keeps the guard on; only an explicit opt-out lifts it.
         var exclude = _configService?.Current.DisableScreenCapture != false;
-        if (!exclude)
-        {
-            return;
-        }
 
         try
         {
             var handle = window.TryGetPlatformHandle()?.Handle ?? 0;
-            ScreenCaptureGuard.TrySetExcluded(handle, true);
+            ScreenCaptureGuard.TrySetExcluded(handle, exclude);
         }
         catch (Exception)
         {
@@ -424,6 +421,11 @@ public partial class App : Application
                 if (_mainWindow is { } window)
                 {
                     ApplyScreenGuard(window);
+                }
+
+                if (_quickAccess is { IsVisible: true } quickAccess)
+                {
+                    ApplyScreenGuard(quickAccess);
                 }
             },
             showFloatingBall: _preferences.ShowFloatingBall,

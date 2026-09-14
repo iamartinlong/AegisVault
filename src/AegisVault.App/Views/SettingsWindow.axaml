@@ -33,6 +33,9 @@
                           IsEnabled="{Binding ScreenGuardSupported}"
                           IsChecked="{Binding DisableScreenCapture, Mode=TwoWay}"
                           Content="防止窗口内容被截屏/录屏（Windows）" />
+                <TextBlock Text="保存后立即生效；快速访问浮层在下次呼出时生效。"
+                           FontSize="12" Opacity="0.6"
+                           IsVisible="{Binding ScreenGuardSupported}" />
 
                 <StackPanel Spacing="4">
                     <TextBlock Text="剪贴板自动清除" FontSize="12" Opacity="0.7" />
