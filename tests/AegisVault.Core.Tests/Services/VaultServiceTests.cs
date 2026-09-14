@@ -283,6 +283,23 @@ public sealed class VaultServiceTests : IDisposable
         Assert.False(File.Exists(missingPath));
     }
 
+    [Fact]
+    public void FavoriteFlagRoundTrips()
+    {
+        Guid favoriteId;
+        using (var vault = VaultService.CreateNew(_vaultPath, Password, FastOptions))
+        {
+            favoriteId = vault.AddEntry(TestEntry("GitHub") with { IsFavorite = true }).Id;
+            vault.AddEntry(TestEntry("Mail"));
+        }
+
+        using var reopened = VaultService.Open(_vaultPath);
+        Assert.Equal(VaultUnlockStatus.Success, reopened.Unlock(Password));
+
+        Assert.True(reopened.Entries.Single(entry => entry.Id == favoriteId).IsFavorite);
+        Assert.False(reopened.Entries.Single(entry => entry.Title == "Mail").IsFavorite);
+    }
+
     private static PasswordEntry TestEntry(string title) => new()
     {
         Title = title,

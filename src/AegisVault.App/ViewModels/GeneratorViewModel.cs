@@ -37,6 +37,12 @@ public partial class GeneratorViewModel : ObservableObject
     [ObservableProperty]
     private string? copyStatus;
 
+    [ObservableProperty]
+    private double strengthPercent;
+
+    [ObservableProperty]
+    private string strengthSummary = string.Empty;
+
     public GeneratorViewModel(ClipboardService? clipboard = null)
     {
         _clipboard = clipboard;
@@ -74,11 +80,17 @@ public partial class GeneratorViewModel : ObservableObject
         {
             Password = PasswordGenerator.Generate(options);
             EntropyBits = PasswordGenerator.EstimateEntropyBits(options);
+
+            var strength = PasswordStrengthEstimator.Evaluate(Password);
+            StrengthPercent = strength.Score * 25;
+            StrengthSummary = StrengthFormatting.FormatSummary(strength.Score, strength.Label, strength.CrackTime);
         }
         catch (ArgumentException)
         {
             Password = string.Empty;
             EntropyBits = 0;
+            StrengthPercent = 0;
+            StrengthSummary = string.Empty;
         }
     }
 

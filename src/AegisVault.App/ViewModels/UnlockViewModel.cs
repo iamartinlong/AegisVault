@@ -1,4 +1,6 @@
 using System.Text;
+using AegisVault.App.Services;
+using AegisVault.Core.Models;
 using AegisVault.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -7,6 +9,9 @@ namespace AegisVault.App.ViewModels;
 
 public partial class UnlockViewModel : ObservableObject
 {
+    public const int OpenMode = 0;
+    public const int CreateMode = 1;
+
     public event Action<VaultService>? VaultOpened;
 
     public IKeyProtector? DeviceKeyProtector { get; set; }
@@ -15,17 +20,21 @@ public partial class UnlockViewModel : ObservableObject
 
     public bool SecureInputAvailable { get; init; }
 
+    /// <summary>0 = open an existing vault, 1 = create a new vault.</summary>
+    [ObservableProperty]
+    private int modeIndex;
+
     [ObservableProperty]
     private string vaultPath = GetDefaultVaultPath();
+
+    [ObservableProperty]
+    private string newVaultPath = GetDefaultVaultPath();
 
     [ObservableProperty]
     private string masterPassword = string.Empty;
 
     [ObservableProperty]
     private string confirmPassword = string.Empty;
-
-    [ObservableProperty]
-    private bool createNew;
 
     [ObservableProperty]
     private bool rememberDevice;
@@ -35,6 +44,56 @@ public partial class UnlockViewModel : ObservableObject
 
     [ObservableProperty]
     private bool isBusy;
+
+    private PasswordStrengthResult? _masterPasswordStrength;
+
+    public bool IsCreateMode => ModeIndex == CreateMode;
+
+    public string MasterPasswordStrengthSummary => _masterPasswordStrength is null
+        ? string.Empty
+        : StrengthFormatting.FormatSummary(
+            _masterPasswordStrength.Score,
+            _masterPasswordStrength.Label,
+            _masterPasswordStrength.CrackTime);
+
+    public double MasterPasswordStrengthPercent => (_masterPasswordStrength?.Score ?? 0) * 25;
+
+    partial void OnMasterPasswordChanged(string value)
+    {
+        _masterPasswordStrength = string.IsNullOrEmpty(value)
+            ? null
+            : PasswordStrengthEstimator.Evaluate(value);
+
+        OnPropertyChanged(nameof(MasterPasswordStrengthSummary));
+        OnPropertyChanged(nameof(MasterPasswordStrengthPercent));
+    }
+
+    partial void OnModeIndexChanged(int value)
+    {
+        OnPropertyChanged(nameof(IsCreateMode));
+        ErrorMessage = null;
+    }
+
+    /// <summary>
+    /// Applies persisted preferences: prefers the last vault (or the default
+    /// path) when it exists, otherwise starts on the create tab.
+    /// </summary>
+    public void ApplyPreferences(AppPreferences preferences)
+    {
+        ArgumentNullException.ThrowIfNull(preferences);
+
+        var recent = preferences.LastVaultPath;
+        if (!string.IsNullOrWhiteSpace(recent) && File.Exists(recent))
+        {
+            VaultPath = recent;
+            ModeIndex = OpenMode;
+            return;
+        }
+
+        var defaultPath = GetDefaultVaultPath();
+        VaultPath = defaultPath;
+        ModeIndex = File.Exists(defaultPath) ? OpenMode : CreateMode;
+    }
 
     /// <summary>
     /// Attempts a password-less unlock using the remembered device key.
@@ -101,7 +160,7 @@ public partial class UnlockViewModel : ObservableObject
         var path = VaultPath.Trim();
         if (!File.Exists(path))
         {
-            ErrorMessage = "找不到密码库文件，请检查路径。";
+            ErrorMessage = "找不到密码库文件，请检查路径，或切换到\u201c创建新密码库\u201d。";
             return;
         }
 
@@ -186,12 +245,20 @@ public partial class UnlockViewModel : ObservableObject
             return;
         }
 
-        var path = VaultPath.Trim();
-        if (File.Exists(path))
+        var path = NormalizeVaultPath(NewVaultPath);
+        if (path.Length == 0)
         {
-            ErrorMessage = "该路径已存在文件，请更换路径或直接解锁。";
+            ErrorMessage = "请选择密码库保存位置。";
             return;
         }
+
+        if (File.Exists(path))
+        {
+            ErrorMessage = "该位置已存在文件，请更换位置或切换到\u201c打开已有密码库\u201d。";
+            return;
+        }
+
+        NewVaultPath = path;
 
         IsBusy = true;
         try
@@ -220,6 +287,19 @@ public partial class UnlockViewModel : ObservableObject
         {
             IsBusy = false;
         }
+    }
+
+    internal static string NormalizeVaultPath(string? raw)
+    {
+        var path = raw?.Trim() ?? string.Empty;
+        if (path.Length == 0)
+        {
+            return string.Empty;
+        }
+
+        return path.EndsWith(".aegis", StringComparison.OrdinalIgnoreCase)
+            ? path
+            : path + ".aegis";
     }
 
     private void RememberDeviceIfRequested(VaultService vault)

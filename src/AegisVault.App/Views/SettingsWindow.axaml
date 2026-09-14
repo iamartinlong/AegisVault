@@ -1,0 +1,130 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:AegisVault.App.ViewModels"
+        x:Class="AegisVault.App.Views.SettingsWindow"
+        x:DataType="vm:SettingsViewModel"
+        Icon="/Assets/app.png"
+        Title="设置"
+        Width="620" Height="720"
+        MinWidth="520" MinHeight="480"
+        WindowStartupLocation="CenterOwner">
+    <Grid RowDefinitions="*,Auto">
+        <ScrollViewer Grid.Row="0" Margin="28,24,28,0">
+            <StackPanel Spacing="18">
+                <TextBlock Text="安全" FontSize="16" FontWeight="SemiBold" />
+
+                <StackPanel Spacing="4">
+                    <TextBlock Text="自动锁定（空闲）" FontSize="12" Opacity="0.7" />
+                    <ComboBox ItemsSource="{Binding AutoLockOptions}"
+                              SelectedItem="{Binding SelectedAutoLock}"
+                              HorizontalAlignment="Stretch">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate DataType="vm:AutoLockOption">
+                                <TextBlock Text="{Binding Label}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </StackPanel>
+
+                <CheckBox Content="最小化到托盘时锁定" IsChecked="{Binding LockOnMinimize, Mode=TwoWay}" />
+                <CheckBox Content="系统锁屏时锁定" IsChecked="{Binding LockOnScreenLock, Mode=TwoWay}" />
+                <CheckBox Content="系统挂起时锁定" IsChecked="{Binding LockOnSuspend, Mode=TwoWay}" />
+
+                <StackPanel Spacing="4">
+                    <TextBlock Text="剪贴板自动清除" FontSize="12" Opacity="0.7" />
+                    <ComboBox ItemsSource="{Binding ClipboardOptions}"
+                              SelectedItem="{Binding SelectedClipboard}"
+                              HorizontalAlignment="Stretch">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate DataType="vm:ClipboardOption">
+                                <TextBlock Text="{Binding Label}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </StackPanel>
+
+                <TextBlock Text="主密码" FontSize="14" FontWeight="SemiBold" Margin="0,8,0,0" />
+                <Grid ColumnDefinitions="*,12,*">
+                    <StackPanel Grid.Column="0" Spacing="4">
+                        <TextBlock Text="新主密码" FontSize="12" Opacity="0.7" />
+                        <TextBox PasswordChar="●" Text="{Binding NewMasterPassword, Mode=TwoWay}" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Spacing="4">
+                        <TextBlock Text="确认新主密码" FontSize="12" Opacity="0.7" />
+                        <TextBox PasswordChar="●" Text="{Binding ConfirmMasterPassword, Mode=TwoWay}" />
+                    </StackPanel>
+                </Grid>
+                <Button Content="更改主密码"
+                        Command="{Binding ChangeMasterPasswordCommand}"
+                        HorizontalAlignment="Right" />
+
+                <TextBlock Text="设备密钥（免密解锁）" FontSize="14" FontWeight="SemiBold" Margin="0,8,0,0" />
+                <TextBlock FontSize="12" Opacity="0.75"
+                           Text="当前设备已保存密钥，启动时可免主密码解锁。"
+                           IsVisible="{Binding HasDeviceKey}" />
+                <TextBlock FontSize="12" Opacity="0.75"
+                           Text="当前设备未保存密钥。"
+                           IsVisible="{Binding !HasDeviceKey}" />
+                <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding DeviceKeySupported}">
+                    <Button Content="记住此设备"
+                            Command="{Binding RememberDeviceCommand}"
+                            IsVisible="{Binding !HasDeviceKey}" />
+                    <Button Content="移除此设备密钥"
+                            Command="{Binding ForgetDeviceCommand}"
+                            IsVisible="{Binding HasDeviceKey}" />
+                </StackPanel>
+                <TextBlock FontSize="12"
+                           Opacity="0.6"
+                           Text="免密解锁仅在 Windows（DPAPI）可用。"
+                           IsVisible="{Binding !DeviceKeySupported}" />
+
+                <TextBlock Text="外观" FontSize="16" FontWeight="SemiBold" Margin="0,8,0,0" />
+                <StackPanel Spacing="4">
+                    <TextBlock Text="主题" FontSize="12" Opacity="0.7" />
+                    <ComboBox ItemsSource="{Binding ThemeOptions}"
+                              SelectedItem="{Binding SelectedTheme}"
+                              HorizontalAlignment="Stretch">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate DataType="vm:ThemeOption">
+                                <TextBlock Text="{Binding Label}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </StackPanel>
+
+                <TextBlock Text="生成器默认" FontSize="16" FontWeight="SemiBold" Margin="0,8,0,0" />
+                <Slider Minimum="8" Maximum="64"
+                        TickFrequency="1"
+                        IsSnapToTickEnabled="True"
+                        Value="{Binding GeneratorLength}" />
+                <TextBlock Text="{Binding GeneratorLength, StringFormat='默认长度：{}{0:0} 位'}" FontSize="12" Opacity="0.7" />
+                <CheckBox Content="包含符号" IsChecked="{Binding GeneratorSymbols, Mode=TwoWay}" />
+                <CheckBox Content="排除易混淆字符（I l 1 O 0 o）" IsChecked="{Binding GeneratorExcludeAmbiguous, Mode=TwoWay}" />
+
+                <TextBlock Text="数据" FontSize="16" FontWeight="SemiBold" Margin="0,8,0,0" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button Content="备份到…" Click="OnBackupClicked" />
+                    <Button Content="打开数据目录" Command="{Binding OpenDataFolderCommand}" />
+                </StackPanel>
+
+                <TextBlock Text="关于" FontSize="16" FontWeight="SemiBold" Margin="0,8,0,0" />
+                <TextBlock Text="{Binding VersionText}" FontSize="12" Opacity="0.75" />
+                <TextBlock Text="GPL-3.0 开源 · 第三方组件与许可证见 THIRD-PARTY-NOTICES.md"
+                           FontSize="12"
+                           Opacity="0.6"
+                           TextWrapping="Wrap" />
+            </StackPanel>
+        </ScrollViewer>
+
+        <StackPanel Grid.Row="1" Margin="28,12,28,24" Spacing="8">
+            <TextBlock Text="{Binding StatusMessage}"
+                       Foreground="#52C41A"
+                       TextWrapping="Wrap"
+                       MinHeight="18" />
+            <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
+                <Button Content="关闭" Click="OnCloseClicked" />
+                <Button Content="保存设置" Command="{Binding SaveCommand}" IsDefault="True" />
+            </StackPanel>
+        </StackPanel>
+    </Grid>
+</Window>

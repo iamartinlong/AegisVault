@@ -23,6 +23,8 @@ public sealed record PasswordEntry
 
     public Dictionary<string, string> CustomFields { get; init; } = [];
 
+    public bool IsFavorite { get; init; }
+
     public DateTimeOffset CreatedAt { get; init; } = DateTimeOffset.UtcNow;
 
     public DateTimeOffset UpdatedAt { get; init; } = DateTimeOffset.UtcNow;

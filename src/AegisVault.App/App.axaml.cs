@@ -1,6 +1,7 @@
 using AegisVault.App.Services;
 using AegisVault.App.ViewModels;
 using AegisVault.App.Views;
+using AegisVault.Core.Models;
 using AegisVault.Core.Services;
 using AegisVault.Platform;
 using AtomUI;
@@ -11,12 +12,15 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
+using Avalonia.Styling;
 
 namespace AegisVault.App;
 
 public partial class App : Application
 {
     private IClassicDesktopStyleApplicationLifetime? _desktop;
+    private readonly AppPreferencesStore _preferencesStore = new();
+    private AppPreferences _preferences = new();
     private bool _initialWindowAssigned;
     private VaultService? _vault;
     private MainWindow? _mainWindow;
@@ -24,6 +28,7 @@ public partial class App : Application
     private AutoLockService? _autoLock;
     private ClipboardService? _clipboard;
     private SessionLockWatcher? _sessionWatcher;
+    private SecureConfigService? _configService;
     private TrayIcon? _trayIcon;
 
     public override void Initialize()
@@ -41,6 +46,8 @@ public partial class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             _desktop = desktop;
+            _preferences = _preferencesStore.Load();
+            ApplyThemeVariant(_preferences.Theme);
             InitializeTray();
             ShowUnlock(desktop);
         }
@@ -89,6 +96,7 @@ public partial class App : Application
             DeviceKeyProtector = CreateKeyProtector(),
             SecureInputAvailable = OperatingSystem.IsWindows(),
         };
+        viewModel.ApplyPreferences(_preferences);
         var window = new UnlockWindow { DataContext = viewModel };
 
         viewModel.VaultOpened += vault => ShowMain(desktop, window, vault);
@@ -110,6 +118,7 @@ public partial class App : Application
     private void ShowMain(IClassicDesktopStyleApplicationLifetime desktop, UnlockWindow unlockWindow, VaultService vault)
     {
         var config = new SecureConfigService(vault);
+        _configService = config;
         var clipboard = new ClipboardService(
             new AvaloniaClipboardAccess(() => (TopLevel?)_mainWindow ?? unlockWindow),
             () => config.Current);
@@ -117,7 +126,7 @@ public partial class App : Application
         var sessionWatcher = new SessionLockWatcher();
         sessionWatcher.ScreenLocked += autoLock.ReportScreenLocked;
         sessionWatcher.Suspended += autoLock.ReportSuspended;
-        var viewModel = new MainViewModel(vault);
+        var viewModel = new MainViewModel(vault, clipboard);
         var window = new MainWindow();
 
         _vault = vault;
@@ -127,7 +136,10 @@ public partial class App : Application
         _clipboard = clipboard;
         _sessionWatcher = sessionWatcher;
 
-        window.Attach(viewModel, clipboard, autoLock);
+        _preferences = _preferences with { LastVaultPath = vault.VaultPath };
+        SavePreferences();
+
+        window.Attach(viewModel, clipboard, autoLock, ShowSettings);
         viewModel.LockRequested += LockVault;
         autoLock.LockTriggered += _ => LockVault();
         window.Closed += (_, _) =>
@@ -165,6 +177,9 @@ public partial class App : Application
     {
         _sessionWatcher?.Dispose();
         _sessionWatcher = null;
+
+        _configService = null;
+
         _autoLock?.Dispose();
         _autoLock = null;
 
@@ -209,4 +224,50 @@ public partial class App : Application
 
     private static IKeyProtector? CreateKeyProtector()
         => OperatingSystem.IsWindows() ? new DpapiKeyProtector() : null;
+
+    private void SavePreferences()
+    {
+        try
+        {
+            _preferencesStore.Save(_preferences);
+        }
+        catch (Exception)
+        {
+            // Preferences are non-critical; never block the session on them.
+        }
+    }
+
+    private void ShowSettings()
+    {
+        if (_mainWindow is null || _vault is null || _configService is null)
+        {
+            return;
+        }
+
+        var viewModel = new SettingsViewModel(
+            _vault,
+            _configService,
+            CreateKeyProtector(),
+            ApplyTheme,
+            _preferences.Theme);
+        var window = new SettingsWindow { DataContext = viewModel };
+        _ = window.ShowDialog(_mainWindow);
+    }
+
+    private void ApplyTheme(string theme)
+    {
+        _preferences = _preferences with { Theme = theme };
+        SavePreferences();
+        ApplyThemeVariant(theme);
+    }
+
+    private void ApplyThemeVariant(string theme)
+    {
+        RequestedThemeVariant = theme switch
+        {
+            "light" => ThemeVariant.Light,
+            "dark" => ThemeVariant.Dark,
+            _ => ThemeVariant.Default,
+        };
+    }
 }

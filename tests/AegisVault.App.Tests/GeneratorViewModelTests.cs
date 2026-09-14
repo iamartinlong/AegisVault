@@ -59,6 +59,15 @@ public sealed class GeneratorViewModelTests
     }
 
     [Fact]
+    public void ReportsStrengthSummary()
+    {
+        var viewModel = new GeneratorViewModel();
+
+        Assert.True(viewModel.StrengthPercent > 0);
+        Assert.False(string.IsNullOrEmpty(viewModel.StrengthSummary));
+    }
+
+    [Fact]
     public Task CopyPasswordUsesSessionClipboardService() => Headless.RunAsync<object?>(async () =>
     {
         var fake = new FakeClipboardAccess();

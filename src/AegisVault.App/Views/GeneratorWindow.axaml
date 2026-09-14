@@ -28,6 +28,8 @@
                  FontFamily="Consolas, Menlo, monospace"
                  FontSize="16"
                  Margin="0,6,0,0" />
+        <ProgressBar Value="{Binding StrengthPercent}" Maximum="100" Height="6" />
+        <TextBlock Text="{Binding StrengthSummary}" FontSize="12" Opacity="0.75" />
         <TextBlock Text="{Binding EntropyBits, StringFormat='熵估计：{0:0} bits'}" Opacity="0.7" />
 
         <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right" Margin="0,8,0,0">

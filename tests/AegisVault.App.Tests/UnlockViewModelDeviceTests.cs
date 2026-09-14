@@ -46,10 +46,10 @@ public sealed class UnlockViewModelDeviceTests : IDisposable
         var protector = new FakeKeyProtector();
         var model = new UnlockViewModel
         {
-            VaultPath = _vaultPath,
+            NewVaultPath = _vaultPath,
+            ModeIndex = UnlockViewModel.CreateMode,
             MasterPassword = "master password",
             ConfirmPassword = "master password",
-            CreateNew = true,
             RememberDevice = true,
             DeviceKeyProtector = protector,
         };

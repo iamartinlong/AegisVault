@@ -1,3 +1,4 @@
+using AegisVault.App.Services;
 using AegisVault.App.ViewModels;
 using AegisVault.App.Views;
 using AegisVault.Core.Models;
@@ -137,10 +138,89 @@ public sealed class MainViewModelTests : IDisposable
         Assert.Equal("AegisVault", window.Title);
     });
 
+    [Fact]
+    public Task CategoriesIncludeFavoritesAndTags() => Headless.Run(() =>
+    {
+        using var vault = CreateVaultWithEntries();
+        using var viewModel = new MainViewModel(vault);
+
+        Assert.Contains(viewModel.Categories, category => category.Key == "all" && category.Count == 2);
+        Assert.Contains(viewModel.Categories, category => category.IsFavorites && category.Count == 0);
+        Assert.Contains(viewModel.Categories, category => category.Tag == "work" && category.Count == 1);
+    });
+
+    [Fact]
+    public Task ToggleFavoriteUpdatesEntryAndFilter() => Headless.Run(() =>
+    {
+        using var vault = CreateVaultWithEntries();
+        using var viewModel = new MainViewModel(vault);
+
+        viewModel.SelectedEntry = vault.Entries.Single(entry => entry.Title == "GitHub");
+        viewModel.ToggleFavoriteCommand.Execute(null);
+
+        Assert.True(vault.Entries.Single(entry => entry.Title == "GitHub").IsFavorite);
+        Assert.Contains(viewModel.Categories, category => category.IsFavorites && category.Count == 1);
+
+        viewModel.SelectedCategory = viewModel.Categories.Single(category => category.IsFavorites);
+        Assert.Single(viewModel.FilteredEntries);
+        Assert.Equal("GitHub", viewModel.FilteredEntries[0].Title);
+    });
+
+    [Fact]
+    public Task BeginEditAndCancelRestoresFields() => Headless.Run(() =>
+    {
+        using var vault = CreateVaultWithEntries();
+        using var viewModel = new MainViewModel(vault);
+
+        viewModel.SelectedEntry = vault.Entries.Single(entry => entry.Title == "GitHub");
+        viewModel.BeginEditCommand.Execute(null);
+        Assert.True(viewModel.IsEditing);
+
+        viewModel.EditTitle = "changed";
+        viewModel.CancelEditCommand.Execute(null);
+
+        Assert.False(viewModel.IsEditing);
+        Assert.Equal("GitHub", viewModel.EditTitle);
+    });
+
+    [Fact]
+    public Task CopyPasswordUsesClipboardService() => Headless.RunAsync<object?>(async () =>
+    {
+        var fake = new FakeClipboardAccess();
+        using var clipboard = new ClipboardService(fake, () => new UserConfig());
+
+        using var vault = CreateVaultWithEntries();
+        using var viewModel = new MainViewModel(vault, clipboard);
+
+        viewModel.SelectedEntry = vault.Entries.Single(entry => entry.Title == "GitHub");
+        await viewModel.CopyPasswordCommand.ExecuteAsync(null);
+
+        Assert.Equal("s3cret", fake.Text);
+        return null;
+    });
+
+    [Fact]
+    public Task ReportsPasswordStrengthForEditedEntry() => Headless.Run(() =>
+    {
+        using var vault = CreateVaultWithEntries();
+        using var viewModel = new MainViewModel(vault);
+
+        viewModel.SelectedEntry = vault.Entries.Single(entry => entry.Title == "GitHub");
+
+        Assert.True(viewModel.EditPasswordStrengthPercent > 0);
+        Assert.False(string.IsNullOrEmpty(viewModel.EditPasswordStrengthSummary));
+    });
+
     private VaultService CreateVaultWithEntries()
     {
         var vault = VaultService.CreateNew(_vaultPath, Password, FastOptions);
-        vault.AddEntry(new PasswordEntry { Title = "GitHub", Username = "octocat", Password = "s3cret" });
+        vault.AddEntry(new PasswordEntry
+        {
+            Title = "GitHub",
+            Username = "octocat",
+            Password = "s3cret",
+            Tags = ["work", "mail"],
+        });
         vault.AddEntry(new PasswordEntry { Title = "Mail", Username = "me@example.com" });
         return vault;
     }

@@ -38,7 +38,7 @@ public partial class UnlockWindow : Window
         }
     }
 
-    private async void OnBrowseClicked(object? sender, RoutedEventArgs e)
+    private async void OnBrowseExistingClicked(object? sender, RoutedEventArgs e)
     {
         try
         {
@@ -52,6 +52,47 @@ public partial class UnlockWindow : Window
             if (files.Count > 0 && DataContext is UnlockViewModel viewModel)
             {
                 viewModel.VaultPath = files[0].Path.LocalPath;
+            }
+        }
+        catch (Exception)
+        {
+        }
+    }
+
+    private async void OnBrowseCreateClicked(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (DataContext is not UnlockViewModel viewModel)
+            {
+                return;
+            }
+
+            IStorageFolder? startLocation = null;
+            var directory = Path.GetDirectoryName(viewModel.NewVaultPath);
+            if (!string.IsNullOrEmpty(directory) && Directory.Exists(directory))
+            {
+                startLocation = await StorageProvider.TryGetFolderFromPathAsync(directory);
+            }
+
+            var fileName = Path.GetFileName(viewModel.NewVaultPath);
+            if (string.IsNullOrWhiteSpace(fileName))
+            {
+                fileName = "vault.aegis";
+            }
+
+            var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = "选择密码库保存位置",
+                SuggestedFileName = fileName,
+                DefaultExtension = "aegis",
+                FileTypeChoices = [new FilePickerFileType("AegisVault 密码库") { Patterns = ["*.aegis"] }],
+                SuggestedStartLocation = startLocation,
+            });
+
+            if (file is not null)
+            {
+                viewModel.NewVaultPath = file.Path.LocalPath;
             }
         }
         catch (Exception)

@@ -43,10 +43,10 @@ public sealed class UnlockViewModelTests : IDisposable
     {
         var createModel = new UnlockViewModel
         {
-            VaultPath = _vaultPath,
+            NewVaultPath = _vaultPath,
+            ModeIndex = UnlockViewModel.CreateMode,
             MasterPassword = "master password",
             ConfirmPassword = "master password",
-            CreateNew = true,
         };
 
         VaultService? created = null;
@@ -106,7 +106,7 @@ public sealed class UnlockViewModelTests : IDisposable
 
         await model.UnlockCommand.ExecuteAsync(null);
 
-        Assert.Equal("找不到密码库文件，请检查路径。", model.ErrorMessage);
+        Assert.Equal("找不到密码库文件，请检查路径，或切换到“创建新密码库”。", model.ErrorMessage);
         return null;
     });
 
@@ -115,16 +115,93 @@ public sealed class UnlockViewModelTests : IDisposable
     {
         var model = new UnlockViewModel
         {
-            VaultPath = _vaultPath,
+            NewVaultPath = _vaultPath,
+            ModeIndex = UnlockViewModel.CreateMode,
             MasterPassword = "master password",
             ConfirmPassword = "different",
-            CreateNew = true,
         };
 
         await model.CreateCommand.ExecuteAsync(null);
 
         Assert.Equal("两次输入的密码不一致。", model.ErrorMessage);
         Assert.False(File.Exists(_vaultPath));
+        return null;
+    });
+
+    [Fact]
+    public Task ApplyPreferencesUsesExistingRecentVault() => Headless.RunAsync<object?>(async () =>
+    {
+        using (VaultService.CreateNew(_vaultPath, "master password"u8, FastOptions))
+        {
+        }
+
+        var model = new UnlockViewModel();
+        model.ApplyPreferences(new AppPreferences { LastVaultPath = _vaultPath });
+
+        Assert.False(model.IsCreateMode);
+        Assert.Equal(_vaultPath, model.VaultPath);
+        return null;
+    });
+
+    [Fact]
+    public Task ApplyPreferencesFallsBackWhenNoVaultExists() => Headless.RunAsync<object?>(async () =>
+    {
+        var defaultPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+            "AegisVault",
+            "vault.aegis");
+
+        var model = new UnlockViewModel();
+        model.ApplyPreferences(new AppPreferences { LastVaultPath = Path.Combine(_directory, "missing.aegis") });
+
+        Assert.Equal(
+            File.Exists(defaultPath) ? UnlockViewModel.OpenMode : UnlockViewModel.CreateMode,
+            model.ModeIndex);
+        return null;
+    });
+
+    [Fact]
+    public Task CreateAppendsAegisExtension() => Headless.RunAsync<object?>(async () =>
+    {
+        var model = new UnlockViewModel
+        {
+            NewVaultPath = Path.Combine(_directory, "myvault"),
+            ModeIndex = UnlockViewModel.CreateMode,
+            MasterPassword = "master password",
+            ConfirmPassword = "master password",
+        };
+
+        VaultService? created = null;
+        model.VaultOpened += vault => created = vault;
+
+        await model.CreateCommand.ExecuteAsync(null);
+
+        Assert.Null(model.ErrorMessage);
+        Assert.NotNull(created);
+        Assert.EndsWith(".aegis", created!.VaultPath, StringComparison.OrdinalIgnoreCase);
+        Assert.True(File.Exists(Path.Combine(_directory, "myvault.aegis")));
+        created.Dispose();
+        return null;
+    });
+
+    [Fact]
+    public Task CreateRejectsExistingFile() => Headless.RunAsync<object?>(async () =>
+    {
+        var existing = Path.Combine(_directory, "existing.aegis");
+        File.WriteAllText(existing, "not a vault");
+
+        var model = new UnlockViewModel
+        {
+            NewVaultPath = existing,
+            ModeIndex = UnlockViewModel.CreateMode,
+            MasterPassword = "master password",
+            ConfirmPassword = "master password",
+        };
+
+        await model.CreateCommand.ExecuteAsync(null);
+
+        Assert.NotNull(model.ErrorMessage);
+        Assert.Contains("已存在", model.ErrorMessage);
         return null;
     });
 }
