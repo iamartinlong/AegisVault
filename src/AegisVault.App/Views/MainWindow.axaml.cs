@@ -1,3 +1,4 @@
+using AegisVault.App.Localization;
 using AegisVault.App.Services;
 using AegisVault.App.ViewModels;
 using AegisVault.Core.Models;
@@ -12,6 +13,7 @@ public partial class MainWindow : Window
     private ClipboardService? _clipboard;
     private AutoLockService? _autoLock;
     private Action? _openSettings;
+    private Action? _toggleTheme;
     private bool _handlersAttached;
 
     /// <summary>Raised when the user asks to unlock from the lock overlay.</summary>
@@ -33,12 +35,18 @@ public partial class MainWindow : Window
 
     private void OnUnlockClicked(object? sender, RoutedEventArgs e) => UnlockRequested?.Invoke();
 
-    public void Attach(MainViewModel viewModel, ClipboardService clipboard, AutoLockService autoLock, Action? openSettings = null)
+    public void Attach(
+        MainViewModel viewModel,
+        ClipboardService clipboard,
+        AutoLockService autoLock,
+        Action? openSettings = null,
+        Action? toggleTheme = null)
     {
         DataContext = viewModel;
         _clipboard = clipboard;
         _autoLock = autoLock;
         _openSettings = openSettings;
+        _toggleTheme = toggleTheme;
         HideLockOverlay();
 
         if (_handlersAttached)
@@ -154,11 +162,89 @@ public partial class MainWindow : Window
 
     private void OnSettingsClicked(object? sender, RoutedEventArgs e) => _openSettings?.Invoke();
 
+    private void OnThemeToggleClicked(object? sender, RoutedEventArgs e) => _toggleTheme?.Invoke();
+
     private void OnRowCopyPasswordClicked(object? sender, RoutedEventArgs e)
         => InvokeForRow(sender, viewModel => viewModel.CopyPasswordCommand.Execute(null));
 
     private void OnRowCopyTotpClicked(object? sender, RoutedEventArgs e)
         => InvokeForRow(sender, viewModel => viewModel.CopyTotpCommand.Execute(null));
+
+    private async void OnNewCategoryClicked(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        try
+        {
+            var dialog = new TextPromptWindow(
+                Loc.T("Main_NewCategoryTitle"),
+                Loc.T("Main_CategoryNameLabel"),
+                string.Empty,
+                name => viewModel.ValidateCategoryName(name));
+            var result = await dialog.ShowDialog<string?>(this);
+            if (!string.IsNullOrEmpty(result))
+            {
+                viewModel.TryCreateCategory(result, out _);
+            }
+        }
+        catch (Exception)
+        {
+        }
+    }
+
+    private async void OnRenameCategoryClicked(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { DataContext: CategoryItem item } ||
+            item.CategoryId is not { } id ||
+            DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        try
+        {
+            var dialog = new TextPromptWindow(
+                Loc.T("Main_RenameCategoryTitle"),
+                Loc.T("Main_CategoryNameLabel"),
+                item.DisplayName,
+                name => viewModel.ValidateCategoryName(name, id));
+            var result = await dialog.ShowDialog<string?>(this);
+            if (!string.IsNullOrEmpty(result))
+            {
+                viewModel.TryRenameCategory(id, result, out _);
+            }
+        }
+        catch (Exception)
+        {
+        }
+    }
+
+    private async void OnDeleteCategoryClicked(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { DataContext: CategoryItem item } ||
+            item.CategoryId is not { } id ||
+            DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        try
+        {
+            var dialog = new ConfirmWindow(
+                Loc.T("Main_DeleteCategoryTitle"),
+                Loc.Format("Main_DeleteCategoryMessage", item.DisplayName));
+            if (await dialog.ShowDialog<bool>(this))
+            {
+                viewModel.DeleteCategory(id);
+            }
+        }
+        catch (Exception)
+        {
+        }
+    }
 
     private void InvokeForRow(object? sender, Action<MainViewModel> action)
     {

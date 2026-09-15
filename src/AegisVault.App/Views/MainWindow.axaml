@@ -3,309 +3,701 @@
         xmlns:vm="using:AegisVault.App.ViewModels"
         xmlns:models="using:AegisVault.Core.Models"
         xmlns:loc="using:AegisVault.App.Localization"
+        xmlns:conv="using:AegisVault.App.Converters"
+        xmlns:atom="https://atomui.net"
+        xmlns:antd="https://atomui.net/icons/antdesign"
         x:Class="AegisVault.App.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Icon="/Assets/app.png"
         Title="AegisVault"
-        Width="1100" Height="700"
-        MinWidth="900" MinHeight="560"
-        WindowStartupLocation="CenterScreen">
+        Width="1180" Height="760"
+        MinWidth="980" MinHeight="620"
+        WindowStartupLocation="CenterScreen"
+        Background="{atom:SharedTokenResource ColorBgLayout}">
+    <Window.Resources>
+        <conv:InitialConverter x:Key="InitialConverter" />
+        <conv:InitialTileBackgroundConverter x:Key="TileBackgroundConverter" />
+        <conv:InitialTileForegroundConverter x:Key="TileForegroundConverter" />
+        <conv:CategoryIconConverter x:Key="CategoryIconConverter" />
+    </Window.Resources>
+
+    <Window.Styles>
+        <!-- Chips -->
+        <Style Selector="Button.chip">
+            <Setter Property="Background" Value="{DynamicResource AegisChipBrush}" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="12,5" />
+            <Setter Property="FontSize" Value="12" />
+        </Style>
+        <Style Selector="Button.chip:pointerover">
+            <Setter Property="Background" Value="{DynamicResource AegisHoverBrush}" />
+        </Style>
+        <Style Selector="Button.chip:pressed">
+            <Setter Property="Background" Value="{DynamicResource AegisSelectedBrush}" />
+        </Style>
+        <Style Selector="Button.chip.active">
+            <Setter Property="Background" Value="{DynamicResource AegisChipSelectedBrush}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style Selector="Button.chip.active:pointerover">
+            <Setter Property="Background" Value="{DynamicResource AegisChipSelectedBrush}" />
+        </Style>
+        <!-- Neutral selection/hover (Fluent defaults are blue) -->
+        <Style Selector="ListBox.nav ListBoxItem:selected /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AegisSelectedBrush}" />
+        </Style>
+        <Style Selector="ListBox.entries ListBoxItem:selected /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AegisSelectedBrush}" />
+        </Style>
+        <Style Selector="ListBox.nav ListBoxItem:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AegisHoverBrush}" />
+        </Style>
+        <Style Selector="ListBox.entries ListBoxItem:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AegisHoverBrush}" />
+        </Style>
+        <!-- Sidebar rows -->
+        <Style Selector="ListBox.nav ListBoxItem">
+            <Setter Property="Padding" Value="8,6" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="FontSize" Value="13" />
+        </Style>
+        <Style Selector="ListBox.nav ListBoxItem StackPanel.rowActions">
+            <Setter Property="Opacity" Value="0" />
+        </Style>
+        <Style Selector="ListBox.nav ListBoxItem:pointerover StackPanel.rowActions">
+            <Setter Property="Opacity" Value="1" />
+        </Style>
+        <Style Selector="ListBox.nav ListBoxItem:selected StackPanel.rowActions">
+            <Setter Property="Opacity" Value="1" />
+        </Style>
+        <!-- Entry rows -->
+        <Style Selector="ListBox.entries ListBoxItem">
+            <Setter Property="Padding" Value="10,6" />
+            <Setter Property="CornerRadius" Value="8" />
+        </Style>
+        <Style Selector="ListBox.entries ListBoxItem StackPanel.rowActions">
+            <Setter Property="Opacity" Value="0" />
+        </Style>
+        <Style Selector="ListBox.entries ListBoxItem:pointerover StackPanel.rowActions">
+            <Setter Property="Opacity" Value="1" />
+        </Style>
+        <Style Selector="ListBox.entries ListBoxItem:selected StackPanel.rowActions">
+            <Setter Property="Opacity" Value="1" />
+        </Style>
+        <!-- Section headers / fields -->
+        <Style Selector="TextBlock.section">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="Medium" />
+            <Setter Property="Foreground" Value="{atom:SharedTokenResource ColorTextTertiary}" />
+            <Setter Property="Margin" Value="10,12,10,4" />
+        </Style>
+        <Style Selector="TextBlock.field">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Opacity" Value="0.6" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+    </Window.Styles>
+
     <Panel>
-        <Grid RowDefinitions="Auto,*">
-        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="20,14,20,10">
-            <TextBlock Grid.Column="0"
-                       Text="AegisVault"
-                       FontSize="18"
-                       FontWeight="SemiBold"
-                       VerticalAlignment="Center" />
-            <TextBlock Grid.Column="1"
-                       Text="{Binding StatusMessage}"
-                       Margin="16,0"
-                       VerticalAlignment="Center"
-                       Opacity="0.7" />
-            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
-                <Button Content="{loc:Str Main_NewEntry}" Command="{Binding AddEntryCommand}" />
-                <Button Content="{loc:Str Main_Generator}" Click="OnGeneratePasswordClicked" />
-                <Button Content="{loc:Str Main_Settings}" Click="OnSettingsClicked" />
-                <Button Content="{loc:Str Main_Lock}" Command="{Binding LockCommand}" />
-            </StackPanel>
-        </Grid>
+        <Grid ColumnDefinitions="260,*">
+            <!-- ==================== Sidebar ==================== -->
+            <Border Grid.Column="0"
+                    Background="{DynamicResource AegisSidebarBrush}"
+                    BorderBrush="{DynamicResource AegisHairlineBrush}"
+                    BorderThickness="0,0,1,0">
+                <Grid RowDefinitions="Auto,*,Auto">
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8" Margin="16,16,16,8">
+                        <ContentControl VerticalAlignment="Center"
+                                        Content="{antd:AntDesignIconProvider SafetyCertificateFilled}">
+                            <ContentControl.Styles>
+                                <Style Selector="PathIcon">
+                                    <Setter Property="Width" Value="18" />
+                                    <Setter Property="Height" Value="18" />
+                                    <Setter Property="Foreground" Value="#0F6B4F" />
+                                </Style>
+                            </ContentControl.Styles>
+                        </ContentControl>
+                        <TextBlock Text="AegisVault"
+                                   FontSize="15"
+                                   FontWeight="SemiBold"
+                                   VerticalAlignment="Center" />
+                    </StackPanel>
 
-        <Grid Grid.Row="1" ColumnDefinitions="210,4,330,4,*" Margin="12,0,12,12">
-            <Grid Grid.Column="0" RowDefinitions="Auto,Auto,*">
-                <Button Grid.Row="0"
-                        HorizontalAlignment="Stretch"
-                        HorizontalContentAlignment="Stretch"
-                        Padding="8,6"
-                        Command="{Binding ShowSecurityCommand}"
-                        ToolTip.Tip="{loc:Str Main_HealthTip}">
-                    <TextBlock Text="{Binding HealthSummary}"
-                               FontSize="11"
-                               TextWrapping="Wrap"
-                               HorizontalAlignment="Left" />
-                </Button>
-                <TextBlock Grid.Row="1" Text="{loc:Str Main_Categories}" FontSize="11" Opacity="0.5" Margin="4,8,0,4" />
-                <ListBox Grid.Row="2"
-                         ItemsSource="{Binding Categories}"
-                         SelectedItem="{Binding SelectedCategory}">
-                <ListBox.ItemTemplate>
-                    <DataTemplate DataType="vm:CategoryItem">
-                        <Grid ColumnDefinitions="*,Auto">
-                            <TextBlock Grid.Column="0"
-                                       Text="{Binding DisplayName}"
-                                       TextTrimming="CharacterEllipsis" />
-                            <TextBlock Grid.Column="1"
-                                       Text="{Binding Count}"
-                                       FontSize="11"
-                                       Opacity="0.5"
-                                       VerticalAlignment="Center" />
-                        </Grid>
-                    </DataTemplate>
-                </ListBox.ItemTemplate>
-                </ListBox>
-            </Grid>
+                    <ScrollViewer Grid.Row="1" Margin="8,0,8,8">
+                        <StackPanel>
+                            <TextBlock Classes="section" Text="{loc:Str Main_SectionViews}" />
+                            <ListBox Classes="nav"
+                                     Background="Transparent"
+                                     ItemsSource="{Binding SystemCategories}"
+                                     SelectedItem="{Binding SelectedSystemCategory}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate DataType="vm:CategoryItem">
+                                        <Grid ColumnDefinitions="Auto,*,Auto">
+                                            <ContentControl Grid.Column="0"
+                                                            Content="{Binding Converter={StaticResource CategoryIconConverter}}"
+                                                            Margin="0,0,8,0"
+                                                            VerticalAlignment="Center" />
+                                            <TextBlock Grid.Column="1"
+                                                       Text="{Binding DisplayName}"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       VerticalAlignment="Center" />
+                                            <TextBlock Grid.Column="2"
+                                                       Text="{Binding Count}"
+                                                       FontSize="11"
+                                                       Opacity="0.5"
+                                                       VerticalAlignment="Center" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
 
-            <GridSplitter Grid.Column="1" Width="4" Background="Transparent" />
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Grid.Column="0" Classes="section" Text="{loc:Str Main_CategoryField}" />
+                                <atom:Button Grid.Column="1"
+                                             ButtonType="Text"
+                                             Icon="{antd:AntDesignIconProvider PlusOutlined}"
+                                             Margin="0,6,4,0"
+                                             ToolTip.Tip="{loc:Str Main_NewCategoryTitle}"
+                                             Click="OnNewCategoryClicked" />
+                            </Grid>
+                            <ListBox Classes="nav"
+                                     Background="Transparent"
+                                     ItemsSource="{Binding UserCategories}"
+                                     SelectedItem="{Binding SelectedUserCategory}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate DataType="vm:CategoryItem">
+                                        <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                                            <ContentControl Grid.Column="0"
+                                                            Content="{Binding Converter={StaticResource CategoryIconConverter}}"
+                                                            Margin="0,0,8,0"
+                                                            VerticalAlignment="Center" />
+                                            <TextBlock Grid.Column="1"
+                                                       Text="{Binding DisplayName}"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       VerticalAlignment="Center" />
+                                            <StackPanel Grid.Column="2"
+                                                        Classes="rowActions"
+                                                        Orientation="Horizontal"
+                                                        Spacing="0"
+                                                        VerticalAlignment="Center">
+                                                <atom:Button ButtonType="Text"
+                                                             Icon="{antd:AntDesignIconProvider EditOutlined}"
+                                                             ToolTip.Tip="{loc:Str Main_RenameCategoryTooltip}"
+                                                             Click="OnRenameCategoryClicked" />
+                                                <atom:Button ButtonType="Text"
+                                                             Icon="{antd:AntDesignIconProvider DeleteOutlined}"
+                                                             ToolTip.Tip="{loc:Str Main_DeleteCategoryTooltip}"
+                                                             Click="OnDeleteCategoryClicked" />
+                                            </StackPanel>
+                                            <TextBlock Grid.Column="3"
+                                                       Text="{Binding Count}"
+                                                       FontSize="11"
+                                                       Opacity="0.5"
+                                                       Margin="6,0,0,0"
+                                                       VerticalAlignment="Center" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
 
-            <Grid Grid.Column="2" RowDefinitions="Auto,*">
-                <TextBox x:Name="SearchBox"
-                         Grid.Row="0"
-                         Text="{Binding SearchText}"
-                         PlaceholderText="{loc:Str Main_SearchPlaceholder}" />
-                <Panel Grid.Row="1" Margin="0,8,0,0">
-                    <ListBox ItemsSource="{Binding FilteredEntries}"
-                             SelectedItem="{Binding SelectedEntry}">
-                        <ListBox.Styles>
-                            <Style Selector="ListBoxItem StackPanel.rowActions">
-                                <Setter Property="Opacity" Value="0" />
-                            </Style>
-                            <Style Selector="ListBoxItem:pointerover StackPanel.rowActions">
-                                <Setter Property="Opacity" Value="1" />
-                            </Style>
-                            <Style Selector="ListBoxItem:selected StackPanel.rowActions">
-                                <Setter Property="Opacity" Value="1" />
-                            </Style>
-                        </ListBox.Styles>
-                        <ListBox.ItemTemplate>
-                            <DataTemplate DataType="models:PasswordEntry">
-                                <Grid ColumnDefinitions="*,Auto">
-                                    <StackPanel Grid.Column="0" Spacing="2">
-                                        <StackPanel Orientation="Horizontal" Spacing="6">
-                                            <TextBlock Text="★"
-                                                       Foreground="#FAAD14"
-                                                       IsVisible="{Binding IsFavorite}" />
-                                            <TextBlock Text="{Binding Title}"
-                                                       FontWeight="SemiBold"
-                                                       TextTrimming="CharacterEllipsis" />
-                                        </StackPanel>
-                                        <TextBlock Text="{Binding Username}"
-                                                   FontSize="11"
-                                                   Opacity="0.6"
-                                                   TextTrimming="CharacterEllipsis" />
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="1"
-                                                Classes="rowActions"
-                                                Orientation="Horizontal"
-                                                Spacing="2"
-                                                VerticalAlignment="Center">
-                                        <Button Content="👤"
-                                                ToolTip.Tip="{loc:Str Main_CopyUsernameTip}"
-                                                Click="OnRowCopyUsernameClicked" />
-                                        <Button Content="🔑"
-                                                ToolTip.Tip="{loc:Str Main_CopyPasswordTip}"
-                                                Click="OnRowCopyPasswordClicked" />
-                                        <Button Content="⏱"
-                                                ToolTip.Tip="{loc:Str Main_CopyTotpTip}"
-                                                IsVisible="{Binding TotpSecret, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                                                Click="OnRowCopyTotpClicked" />
-                                    </StackPanel>
-                                </Grid>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
-                    <TextBlock Text="{loc:Str Main_EmptyList}"
-                               HorizontalAlignment="Center"
-                               VerticalAlignment="Center"
-                               Opacity="0.45"
-                               IsVisible="{Binding !HasFilteredEntries}" />
-                </Panel>
-            </Grid>
-
-            <GridSplitter Grid.Column="3" Width="4" Background="Transparent" />
-
-            <Panel Grid.Column="4">
-                <TextBlock Text="{loc:Str Main_SelectEntryHint}"
-                           HorizontalAlignment="Center"
-                           VerticalAlignment="Center"
-                           Opacity="0.45"
-                           IsVisible="{Binding !HasSelection}" />
-
-                <ScrollViewer IsVisible="{Binding HasSelection}">
-                    <Grid>
-                        <StackPanel Margin="10,4,4,4" Spacing="12" IsVisible="{Binding !IsEditing}">
-                            <TextBlock Text="{Binding EditTitle}"
-                                       FontSize="22"
-                                       FontWeight="SemiBold"
-                                       TextWrapping="Wrap" />
-
-                            <StackPanel Spacing="4">
-                                <TextBlock Text="{loc:Str Main_Username}" FontSize="12" Opacity="0.6" />
-                                <Grid ColumnDefinitions="*,8,Auto">
-                                    <SelectableTextBlock Grid.Column="0"
-                                                         Text="{Binding EditUsername}"
-                                                         VerticalAlignment="Center"
-                                                         TextWrapping="Wrap" />
-                                    <Button Grid.Column="2"
-                                            Content="{loc:Str Common_Copy}"
-                                            Command="{Binding CopyUsernameCommand}" />
-                                </Grid>
-                            </StackPanel>
-
-                            <StackPanel Spacing="4">
-                                <TextBlock Text="{loc:Str Main_Password}" FontSize="12" Opacity="0.6" />
-                                <Grid ColumnDefinitions="*,8,Auto,Auto">
-                                    <SelectableTextBlock Grid.Column="0"
-                                                         Text="{Binding PasswordPreview}"
-                                                         FontFamily="Consolas, Menlo, monospace"
-                                                         VerticalAlignment="Center"
-                                                         TextWrapping="Wrap" />
-                                    <Button Grid.Column="2"
-                                            Content="{loc:Str Common_Reveal}"
-                                            Command="{Binding TogglePasswordRevealCommand}" />
-                                    <Button Grid.Column="3"
-                                            Margin="8,0,0,0"
-                                            Content="{loc:Str Common_Copy}"
-                                            Command="{Binding CopyPasswordCommand}" />
-                                </Grid>
-                            </StackPanel>
-
-                            <StackPanel Spacing="4" IsVisible="{Binding HasTotp}">
-                                <TextBlock Text="{loc:Str Main_TotpSection}" FontSize="12" Opacity="0.6" />
-                                <Grid ColumnDefinitions="Auto,8,*,8,Auto">
-                                    <TextBlock Grid.Column="0"
-                                               Text="{Binding TotpCode}"
-                                               FontSize="20"
-                                               FontWeight="SemiBold"
-                                               FontFamily="Consolas, Menlo, monospace" />
-                                    <TextBlock Grid.Column="2"
-                                               Text="{Binding TotpRemaining, StringFormat='{}{0}s'}"
-                                               Opacity="0.6"
-                                               VerticalAlignment="Bottom" />
-                                    <Button Grid.Column="4"
-                                            Content="{loc:Str Common_Copy}"
-                                            Command="{Binding CopyTotpCommand}" />
-                                </Grid>
-                            </StackPanel>
-
-                            <StackPanel Spacing="4">
-                                <TextBlock Text="{loc:Str Main_Url}" FontSize="12" Opacity="0.6" />
-                                <Grid ColumnDefinitions="*,8,Auto">
-                                    <SelectableTextBlock Grid.Column="0"
-                                                         Text="{Binding EditUrl}"
-                                                         VerticalAlignment="Center"
-                                                         TextWrapping="Wrap" />
-                                    <Button Grid.Column="2"
-                                            Content="{loc:Str Common_Open}"
-                                            Command="{Binding OpenUrlCommand}" />
-                                </Grid>
-                            </StackPanel>
-
-                            <StackPanel Spacing="4">
-                                <TextBlock Text="{loc:Str Main_Tags}" FontSize="12" Opacity="0.6" />
-                                <SelectableTextBlock Text="{Binding EditTags}" TextWrapping="Wrap" />
-                            </StackPanel>
-
-                            <StackPanel Spacing="4">
-                                <TextBlock Text="{loc:Str Main_Notes}" FontSize="12" Opacity="0.6" />
-                                <SelectableTextBlock Text="{Binding EditNotes}" TextWrapping="Wrap" />
-                            </StackPanel>
-
-                            <StackPanel Orientation="Horizontal"
-                                        Spacing="8"
-                                        HorizontalAlignment="Right"
-                                        Margin="0,8,0,0">
-                                <Button Content="{loc:Str Main_FavoriteToggle}"
-                                        Command="{Binding ToggleFavoriteCommand}" />
-                                <Button Content="{loc:Str Common_Edit}" Command="{Binding BeginEditCommand}" />
-                                <Button Content="{loc:Str Common_Delete}" Command="{Binding DeleteEntryCommand}" />
-                            </StackPanel>
+                            <TextBlock Classes="section" Text="{loc:Str Main_Tags}" />
+                            <ListBox Classes="nav"
+                                     Background="Transparent"
+                                     ItemsSource="{Binding TagCategories}"
+                                     SelectedItem="{Binding SelectedTagCategory}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate DataType="vm:CategoryItem">
+                                        <Grid ColumnDefinitions="Auto,*,Auto">
+                                            <ContentControl Grid.Column="0"
+                                                            Content="{Binding Converter={StaticResource CategoryIconConverter}}"
+                                                            Margin="0,0,8,0"
+                                                            VerticalAlignment="Center" />
+                                            <TextBlock Grid.Column="1"
+                                                       Text="{Binding DisplayName}"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       VerticalAlignment="Center" />
+                                            <TextBlock Grid.Column="2"
+                                                       Text="{Binding Count}"
+                                                       FontSize="11"
+                                                       Opacity="0.5"
+                                                       VerticalAlignment="Center" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
                         </StackPanel>
+                    </ScrollViewer>
 
-                        <StackPanel Margin="10,4,4,4" Spacing="10" IsVisible="{Binding IsEditing}">
-                            <StackPanel Spacing="4">
-                                <TextBlock Text="{loc:Str Main_Title}" FontSize="12" Opacity="0.6" />
-                                <TextBox Text="{Binding EditTitle}" />
-                            </StackPanel>
-
-                            <StackPanel Spacing="4">
-                                <TextBlock Text="{loc:Str Main_Username}" FontSize="12" Opacity="0.6" />
-                                <TextBox Text="{Binding EditUsername}" />
-                            </StackPanel>
-
-                            <StackPanel Spacing="4">
-                                <TextBlock Text="{loc:Str Main_Password}" FontSize="12" Opacity="0.6" />
-                                <Grid ColumnDefinitions="*,8,Auto">
-                                    <TextBox Grid.Column="0"
-                                             PasswordChar="●"
-                                             RevealPassword="True"
-                                             Text="{Binding EditPassword, Mode=TwoWay}" />
-                                    <Button Grid.Column="2"
-                                            Content="{loc:Str Common_Generate}"
-                                            Click="OnGeneratePasswordClicked" />
-                                </Grid>
-                                <ProgressBar Value="{Binding EditPasswordStrengthPercent}"
-                                             Maximum="100"
-                                             Height="6" />
-                                <TextBlock Text="{Binding EditPasswordStrengthSummary}"
+                    <Border Grid.Row="2"
+                            BorderBrush="{DynamicResource AegisHairlineBrush}"
+                            BorderThickness="0,1,0,0"
+                            Padding="12,8">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <Button Grid.Column="0"
+                                    Background="Transparent"
+                                    BorderThickness="0"
+                                    Padding="0"
+                                    HorizontalAlignment="Left"
+                                    ToolTip.Tip="{Binding HealthSummary}"
+                                    Command="{Binding ShowSecurityCommand}">
+                                <TextBlock Text="{Binding HealthCompactText}"
                                            FontSize="12"
-                                           Opacity="0.75" />
+                                           MaxLines="1"
+                                           TextTrimming="CharacterEllipsis"
+                                           Foreground="{atom:SharedTokenResource ColorWarning}"
+                                           IsVisible="{Binding HasSecurityIssues}" />
+                            </Button>
+                            <TextBlock Grid.Column="0"
+                                       Text="{Binding HealthCompactText}"
+                                       FontSize="12"
+                                       MaxLines="1"
+                                       TextTrimming="CharacterEllipsis"
+                                       Opacity="0.55"
+                                       VerticalAlignment="Center"
+                                       IsVisible="{Binding !HasSecurityIssues}" />
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="0">
+                                <atom:Button ButtonType="Text"
+                                             Icon="{antd:AntDesignIconProvider BulbOutlined}"
+                                             ToolTip.Tip="{loc:Str Main_ToggleTheme}"
+                                             Click="OnThemeToggleClicked" />
+                                <atom:Button ButtonType="Text"
+                                             Icon="{antd:AntDesignIconProvider SettingOutlined}"
+                                             ToolTip.Tip="{loc:Str Main_Settings}"
+                                             Click="OnSettingsClicked" />
+                                <atom:Button ButtonType="Text"
+                                             Icon="{antd:AntDesignIconProvider LockOutlined}"
+                                             ToolTip.Tip="{loc:Str Main_Lock}"
+                                             Command="{Binding LockCommand}" />
                             </StackPanel>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </Border>
 
-                            <StackPanel Spacing="4">
-                                <TextBlock Text="{loc:Str Main_Url}" FontSize="12" Opacity="0.6" />
-                                <TextBox Text="{Binding EditUrl}" />
-                            </StackPanel>
-
-                            <StackPanel Spacing="4">
-                                <TextBlock Text="{loc:Str Main_TotpSecret}" FontSize="12" Opacity="0.6" />
-                                <TextBox Text="{Binding EditTotpSecret}" />
-                            </StackPanel>
-
-                            <StackPanel Spacing="4">
-                                <TextBlock Text="{loc:Str Main_TagsComma}" FontSize="12" Opacity="0.6" />
-                                <TextBox Text="{Binding EditTags}" />
-                            </StackPanel>
-
-                            <StackPanel Spacing="4">
-                                <TextBlock Text="{loc:Str Main_Notes}" FontSize="12" Opacity="0.6" />
-                                <TextBox Text="{Binding EditNotes}"
-                                         AcceptsReturn="True"
-                                         TextWrapping="Wrap"
-                                         Height="90" />
-                            </StackPanel>
-
-                            <CheckBox Content="{loc:Str Main_Favorite}" IsChecked="{Binding EditIsFavorite, Mode=TwoWay}" />
-
-                            <StackPanel Orientation="Horizontal"
-                                        Spacing="8"
-                                        HorizontalAlignment="Right"
-                                        Margin="0,4,0,0">
-                                <Button Content="{loc:Str Common_Cancel}" Command="{Binding CancelEditCommand}" />
-                                <Button Content="{loc:Str Common_Save}" Command="{Binding SaveEntryCommand}" />
-                            </StackPanel>
+            <!-- ==================== Content ==================== -->
+            <Grid Grid.Column="1" RowDefinitions="Auto,Auto,*">
+                <!-- Toolbar -->
+                <Border Grid.Row="0"
+                        BorderBrush="{DynamicResource AegisHairlineBrush}"
+                        BorderThickness="0,0,0,1">
+                    <Grid ColumnDefinitions="*,Auto" Margin="20,12">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding SelectedCategory.DisplayName}"
+                                       FontSize="16"
+                                       FontWeight="SemiBold"
+                                       VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding FilteredCountText}"
+                                       FontSize="12"
+                                       Opacity="0.55"
+                                       VerticalAlignment="Center"
+                                       Margin="0,3,0,0" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                            <atom:LineEdit x:Name="SearchBox"
+                                           Width="290"
+                                           PlaceholderText="{loc:Str Main_SearchPlaceholder}"
+                                           Text="{Binding SearchText}" />
+                            <atom:Button ButtonType="Default"
+                                         Icon="{antd:AntDesignIconProvider ExperimentOutlined}"
+                                         Content="{loc:Str Main_Generator}"
+                                         Click="OnGeneratePasswordClicked" />
+                            <atom:Button ButtonType="Primary"
+                                         Icon="{antd:AntDesignIconProvider PlusOutlined}"
+                                         Content="{loc:Str Main_NewEntry}"
+                                         Command="{Binding AddEntryCommand}" />
                         </StackPanel>
                     </Grid>
-                </ScrollViewer>
-            </Panel>
-        </Grid>
+                </Border>
+
+                <!-- Chips -->
+                <Border Grid.Row="1"
+                        BorderBrush="{DynamicResource AegisHairlineBrush}"
+                        BorderThickness="0,0,0,1">
+                    <Grid ColumnDefinitions="Auto,*,Auto" Margin="20,8">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6">
+                            <Button Classes="chip"
+                                    Classes.active="{Binding IsViewAll}"
+                                    Content="{loc:Str Main_CategoryAll}"
+                                    Command="{Binding SelectViewCommand}"
+                                    CommandParameter="all" />
+                            <Button Classes="chip"
+                                    Classes.active="{Binding IsViewFavorites}"
+                                    Content="{loc:Str Main_CategoryFavorites}"
+                                    Command="{Binding SelectViewCommand}"
+                                    CommandParameter="favorites" />
+                            <Button Classes="chip"
+                                    Classes.active="{Binding IsViewSecurity}"
+                                    Content="{loc:Str Main_CategorySecurity}"
+                                    Command="{Binding SelectViewCommand}"
+                                    CommandParameter="weak" />
+                            <Button Classes="chip"
+                                    Classes.active="{Binding IsViewStale}"
+                                    Content="{loc:Str Main_CategoryStale}"
+                                    Command="{Binding SelectViewCommand}"
+                                    CommandParameter="old" />
+                        </StackPanel>
+                        <TextBlock Grid.Column="1"
+                                   Text="{Binding StatusMessage}"
+                                   FontSize="12"
+                                   Opacity="0.6"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center" />
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6">
+                            <Button Classes="chip"
+                                    Classes.active="{Binding IsSortByName}"
+                                    Content="{loc:Str Main_SortName}"
+                                    Command="{Binding SortByNameCommand}" />
+                            <Button Classes="chip"
+                                    Classes.active="{Binding IsSortByRecent}"
+                                    Content="{loc:Str Main_SortRecent}"
+                                    Command="{Binding SortByRecentCommand}" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Body: list + detail -->
+                <Grid Grid.Row="2" ColumnDefinitions="360,1,*">
+                    <Panel Grid.Column="0" Margin="8,8,4,8">
+                        <ListBox Classes="entries"
+                                 Background="Transparent"
+                                 ItemsSource="{Binding FilteredEntries}"
+                                 SelectedItem="{Binding SelectedEntry}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate DataType="models:PasswordEntry">
+                                    <Grid ColumnDefinitions="Auto,*,Auto">
+                                        <Border Grid.Column="0"
+                                                Width="36" Height="36"
+                                                CornerRadius="10"
+                                                Margin="0,0,10,0"
+                                                Background="{Binding Title, Converter={StaticResource TileBackgroundConverter}}">
+                                            <TextBlock Text="{Binding Title, Converter={StaticResource InitialConverter}}"
+                                                       FontSize="14"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="{Binding Title, Converter={StaticResource TileForegroundConverter}}"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center" />
+                                        </Border>
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <ContentControl VerticalAlignment="Center"
+                                                                IsVisible="{Binding IsFavorite}"
+                                                                Content="{antd:AntDesignIconProvider StarFilled}">
+                                                    <ContentControl.Styles>
+                                                        <Style Selector="PathIcon">
+                                                            <Setter Property="Width" Value="12" />
+                                                            <Setter Property="Height" Value="12" />
+                                                            <Setter Property="Foreground" Value="#FAAD14" />
+                                                        </Style>
+                                                    </ContentControl.Styles>
+                                                </ContentControl>
+                                                <TextBlock Text="{Binding Title}"
+                                                           FontSize="14"
+                                                           FontWeight="Medium"
+                                                           TextTrimming="CharacterEllipsis" />
+                                            </StackPanel>
+                                            <TextBlock Text="{Binding Username}"
+                                                       FontSize="12"
+                                                       Opacity="0.55"
+                                                       TextTrimming="CharacterEllipsis" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2"
+                                                    Classes="rowActions"
+                                                    Orientation="Horizontal"
+                                                    Spacing="0"
+                                                    VerticalAlignment="Center">
+                                            <atom:Button ButtonType="Text"
+                                                         Icon="{antd:AntDesignIconProvider UserOutlined}"
+                                                         ToolTip.Tip="{loc:Str Main_CopyUsernameTip}"
+                                                         Click="OnRowCopyUsernameClicked" />
+                                            <atom:Button ButtonType="Text"
+                                                         Icon="{antd:AntDesignIconProvider KeyOutlined}"
+                                                         ToolTip.Tip="{loc:Str Main_CopyPasswordTip}"
+                                                         Click="OnRowCopyPasswordClicked" />
+                                            <atom:Button ButtonType="Text"
+                                                         Icon="{antd:AntDesignIconProvider ClockCircleOutlined}"
+                                                         ToolTip.Tip="{loc:Str Main_CopyTotpTip}"
+                                                         IsVisible="{Binding TotpSecret, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                                         Click="OnRowCopyTotpClicked" />
+                                        </StackPanel>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                        <TextBlock Text="{loc:Str Main_EmptyList}"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   Opacity="0.45"
+                                   IsVisible="{Binding !HasFilteredEntries}" />
+                    </Panel>
+
+                    <Border Grid.Column="1" Background="{DynamicResource AegisHairlineBrush}" />
+
+                    <Panel Grid.Column="2" Margin="20,12,20,16">
+                        <StackPanel HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Spacing="10"
+                                    IsVisible="{Binding !HasSelection}">
+                            <ContentControl HorizontalAlignment="Center"
+                                            Content="{antd:AntDesignIconProvider FileSearchOutlined}">
+                                <ContentControl.Styles>
+                                    <Style Selector="PathIcon">
+                                        <Setter Property="Width" Value="32" />
+                                        <Setter Property="Height" Value="32" />
+                                        <Setter Property="Opacity" Value="0.35" />
+                                    </Style>
+                                </ContentControl.Styles>
+                            </ContentControl>
+                            <TextBlock Text="{loc:Str Main_SelectEntryHint}"
+                                       Opacity="0.5"
+                                       HorizontalAlignment="Center" />
+                        </StackPanel>
+
+                        <ScrollViewer IsVisible="{Binding HasSelection}">
+                            <Grid>
+                                <!-- Preview -->
+                                <StackPanel IsVisible="{Binding !IsEditing}">
+                                    <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,10">
+                                        <TextBlock Grid.Column="0"
+                                                   Text="{Binding EditTitle}"
+                                                   FontSize="20"
+                                                   FontWeight="SemiBold"
+                                                   TextWrapping="Wrap" />
+                                        <atom:Button Grid.Column="1"
+                                                     ButtonType="Text"
+                                                     Icon="{antd:AntDesignIconProvider StarOutlined}"
+                                                     ToolTip.Tip="{loc:Str Main_FavoriteToggle}"
+                                                     Command="{Binding ToggleFavoriteCommand}" />
+                                    </Grid>
+
+                                    <Border BorderBrush="{DynamicResource AegisHairlineBrush}" BorderThickness="0,0,0,1" Padding="0,10">
+                                        <Grid ColumnDefinitions="96,*,Auto">
+                                            <TextBlock Grid.Column="0" Classes="field" Text="{loc:Str Main_Username}" />
+                                            <SelectableTextBlock Grid.Column="1"
+                                                                 Text="{Binding EditUsername}"
+                                                                 TextWrapping="Wrap"
+                                                                 VerticalAlignment="Center" />
+                                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="0">
+                                                <atom:Button ButtonType="Text"
+                                                             Icon="{antd:AntDesignIconProvider CopyOutlined}"
+                                                             ToolTip.Tip="{loc:Str Common_Copy}"
+                                                             Command="{Binding CopyUsernameCommand}" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+
+                                    <Border BorderBrush="{DynamicResource AegisHairlineBrush}" BorderThickness="0,0,0,1" Padding="0,10">
+                                        <Grid ColumnDefinitions="96,*,Auto">
+                                            <TextBlock Grid.Column="0" Classes="field" Text="{loc:Str Main_Password}" />
+                                            <SelectableTextBlock Grid.Column="1"
+                                                                 Text="{Binding PasswordPreview}"
+                                                                 FontFamily="Consolas, Menlo, monospace"
+                                                                 TextWrapping="Wrap"
+                                                                 VerticalAlignment="Center" />
+                                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="0">
+                                                <atom:Button ButtonType="Text"
+                                                             Icon="{antd:AntDesignIconProvider EyeOutlined}"
+                                                             ToolTip.Tip="{loc:Str Common_Reveal}"
+                                                             Command="{Binding TogglePasswordRevealCommand}" />
+                                                <atom:Button ButtonType="Text"
+                                                             Icon="{antd:AntDesignIconProvider CopyOutlined}"
+                                                             ToolTip.Tip="{loc:Str Common_Copy}"
+                                                             Command="{Binding CopyPasswordCommand}" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+
+                                    <Border BorderBrush="{DynamicResource AegisHairlineBrush}"
+                                            BorderThickness="0,0,0,1"
+                                            Padding="0,10"
+                                            IsVisible="{Binding HasTotp}">
+                                        <Grid ColumnDefinitions="96,*,Auto">
+                                            <TextBlock Grid.Column="0" Classes="field" Text="{loc:Str Main_TotpSection}" />
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                                <Border Background="{DynamicResource AegisHoverBrush}"
+                                                        CornerRadius="8"
+                                                        Padding="10,4">
+                                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                                        <TextBlock Text="{Binding TotpCode}"
+                                                                   FontSize="16"
+                                                                   FontWeight="SemiBold"
+                                                                   FontFamily="Consolas, Menlo, monospace" />
+                                                        <TextBlock Text="{Binding TotpRemaining, StringFormat='{}{0}s'}"
+                                                                   FontSize="11"
+                                                                   Opacity="0.6"
+                                                                   VerticalAlignment="Bottom" />
+                                                    </StackPanel>
+                                                </Border>
+                                            </StackPanel>
+                                            <atom:Button Grid.Column="2"
+                                                         ButtonType="Text"
+                                                         Icon="{antd:AntDesignIconProvider CopyOutlined}"
+                                                         ToolTip.Tip="{loc:Str Common_Copy}"
+                                                         Command="{Binding CopyTotpCommand}" />
+                                        </Grid>
+                                    </Border>
+
+                                    <Border BorderBrush="{DynamicResource AegisHairlineBrush}" BorderThickness="0,0,0,1" Padding="0,10">
+                                        <Grid ColumnDefinitions="96,*,Auto">
+                                            <TextBlock Grid.Column="0" Classes="field" Text="{loc:Str Main_Url}" />
+                                            <SelectableTextBlock Grid.Column="1"
+                                                                 Text="{Binding EditUrl}"
+                                                                 TextWrapping="Wrap"
+                                                                 VerticalAlignment="Center" />
+                                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="0">
+                                                <atom:Button ButtonType="Text"
+                                                             Icon="{antd:AntDesignIconProvider LinkOutlined}"
+                                                             ToolTip.Tip="{loc:Str Common_Open}"
+                                                             Command="{Binding OpenUrlCommand}" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+
+                                    <Border BorderBrush="{DynamicResource AegisHairlineBrush}" BorderThickness="0,0,0,1" Padding="0,10">
+                                        <Grid ColumnDefinitions="96,*,Auto">
+                                            <TextBlock Grid.Column="0" Classes="field" Text="{loc:Str Main_CategoryField}" />
+                                            <SelectableTextBlock Grid.Column="1"
+                                                                 Text="{Binding CategoryDisplayName}"
+                                                                 TextWrapping="Wrap"
+                                                                 VerticalAlignment="Center" />
+                                        </Grid>
+                                    </Border>
+
+                                    <Border BorderBrush="{DynamicResource AegisHairlineBrush}" BorderThickness="0,0,0,1" Padding="0,10">
+                                        <Grid ColumnDefinitions="96,*,Auto">
+                                            <TextBlock Grid.Column="0" Classes="field" Text="{loc:Str Main_Tags}" />
+                                            <SelectableTextBlock Grid.Column="1"
+                                                                 Text="{Binding EditTags}"
+                                                                 TextWrapping="Wrap"
+                                                                 VerticalAlignment="Center" />
+                                        </Grid>
+                                    </Border>
+
+                                    <Border BorderBrush="{DynamicResource AegisHairlineBrush}" BorderThickness="0,0,0,1" Padding="0,10">
+                                        <Grid ColumnDefinitions="96,*,Auto">
+                                            <TextBlock Grid.Column="0" Classes="field" Text="{loc:Str Main_Notes}" />
+                                            <SelectableTextBlock Grid.Column="1"
+                                                                 Text="{Binding EditNotes}"
+                                                                 TextWrapping="Wrap"
+                                                                 VerticalAlignment="Center" />
+                                        </Grid>
+                                    </Border>
+
+                                    <StackPanel Orientation="Horizontal"
+                                                Spacing="8"
+                                                HorizontalAlignment="Right"
+                                                Margin="0,14,0,0">
+                                        <atom:Button ButtonType="Primary"
+                                                     Icon="{antd:AntDesignIconProvider EditOutlined}"
+                                                     Content="{loc:Str Common_Edit}"
+                                                     Command="{Binding BeginEditCommand}" />
+                                        <atom:Button ButtonType="Default"
+                                                     Icon="{antd:AntDesignIconProvider DeleteOutlined}"
+                                                     Content="{loc:Str Common_Delete}"
+                                                     Command="{Binding DeleteEntryCommand}" />
+                                    </StackPanel>
+                                </StackPanel>
+
+                                <!-- Editor -->
+                                <StackPanel Spacing="12" IsVisible="{Binding IsEditing}">
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Classes="field" Text="{loc:Str Main_Title}" />
+                                        <atom:LineEdit Text="{Binding EditTitle}" />
+                                    </StackPanel>
+
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Classes="field" Text="{loc:Str Main_Username}" />
+                                        <atom:LineEdit Text="{Binding EditUsername}" />
+                                    </StackPanel>
+
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Classes="field" Text="{loc:Str Main_Password}" />
+                                        <Grid ColumnDefinitions="*,8,Auto">
+                                            <atom:LineEdit Grid.Column="0"
+                                                           PasswordChar="●"
+                                                           IsEnableRevealButton="True"
+                                                           Text="{Binding EditPassword, Mode=TwoWay}" />
+                                            <atom:Button Grid.Column="2"
+                                                         ButtonType="Default"
+                                                         Icon="{antd:AntDesignIconProvider ThunderboltOutlined}"
+                                                         Content="{loc:Str Common_Generate}"
+                                                         Click="OnGeneratePasswordClicked" />
+                                        </Grid>
+                                        <atom:ProgressBar Value="{Binding EditPasswordStrengthPercent}"
+                                                          Maximum="100"
+                                                          Height="6"
+                                                          Margin="0,6,0,0" />
+                                        <TextBlock Text="{Binding EditPasswordStrengthSummary}"
+                                                   FontSize="12"
+                                                   Opacity="0.75" />
+                                    </StackPanel>
+
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Classes="field" Text="{loc:Str Main_Url}" />
+                                        <atom:LineEdit Text="{Binding EditUrl}" />
+                                    </StackPanel>
+
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Classes="field" Text="{loc:Str Main_TotpSecret}" />
+                                        <atom:LineEdit Text="{Binding EditTotpSecret}" />
+                                    </StackPanel>
+
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Classes="field" Text="{loc:Str Main_CategoryField}" />
+                                        <atom:ComboBox ItemsSource="{Binding CategoryChoices}"
+                                                       SelectedItem="{Binding SelectedCategoryChoice}"
+                                                       HorizontalAlignment="Stretch">
+                                            <atom:ComboBox.ItemTemplate>
+                                                <DataTemplate DataType="vm:CategoryChoice">
+                                                    <TextBlock Text="{Binding Name}" />
+                                                </DataTemplate>
+                                            </atom:ComboBox.ItemTemplate>
+                                        </atom:ComboBox>
+                                    </StackPanel>
+
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Classes="field" Text="{loc:Str Main_TagsComma}" />
+                                        <atom:LineEdit Text="{Binding EditTags}" />
+                                    </StackPanel>
+
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Classes="field" Text="{loc:Str Main_Notes}" />
+                                        <atom:TextArea AcceptsReturn="True"
+                                                       TextWrapping="Wrap"
+                                                       Height="90"
+                                                       Text="{Binding EditNotes}" />
+                                    </StackPanel>
+
+                                    <atom:CheckBox Content="{loc:Str Main_Favorite}"
+                                                   IsChecked="{Binding EditIsFavorite, Mode=TwoWay}" />
+
+                                    <StackPanel Orientation="Horizontal"
+                                                Spacing="8"
+                                                HorizontalAlignment="Right"
+                                                Margin="0,2,0,0">
+                                        <atom:Button ButtonType="Default"
+                                                     Content="{loc:Str Common_Cancel}"
+                                                     Command="{Binding CancelEditCommand}" />
+                                        <atom:Button ButtonType="Primary"
+                                                     Icon="{antd:AntDesignIconProvider CheckOutlined}"
+                                                     Content="{loc:Str Common_Save}"
+                                                     Command="{Binding SaveEntryCommand}" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </Grid>
+                        </ScrollViewer>
+                    </Panel>
+                </Grid>
+            </Grid>
         </Grid>
 
+        <!-- ==================== Clipboard toast ==================== -->
         <Border x:Name="ClipboardToast"
                 IsVisible="False"
                 HorizontalAlignment="Center"
                 VerticalAlignment="Bottom"
                 Margin="0,0,0,24"
-                CornerRadius="8"
+                CornerRadius="10"
                 Padding="14,8"
                 Background="#E6303030"
                 BoxShadow="0 4 12 0 #40000000">
@@ -313,26 +705,35 @@
                 <TextBlock Text="{Binding ClipboardToastText}"
                            Foreground="White"
                            VerticalAlignment="Center" />
-                <Button Content="{loc:Str Main_ClearNow}"
-                        Command="{Binding ClearClipboardNowCommand}" />
+                <atom:Button ButtonType="Default"
+                             Content="{loc:Str Main_ClearNow}"
+                             Command="{Binding ClearClipboardNowCommand}" />
             </StackPanel>
         </Border>
 
+        <!-- ==================== Lock overlay ==================== -->
         <Border x:Name="LockOverlay"
                 IsVisible="False"
-                Background="{DynamicResource SystemRegionBrush}">
+                Background="{atom:SharedTokenResource ColorBgLayout}">
             <Panel>
                 <Border HorizontalAlignment="Center"
                         VerticalAlignment="Center"
                         CornerRadius="12"
                         BorderThickness="1"
-                        BorderBrush="#40808080"
+                        BorderBrush="{DynamicResource AegisHairlineBrush}"
+                        Background="{atom:SharedTokenResource ColorBgContainer}"
                         Padding="36,28"
                         BoxShadow="0 8 24 0 #30000000">
                     <StackPanel Spacing="14" HorizontalAlignment="Center">
-                        <TextBlock Text="🔒"
-                                   FontSize="40"
-                                   HorizontalAlignment="Center" />
+                        <ContentControl HorizontalAlignment="Center"
+                                        Content="{antd:AntDesignIconProvider LockFilled}">
+                            <ContentControl.Styles>
+                                <Style Selector="PathIcon">
+                                    <Setter Property="Width" Value="36" />
+                                    <Setter Property="Height" Value="36" />
+                                </Style>
+                            </ContentControl.Styles>
+                        </ContentControl>
                         <TextBlock Text="{loc:Str Main_Locked}"
                                    FontSize="20"
                                    FontWeight="SemiBold"
@@ -341,11 +742,12 @@
                                    FontSize="12"
                                    Opacity="0.65"
                                    HorizontalAlignment="Center" />
-                        <Button x:Name="UnlockButton"
-                                Content="{loc:Str Main_Unlock}"
-                                MinWidth="120"
-                                HorizontalAlignment="Center"
-                                Click="OnUnlockClicked" />
+                        <atom:Button x:Name="UnlockButton"
+                                     ButtonType="Primary"
+                                     Content="{loc:Str Main_Unlock}"
+                                     MinWidth="120"
+                                     HorizontalAlignment="Center"
+                                     Click="OnUnlockClicked" />
                     </StackPanel>
                 </Border>
             </Panel>

@@ -43,13 +43,29 @@ public sealed class VaultHealthTests
     [Fact]
     public void CountsStaleEntries()
     {
+        var stale = new PasswordEntry { Title = "A", Password = "x", UpdatedAt = DateTimeOffset.UtcNow - TimeSpan.FromDays(400) };
         var report = VaultHealth.Analyze(
         [
-            new PasswordEntry { Title = "A", Password = "x", UpdatedAt = DateTimeOffset.UtcNow - TimeSpan.FromDays(400) },
+            stale,
             new PasswordEntry { Title = "B", Password = "y", UpdatedAt = DateTimeOffset.UtcNow },
         ]);
 
         Assert.Equal(1, report.OldCount);
+        Assert.Contains(stale.Id, report.OldEntryIds);
+    }
+
+    [Fact]
+    public void TimeProviderDrivesStaleDetection()
+    {
+        var entry = new PasswordEntry { Title = "A", Password = "x", UpdatedAt = DateTimeOffset.UtcNow };
+
+        Assert.Equal(0, VaultHealth.Analyze([entry]).OldCount);
+        Assert.Equal(1, VaultHealth.Analyze([entry], new FixedTimeProvider(DateTimeOffset.UtcNow.AddDays(400))).OldCount);
+    }
+
+    private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => now;
     }
 
     [Fact]

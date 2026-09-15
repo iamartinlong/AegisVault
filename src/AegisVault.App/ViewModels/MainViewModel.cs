@@ -9,28 +9,65 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace AegisVault.App.ViewModels;
 
-public sealed record CategoryItem(string Key, string DisplayName, string? Tag, bool IsFavorites, int Count);
+public enum CategoryKind
+{
+    System,
+    Category,
+    Tag,
+}
+
+public enum EntrySortMode
+{
+    Name,
+    RecentlyUpdated,
+}
+
+public sealed record CategoryItem(
+    string Key,
+    string DisplayName,
+    string? Tag,
+    bool IsFavorites,
+    int Count,
+    CategoryKind Kind = CategoryKind.System,
+    Guid? CategoryId = null)
+{
+    public bool IsUserCategory => Kind == CategoryKind.Category;
+
+    public string Glyph => Kind switch
+    {
+        CategoryKind.Category => "📁",
+        CategoryKind.Tag => "#",
+        _ => string.Empty,
+    };
+}
+
+/// <summary>ComboBox item for assigning an entry to a category (null = uncategorized).</summary>
+public sealed record CategoryChoice(Guid? Id, string Name);
 
 public partial class MainViewModel : ObservableObject, IDisposable
 {
     private const string AllCategoryKey = "all";
     private const string FavoritesCategoryKey = "favorites";
     private const string WeakCategoryKey = "weak";
+    private const string StaleCategoryKey = "old";
+    private const string CategoryKeyPrefix = "cat:";
 
     private readonly VaultService _vault;
     private readonly ClipboardService? _clipboard;
+    private readonly TimeProvider _timeProvider;
     private readonly DispatcherTimer _totpTimer;
     private readonly DispatcherTimer _toastTimer;
     private bool _loadingEditor;
     private PasswordStrengthResult? _editPasswordStrength;
-    private VaultHealthReport _health = new(0, 0, 0, 0, new HashSet<Guid>(), new HashSet<Guid>());
+    private VaultHealthReport _health = new(0, 0, 0, new HashSet<Guid>(), new HashSet<Guid>(), new HashSet<Guid>());
 
     public event Action? LockRequested;
 
-    public MainViewModel(VaultService vault, ClipboardService? clipboard = null)
+    public MainViewModel(VaultService vault, ClipboardService? clipboard = null, TimeProvider? timeProvider = null)
     {
         _vault = vault;
         _clipboard = clipboard;
+        _timeProvider = timeProvider ?? TimeProvider.System;
 
         Entries = new ObservableCollection<PasswordEntry>(vault.Entries);
         FilteredEntries = [];
@@ -58,11 +95,72 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     public ObservableCollection<CategoryItem> Categories { get; }
 
+    /// <summary>Sidebar sections: smart views, user categories, tag views.</summary>
+    public ObservableCollection<CategoryItem> SystemCategories { get; } = [];
+
+    public ObservableCollection<CategoryItem> UserCategories { get; } = [];
+
+    public ObservableCollection<CategoryItem> TagCategories { get; } = [];
+
+    public ObservableCollection<CategoryChoice> CategoryChoices { get; } = [];
+
     [ObservableProperty]
     private string searchText = string.Empty;
 
     [ObservableProperty]
     private CategoryItem? selectedCategory;
+
+    [ObservableProperty]
+    private CategoryItem? selectedSystemCategory;
+
+    [ObservableProperty]
+    private CategoryItem? selectedUserCategory;
+
+    [ObservableProperty]
+    private CategoryItem? selectedTagCategory;
+
+    partial void OnSelectedSystemCategoryChanged(CategoryItem? value)
+    {
+        if (value is null)
+        {
+            return;
+        }
+
+        SelectedCategory = value;
+        SelectedUserCategory = null;
+        SelectedTagCategory = null;
+    }
+
+    partial void OnSelectedUserCategoryChanged(CategoryItem? value)
+    {
+        if (value is null)
+        {
+            return;
+        }
+
+        SelectedCategory = value;
+        SelectedSystemCategory = null;
+        SelectedTagCategory = null;
+    }
+
+    partial void OnSelectedTagCategoryChanged(CategoryItem? value)
+    {
+        if (value is null)
+        {
+            return;
+        }
+
+        SelectedCategory = value;
+        SelectedSystemCategory = null;
+        SelectedUserCategory = null;
+    }
+
+    [ObservableProperty]
+    private CategoryChoice? selectedCategoryChoice;
+
+    public string CategoryDisplayName => SelectedCategoryChoice?.Name ?? Loc.T("Main_NoCategory");
+
+    partial void OnSelectedCategoryChoiceChanged(CategoryChoice? value) => OnPropertyChanged(nameof(CategoryDisplayName));
 
     [ObservableProperty]
     private PasswordEntry? selectedEntry;
@@ -121,8 +219,13 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public string HealthSummary => _health.TotalEntries == 0
         ? Loc.T("Main_HealthEmpty")
         : HasSecurityIssues
-            ? Loc.Format("Main_HealthIssues", _health.WeakCount, _health.ReusedCount)
-            : Loc.Format("Main_HealthOk", _health.TotalEntries);
+            ? Loc.Format("Main_HealthIssues", _health.WeakCount, _health.ReusedCount, _health.OldCount)
+            : _health.OldCount > 0
+                ? Loc.Format("Main_HealthStale", _health.TotalEntries, _health.OldCount)
+                : Loc.Format("Main_HealthOk", _health.TotalEntries);
+
+    public string HealthCompactText =>
+        Loc.Format("Main_HealthCompact", _health.WeakCount, _health.ReusedCount, _health.OldCount);
 
     public bool HasSelection => SelectedEntry is not null;
 
@@ -147,7 +250,54 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     partial void OnSearchTextChanged(string value) => ApplyFilter();
 
-    partial void OnSelectedCategoryChanged(CategoryItem? value) => ApplyFilter();
+    [ObservableProperty]
+    private EntrySortMode sortMode = EntrySortMode.Name;
+
+    public bool IsSortByName => SortMode == EntrySortMode.Name;
+
+    public bool IsSortByRecent => SortMode == EntrySortMode.RecentlyUpdated;
+
+    public bool IsViewAll => SelectedCategory?.Key == AllCategoryKey;
+
+    public bool IsViewFavorites => SelectedCategory?.Key == FavoritesCategoryKey;
+
+    public bool IsViewSecurity => SelectedCategory?.Key == WeakCategoryKey;
+
+    public bool IsViewStale => SelectedCategory?.Key == StaleCategoryKey;
+
+    public string FilteredCountText => Loc.Format("Main_EntryCountFormat", FilteredEntries.Count);
+
+    partial void OnSortModeChanged(EntrySortMode value)
+    {
+        OnPropertyChanged(nameof(IsSortByName));
+        OnPropertyChanged(nameof(IsSortByRecent));
+        ApplyFilter();
+    }
+
+    [RelayCommand]
+    private void SortByName() => SortMode = EntrySortMode.Name;
+
+    [RelayCommand]
+    private void SortByRecent() => SortMode = EntrySortMode.RecentlyUpdated;
+
+    [RelayCommand]
+    private void SelectView(string? key)
+    {
+        var category = Categories.FirstOrDefault(item => item.Key == key);
+        if (category is not null)
+        {
+            SelectedCategory = category;
+        }
+    }
+
+    partial void OnSelectedCategoryChanged(CategoryItem? value)
+    {
+        ApplyFilter();
+        OnPropertyChanged(nameof(IsViewAll));
+        OnPropertyChanged(nameof(IsViewFavorites));
+        OnPropertyChanged(nameof(IsViewSecurity));
+        OnPropertyChanged(nameof(IsViewStale));
+    }
 
     partial void OnSelectedEntryChanged(PasswordEntry? value)
     {
@@ -181,7 +331,15 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void AddEntry()
     {
-        var entry = _vault.AddEntry(new PasswordEntry { Title = Loc.T("Main_NewEntryTitle") });
+        var defaultCategoryId = SelectedCategory is { Kind: CategoryKind.Category, CategoryId: { } categoryId }
+            ? categoryId
+            : (Guid?)null;
+
+        var entry = _vault.AddEntry(new PasswordEntry
+        {
+            Title = Loc.T("Main_NewEntryTitle"),
+            CategoryId = defaultCategoryId,
+        });
         Entries.Add(entry);
         RefreshCategories();
         ApplyFilter();
@@ -227,6 +385,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
             TotpSecret = EditTotpSecret.Trim(),
             Tags = ParseTags(EditTags),
             IsFavorite = EditIsFavorite,
+            CategoryId = SelectedCategoryChoice?.Id,
         };
 
         if (!_vault.UpdateEntry(updated))
@@ -296,7 +455,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void ShowSecurity()
     {
-        var category = Categories.FirstOrDefault(item => item.Key == WeakCategoryKey);
+        var category = Categories.FirstOrDefault(item => item.Key == WeakCategoryKey)
+            ?? Categories.FirstOrDefault(item => item.Key == StaleCategoryKey);
         if (category is not null)
         {
             SelectedCategory = category;
@@ -411,10 +571,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
     {
         var selectedKey = SelectedCategory?.Key;
 
-        _health = VaultHealth.Analyze(Entries);
+        _health = VaultHealth.Analyze(Entries, _timeProvider);
         OnPropertyChanged(nameof(Health));
         OnPropertyChanged(nameof(HasSecurityIssues));
         OnPropertyChanged(nameof(HealthSummary));
+        OnPropertyChanged(nameof(HealthCompactText));
 
         Categories.Clear();
         Categories.Add(new CategoryItem(AllCategoryKey, Loc.T("Main_CategoryAll"), null, false, Entries.Count));
@@ -431,6 +592,34 @@ public partial class MainViewModel : ObservableObject, IDisposable
             Categories.Add(new CategoryItem(WeakCategoryKey, Loc.T("Main_CategorySecurity"), null, false, issueCount));
         }
 
+        if (_health.OldCount > 0)
+        {
+            Categories.Add(new CategoryItem(StaleCategoryKey, Loc.T("Main_CategoryStale"), null, false, _health.OldCount));
+        }
+
+        foreach (var category in _vault.Categories)
+        {
+            Categories.Add(new CategoryItem(
+                CategoryKeyPrefix + category.Id.ToString("D"),
+                category.Name,
+                null,
+                false,
+                Entries.Count(entry => entry.CategoryId == category.Id),
+                CategoryKind.Category,
+                category.Id));
+        }
+
+        if (_vault.Categories.Count > 0 && Entries.Any(entry => entry.CategoryId is null))
+        {
+            Categories.Add(new CategoryItem(
+                CategoryKeyPrefix,
+                Loc.T("Main_Uncategorized"),
+                null,
+                false,
+                Entries.Count(entry => entry.CategoryId is null),
+                CategoryKind.Category));
+        }
+
         var tags = Entries
             .SelectMany(entry => entry.Tags)
             .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -443,10 +632,129 @@ public partial class MainViewModel : ObservableObject, IDisposable
                 tag,
                 tag,
                 false,
-                Entries.Count(entry => entry.Tags.Contains(tag, StringComparer.OrdinalIgnoreCase))));
+                Entries.Count(entry => entry.Tags.Contains(tag, StringComparer.OrdinalIgnoreCase)),
+                CategoryKind.Tag));
         }
 
         SelectedCategory = Categories.FirstOrDefault(category => category.Key == selectedKey) ?? Categories[0];
+        RebuildCategorySections(SelectedCategory);
+        RefreshCategoryChoices();
+    }
+
+    private void RebuildCategorySections(CategoryItem? selected)
+    {
+        SystemCategories.Clear();
+        UserCategories.Clear();
+        TagCategories.Clear();
+
+        foreach (var category in Categories)
+        {
+            switch (category.Kind)
+            {
+                case CategoryKind.System:
+                    SystemCategories.Add(category);
+                    break;
+                case CategoryKind.Category:
+                    UserCategories.Add(category);
+                    break;
+                default:
+                    TagCategories.Add(category);
+                    break;
+            }
+        }
+
+        SelectedSystemCategory = null;
+        SelectedUserCategory = null;
+        SelectedTagCategory = null;
+
+        switch (selected?.Kind)
+        {
+            case CategoryKind.System:
+                SelectedSystemCategory = SystemCategories.FirstOrDefault(category => category.Key == selected.Key);
+                break;
+            case CategoryKind.Category:
+                SelectedUserCategory = UserCategories.FirstOrDefault(category => category.Key == selected.Key);
+                break;
+            case CategoryKind.Tag:
+                SelectedTagCategory = TagCategories.FirstOrDefault(category => category.Key == selected.Key);
+                break;
+        }
+    }
+
+    private void RefreshCategoryChoices()
+    {
+        var selectedId = SelectedCategoryChoice?.Id;
+
+        CategoryChoices.Clear();
+        CategoryChoices.Add(new CategoryChoice(null, Loc.T("Main_NoCategory")));
+        foreach (var category in _vault.Categories)
+        {
+            CategoryChoices.Add(new CategoryChoice(category.Id, category.Name));
+        }
+
+        SelectedCategoryChoice = CategoryChoices.FirstOrDefault(choice => choice.Id == selectedId) ?? CategoryChoices[0];
+    }
+
+    /// <summary>Creates a user category; returns false with a localized reason when invalid.</summary>
+    public bool TryCreateCategory(string? name, out string? error)
+    {
+        error = ValidateCategoryName(name, excludeId: null);
+        if (error is not null)
+        {
+            return false;
+        }
+
+        var category = _vault.AddCategory(name!.Trim());
+        RefreshCategories();
+        SelectedCategoryChoice = CategoryChoices.First(choice => choice.Id == category.Id);
+        StatusMessage = Loc.T("Main_StatusCategoryCreated");
+        return true;
+    }
+
+    /// <summary>Renames a user category; returns false with a localized reason when invalid.</summary>
+    public bool TryRenameCategory(Guid id, string? name, out string? error)
+    {
+        error = ValidateCategoryName(name, excludeId: id);
+        if (error is not null)
+        {
+            return false;
+        }
+
+        if (!_vault.RenameCategory(id, name!.Trim()))
+        {
+            error = Loc.T("Main_CategoryMissing");
+            return false;
+        }
+
+        RefreshCategories();
+        StatusMessage = Loc.T("Main_StatusCategoryRenamed");
+        return true;
+    }
+
+    public void DeleteCategory(Guid id)
+    {
+        if (!_vault.DeleteCategory(id))
+        {
+            return;
+        }
+
+        ReloadFromVault();
+        StatusMessage = Loc.T("Main_StatusCategoryDeleted");
+    }
+
+    /// <summary>Validates a category name for the create/rename dialogs (null = valid).</summary>
+    public string? ValidateCategoryName(string? name, Guid? excludeId = null)
+    {
+        var trimmed = name?.Trim() ?? string.Empty;
+        if (trimmed.Length == 0)
+        {
+            return Loc.T("Main_CategoryNameRequired");
+        }
+
+        var duplicate = _vault.Categories.Any(category =>
+            category.Id != excludeId &&
+            string.Equals(category.Name, trimmed, StringComparison.OrdinalIgnoreCase));
+        return duplicate ? Loc.T("Main_CategoryNameDuplicate") : null;
     }
 
     private void ApplyFilter()
@@ -457,10 +765,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
         }
 
         FilteredEntries.Clear();
-        foreach (var entry in Entries
-                     .Where(entry => MatchesCategory(entry) && MatchesSearch(entry))
-                     .OrderByDescending(static entry => entry.IsFavorite)
-                     .ThenBy(static entry => entry.Title, StringComparer.OrdinalIgnoreCase))
+        var matches = Entries.Where(entry => MatchesCategory(entry) && MatchesSearch(entry));
+        var ordered = SortMode == EntrySortMode.RecentlyUpdated
+            ? matches.OrderByDescending(static entry => entry.UpdatedAt)
+            : matches.OrderByDescending(static entry => entry.IsFavorite)
+                .ThenBy(static entry => entry.Title, StringComparer.OrdinalIgnoreCase);
+        foreach (var entry in ordered)
         {
             FilteredEntries.Add(entry);
         }
@@ -471,6 +781,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         }
 
         OnPropertyChanged(nameof(HasFilteredEntries));
+        OnPropertyChanged(nameof(FilteredCountText));
     }
 
     private bool MatchesCategory(PasswordEntry entry)
@@ -483,6 +794,19 @@ public partial class MainViewModel : ObservableObject, IDisposable
         if (SelectedCategory.Key == WeakCategoryKey)
         {
             return _health.WeakEntryIds.Contains(entry.Id) || _health.ReusedEntryIds.Contains(entry.Id);
+        }
+
+        if (SelectedCategory.Key == StaleCategoryKey)
+        {
+            return _health.OldEntryIds.Contains(entry.Id);
+        }
+
+        if (SelectedCategory.Key.StartsWith(CategoryKeyPrefix, StringComparison.Ordinal))
+        {
+            var suffix = SelectedCategory.Key[CategoryKeyPrefix.Length..];
+            return suffix.Length == 0
+                ? entry.CategoryId is null
+                : entry.CategoryId == Guid.Parse(suffix);
         }
 
         if (SelectedCategory.IsFavorites)
@@ -521,6 +845,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
             EditTotpSecret = entry?.TotpSecret ?? string.Empty;
             EditTags = entry is null ? string.Empty : string.Join(", ", entry.Tags);
             EditIsFavorite = entry?.IsFavorite ?? false;
+            SelectedCategoryChoice = CategoryChoices.FirstOrDefault(choice => choice.Id == entry?.CategoryId)
+                ?? CategoryChoices.FirstOrDefault();
             StatusMessage = null;
         }
         finally

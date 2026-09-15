@@ -23,9 +23,14 @@ public sealed class VaultService : IDisposable
 {
     private const int DeviceKeyPayloadVersion = 1;
     private const int DeviceKeyPayloadSize = 1 + 32 + KeyEnvelope.DekSize;
+    private const string CategoriesSettingKey = "categories";
+
+    private static readonly byte[] CategoriesAssociatedData =
+        System.Text.Encoding.UTF8.GetBytes("AegisVault|settings|categories|v1");
 
     private readonly VaultDatabase _database;
     private readonly List<PasswordEntry> _entries = [];
+    private readonly List<Category> _categories = [];
 
     private VaultHeader _header;
     private SecureBuffer? _dek;
@@ -42,6 +47,8 @@ public sealed class VaultService : IDisposable
     public string VaultPath => _database.Path;
 
     public IReadOnlyList<PasswordEntry> Entries => _entries;
+
+    public IReadOnlyList<Category> Categories => _categories;
 
     /// <summary>Creates a new vault and returns it in the unlocked state.</summary>
     public static VaultService CreateNew(string path, ReadOnlySpan<byte> password, VaultOptions? options = null)
@@ -154,6 +161,7 @@ public sealed class VaultService : IDisposable
     public void Lock()
     {
         _entries.Clear();
+        _categories.Clear();
         _dek?.Dispose();
         _dek = null;
     }
@@ -236,6 +244,72 @@ public sealed class VaultService : IDisposable
 
         _database.DeleteEntry(id);
         _entries.RemoveAt(index);
+        return true;
+    }
+
+    /// <summary>Creates a category. Names are trimmed, non-empty and unique (case-insensitive).</summary>
+    public Category AddCategory(string name)
+    {
+        ThrowIfDisposed();
+        EnsureUnlocked();
+
+        var normalized = NormalizeCategoryName(name);
+        EnsureUniqueCategoryName(normalized, excludeId: null);
+
+        var category = new Category { Name = normalized };
+        _categories.Add(category);
+        SortCategories();
+        PersistCategories();
+        return category;
+    }
+
+    public bool RenameCategory(Guid id, string name)
+    {
+        ThrowIfDisposed();
+        EnsureUnlocked();
+
+        var index = _categories.FindIndex(category => category.Id == id);
+        if (index < 0)
+        {
+            return false;
+        }
+
+        var normalized = NormalizeCategoryName(name);
+        EnsureUniqueCategoryName(normalized, excludeId: id);
+
+        _categories[index] = _categories[index] with { Name = normalized };
+        SortCategories();
+        PersistCategories();
+        return true;
+    }
+
+    /// <summary>Deletes a category; its entries become uncategorized.</summary>
+    public bool DeleteCategory(Guid id)
+    {
+        ThrowIfDisposed();
+        EnsureUnlocked();
+
+        var index = _categories.FindIndex(category => category.Id == id);
+        if (index < 0)
+        {
+            return false;
+        }
+
+        _categories.RemoveAt(index);
+        PersistCategories();
+
+        for (var i = 0; i < _entries.Count; i++)
+        {
+            if (_entries[i].CategoryId != id)
+            {
+                continue;
+            }
+
+            var item = _entries[i] with { CategoryId = null, UpdatedAt = DateTimeOffset.UtcNow };
+            Persist(item);
+            _entries[i] = item;
+        }
+
         return true;
     }
 
@@ -413,6 +487,81 @@ public sealed class VaultService : IDisposable
         _database.UpsertEntry(entry.Id, EntryRepository.EntryFormatVersion, nonce, ciphertext, tag, entry.UpdatedAt);
     }
 
+    private void PersistCategories()
+    {
+        var json = JsonSerializer.SerializeToUtf8Bytes(_categories, VaultJsonContext.Default.ListCategory);
+        try
+        {
+            var (nonce, ciphertext, tag) = EncryptSetting(json, CategoriesAssociatedData);
+            WriteSetting(CategoriesSettingKey, nonce, ciphertext, tag);
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(json);
+        }
+    }
+
+    private List<Category> LoadCategories()
+    {
+        var stored = ReadSetting(CategoriesSettingKey);
+        if (stored is null)
+        {
+            return [];
+        }
+
+        byte[] json;
+        try
+        {
+            json = DecryptSetting(
+                stored.Value.Nonce,
+                stored.Value.Ciphertext,
+                stored.Value.Tag,
+                CategoriesAssociatedData);
+        }
+        catch (CryptographicException)
+        {
+            // A corrupt categories blob must never break unlocking; fall back to none.
+            return [];
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize(json, VaultJsonContext.Default.ListCategory) ?? [];
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(json);
+        }
+    }
+
+    private void SortCategories()
+        => _categories.Sort(static (a, b) => string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase));
+
+    private static string NormalizeCategoryName(string name)
+    {
+        var trimmed = name?.Trim() ?? string.Empty;
+        if (trimmed.Length == 0)
+        {
+            throw new ArgumentException("Category name must not be empty.", nameof(name));
+        }
+
+        return trimmed;
+    }
+
+    private void EnsureUniqueCategoryName(string name, Guid? excludeId)
+    {
+        if (_categories.Any(category =>
+                category.Id != excludeId &&
+                string.Equals(category.Name, name, StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new ArgumentException($"A category named '{name}' already exists.", nameof(name));
+        }
+    }
+
     private void EnsureUnlocked()
     {
         if (!IsUnlocked)
@@ -450,6 +599,12 @@ public sealed class VaultService : IDisposable
 
         _dek?.Dispose();
         _dek = dek;
+
+        // Categories are decrypted with the session key, so load them only after
+        // the DEK is in place.
+        _categories.Clear();
+        _categories.AddRange(LoadCategories());
+
         return VaultUnlockStatus.Success;
     }
 

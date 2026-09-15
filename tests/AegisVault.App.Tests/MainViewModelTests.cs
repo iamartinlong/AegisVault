@@ -211,6 +211,85 @@ public sealed class MainViewModelTests : IDisposable
         Assert.False(string.IsNullOrEmpty(viewModel.EditPasswordStrengthSummary));
     });
 
+    [Fact]
+    public Task CategoryCreateAssignFilterRenameDelete() => Headless.Run(() =>
+    {
+        using var vault = CreateVaultWithEntries();
+        using var viewModel = new MainViewModel(vault);
+
+        Assert.True(viewModel.TryCreateCategory("Work", out var error));
+        Assert.Null(error);
+
+        var created = viewModel.Categories.Single(category => category.DisplayName == "Work");
+        Assert.True(created.IsUserCategory);
+        Assert.Equal(0, created.Count);
+
+        viewModel.SelectedEntry = viewModel.FilteredEntries.Single(entry => entry.Title == "GitHub");
+        viewModel.BeginEditCommand.Execute(null);
+        viewModel.SelectedCategoryChoice = viewModel.CategoryChoices.Single(choice => choice.Name == "Work");
+        viewModel.SaveEntryCommand.Execute(null);
+
+        Assert.Equal(created.CategoryId, vault.Entries.Single(entry => entry.Title == "GitHub").CategoryId);
+        var refreshed = viewModel.Categories.Single(category => category.DisplayName == "Work");
+        Assert.Equal(1, refreshed.Count);
+
+        viewModel.SelectedCategory = refreshed;
+        Assert.Single(viewModel.FilteredEntries);
+        Assert.Equal("GitHub", viewModel.FilteredEntries[0].Title);
+
+        Assert.True(viewModel.TryRenameCategory(refreshed.CategoryId!.Value, "Job", out var renameError));
+        Assert.Null(renameError);
+        Assert.Contains(viewModel.Categories, category => category.DisplayName == "Job");
+
+        Assert.False(viewModel.TryCreateCategory("job", out var duplicateError));
+        Assert.NotNull(duplicateError);
+        Assert.False(viewModel.TryCreateCategory("   ", out var emptyError));
+        Assert.NotNull(emptyError);
+
+        viewModel.DeleteCategory(refreshed.CategoryId!.Value);
+        Assert.DoesNotContain(viewModel.Categories, category => category.CategoryId == refreshed.CategoryId);
+        Assert.Null(vault.Entries.Single(entry => entry.Title == "GitHub").CategoryId);
+    });
+
+    [Fact]
+    public Task NewEntryInheritsSelectedCategory() => Headless.Run(() =>
+    {
+        using var vault = CreateVaultWithEntries();
+        using var viewModel = new MainViewModel(vault);
+
+        viewModel.TryCreateCategory("Work", out _);
+        viewModel.SelectedCategory = viewModel.Categories.Single(category => category.DisplayName == "Work");
+
+        viewModel.AddEntryCommand.Execute(null);
+
+        Assert.Equal(
+            viewModel.SelectedCategory!.CategoryId,
+            vault.Entries.Single(entry => entry.Title == "新条目").CategoryId);
+    });
+
+    [Fact]
+    public Task SortModesAndViewChipsWork() => Headless.Run(() =>
+    {
+        using var vault = CreateVaultWithEntries();
+        using var viewModel = new MainViewModel(vault);
+
+        Assert.True(viewModel.IsSortByName);
+        Assert.Equal(["GitHub", "Mail"], viewModel.FilteredEntries.Select(entry => entry.Title).ToList());
+
+        var mail = vault.Entries.Single(entry => entry.Title == "Mail");
+        vault.UpdateEntry(mail);
+        viewModel.ReloadFromVault();
+
+        viewModel.SortByRecentCommand.Execute(null);
+        Assert.True(viewModel.IsSortByRecent);
+        Assert.Equal(["Mail", "GitHub"], viewModel.FilteredEntries.Select(entry => entry.Title).ToList());
+
+        viewModel.SelectViewCommand.Execute("favorites");
+        Assert.True(viewModel.IsViewFavorites);
+        Assert.False(viewModel.IsViewAll);
+        Assert.Contains("共 0 条", viewModel.FilteredCountText);
+    });
+
     private VaultService CreateVaultWithEntries()
     {
         var vault = VaultService.CreateNew(_vaultPath, Password, FastOptions);

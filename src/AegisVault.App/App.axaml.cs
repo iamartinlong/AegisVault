@@ -1,5 +1,6 @@
 using AegisVault.App.Localization;
 using AegisVault.App.Services;
+using AegisVault.App.Theme;
 using AegisVault.App.ViewModels;
 using AegisVault.App.Views;
 using AegisVault.Core.Models;
@@ -44,17 +45,31 @@ public partial class App : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
+        _preferences = _preferencesStore.Load();
+
         this.UseAtomUI(builder =>
         {
             builder.UseDesktopControls();
+            AppTheme.ConfigureInitial(builder, _preferences.Theme);
         });
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             _desktop = desktop;
-            _preferences = _preferencesStore.Load();
             Loc.ApplyPreference(_preferences.Language);
             ApplyThemeVariant(_preferences.Theme);
+
+            if (PlatformSettings is { } platformSettings)
+            {
+                platformSettings.ColorValuesChanged += (_, _) =>
+                {
+                    if (_preferences.Theme == "system")
+                    {
+                        ApplyThemeVariant("system");
+                    }
+                };
+            }
+
             InitializeTray();
             InitializeHotKey();
             ShowUnlock(desktop);
@@ -167,7 +182,7 @@ public partial class App : Application
         _preferences = _preferences with { LastVaultPath = vault.VaultPath };
         SavePreferences();
 
-        window.Attach(viewModel, clipboard, autoLock, ShowSettings);
+        window.Attach(viewModel, clipboard, autoLock, ShowSettings, ToggleTheme);
         viewModel.LockRequested += LockVault;
         autoLock.LockTriggered += _ => LockVault();
 
@@ -457,13 +472,11 @@ public partial class App : Application
         ApplyThemeVariant(theme);
     }
 
-    private void ApplyThemeVariant(string theme)
+    private void ToggleTheme()
     {
-        RequestedThemeVariant = theme switch
-        {
-            "light" => ThemeVariant.Light,
-            "dark" => ThemeVariant.Dark,
-            _ => ThemeVariant.Default,
-        };
+        var next = AppTheme.IsDarkPreference(_preferences.Theme) ? "light" : "dark";
+        ApplyTheme(next);
     }
+
+    private void ApplyThemeVariant(string theme) => AppTheme.Apply(this, theme);
 }

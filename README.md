@@ -13,12 +13,14 @@
 - 🧮 **现代密钥派生**：Argon2id（64 MiB / 3 轮，盐 16B）派生 KEK；分层密钥体系（KEK 包裹 DEK），改主密码无需全量重加密
 - 🧠 **安全内存**：密钥存放于 libsodium 安全内存（`sodium_malloc` + 锁定 + 只读保护），退出/锁定时强制清零
 - 📝 **条目管理**：标题/用户名/密码/网址/备注/标签/自定义字段，实时搜索、收藏置顶、预览与编辑分离
+- 🗂️ **分类 + 标签双模型**：分类为单归属（新建/重命名/删除，删除后条目转为未分类），标签可多维度交叉；左栏按 📁 分类 / # 标签 区分展示
+- 🎨 **现代界面（Ink Green 主题）**：AtomUI 组件 + 设计 Token（盾绿主色、中性灰阶、8pt 间距），平面化三栏布局、检查器式详情、浅/深色一键切换（支持跟随系统）
 - ⏱️ **TOTP 验证码**：RFC 6238（SHA-1/256/512），倒计时展示与一键复制
 - 🎲 **密码生成器**：长度/字符集/排除易混淆字符/熵强度预估
 - 🔒 **自动锁定**：空闲超时（默认 5 分钟）、最小化、系统锁屏、挂起；锁定即清内存并显示遮罩，一键解锁
 - 🖥️ **桌面集成**：系统托盘（打开/快速访问/设置/锁定/退出）、可选悬浮球、最小化到托盘
 - ⚡ **快速访问**：`Ctrl+Shift+Space` 全局热键呼出浮层（Windows），搜索 + 键盘复制 + 跳转条目，`Ctrl+Enter` 一键复制密码并打开网址
-- 🩺 **安全健康面板**：弱密码与跨条目复用检测，一键过滤问题条目
+- 🩺 **安全健康面板**：弱密码、跨条目复用与长期未更新（>1 年）检测，一键过滤问题条目
 - 📥 **导入**：Bitwarden CSV 与通用格式（自动识别），后台导入
 - 📋 **剪贴板保护**：复制密文后按配置延时自动清除（仅在内容未被替换时，且仅保留哈希指纹），带倒计时提示与"立即清除"
 - 🌐 **多语言**：简体中文 / English（设置内切换，重启生效；字符串表静态实现，AOT 安全）
@@ -38,7 +40,7 @@
 | 存储 | SQLite（Microsoft.Data.Sqlite 10.0.12 + SQLitePCLRaw 2.1.12 / SQLite 3.53.3） |
 | 密码学 | libsodium（Sodium.Core，Argon2id）+ BCL AES-256-GCM |
 | 平台安全 | Windows DPAPI / CredUI（macOS Keychain、Linux libsecret 预留接口） |
-| 测试 | xUnit（246 项：Core / Platform / Headless UI） |
+| 测试 | xUnit（255 项：Core / Platform / Headless UI） |
 
 ## 快速开始
 
@@ -51,7 +53,7 @@ dotnet build -c Release
 # 运行（开发）
 dotnet run --project src/AegisVault.App
 
-# 测试（246 项）
+# 测试（255 项）
 dotnet test -c Release
 
 # NativeAOT 单文件发布（示例：Windows x64）

@@ -21,6 +21,9 @@ public sealed record PasswordEntry
 
     public List<string> Tags { get; init; } = [];
 
+    /// <summary>Single-assignment category; null means "uncategorized".</summary>
+    public Guid? CategoryId { get; init; }
+
     public Dictionary<string, string> CustomFields { get; init; } = [];
 
     public bool IsFavorite { get; init; }

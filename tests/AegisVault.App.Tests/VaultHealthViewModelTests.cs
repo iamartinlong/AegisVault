@@ -84,6 +84,30 @@ public sealed class VaultHealthViewModelTests : IDisposable
     });
 
     [Fact]
+    public Task StaleEntriesShowStaleCategoryAndSummary() => Headless.Run(() =>
+    {
+        using var vault = VaultService.CreateNew(_vaultPath, Password, FastOptions);
+        vault.AddEntry(new PasswordEntry { Title = "Old", Username = "a", Password = "correct horse battery staple 42!" });
+        using var viewModel = new MainViewModel(vault, null, new FixedTimeProvider(DateTimeOffset.UtcNow.AddDays(400)));
+
+        Assert.Equal(1, viewModel.Health.OldCount);
+        Assert.False(viewModel.HasSecurityIssues);
+
+        var staleCategory = viewModel.Categories.Single(category => category.Key == "old");
+        Assert.Equal(1, staleCategory.Count);
+
+        viewModel.ShowSecurityCommand.Execute(null);
+        Assert.Equal(staleCategory, viewModel.SelectedCategory);
+        Assert.Equal("Old", viewModel.FilteredEntries.Single().Title);
+        Assert.Contains("未更新", viewModel.HealthSummary);
+    });
+
+    private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => now;
+    }
+
+    [Fact]
     public Task SortsFavoritesFirstThenByTitle() => Headless.Run(() =>
     {
         using var vault = VaultService.CreateNew(_vaultPath, Password, FastOptions);

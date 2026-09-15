@@ -6,10 +6,13 @@ public sealed record VaultHealthReport(
     int TotalEntries,
     int WeakCount,
     int ReusedCount,
-    int OldCount,
     IReadOnlySet<Guid> WeakEntryIds,
-    IReadOnlySet<Guid> ReusedEntryIds)
+    IReadOnlySet<Guid> ReusedEntryIds,
+    IReadOnlySet<Guid> OldEntryIds)
 {
+    /// <summary>Entries whose UpdatedAt is older than a year.</summary>
+    public int OldCount => OldEntryIds.Count;
+
     public bool HasIssues => WeakCount > 0 || ReusedCount > 0;
 
     /// <summary>Distinct entries with any issue (weak or reused — no double counting).</summary>
@@ -31,7 +34,8 @@ public sealed record VaultHealthReport(
 
 /// <summary>
 /// Security health analysis over the decrypted entries: weak passwords
-/// (estimator score below the threshold) and passwords reused across entries.
+/// (estimator score below the threshold), passwords reused across entries,
+/// and stale entries (last updated more than a year ago).
 /// </summary>
 public static class VaultHealth
 {
@@ -40,13 +44,14 @@ public static class VaultHealth
 
     private static readonly TimeSpan OldAge = TimeSpan.FromDays(365);
 
-    public static VaultHealthReport Analyze(IEnumerable<PasswordEntry> entries)
+    public static VaultHealthReport Analyze(IEnumerable<PasswordEntry> entries, TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(entries);
 
         var list = entries.ToList();
         var weak = new HashSet<Guid>();
         var reused = new HashSet<Guid>();
+        var old = new HashSet<Guid>();
 
         var byPassword = new Dictionary<string, List<Guid>>(StringComparer.Ordinal);
         foreach (var entry in list)
@@ -78,15 +83,21 @@ public static class VaultHealth
             }
         }
 
-        var now = DateTimeOffset.UtcNow;
-        var oldCount = list.Count(entry => now - entry.UpdatedAt > OldAge);
+        var now = (timeProvider ?? TimeProvider.System).GetUtcNow();
+        foreach (var entry in list)
+        {
+            if (now - entry.UpdatedAt > OldAge)
+            {
+                old.Add(entry.Id);
+            }
+        }
 
         return new VaultHealthReport(
             list.Count,
             weak.Count,
             reused.Count,
-            oldCount,
             weak,
-            reused);
+            reused,
+            old);
     }
 }
