@@ -15,21 +15,17 @@
         SizeToContent="Height"
         CanResize="False"
         WindowStartupLocation="CenterScreen"
-        Background="{DynamicResource AegisSidebarBrush}"
+        Background="{atom:SharedTokenResource ColorBgContainer}"
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaTitleBarHeightHint="40">
     <Grid RowDefinitions="40,*">
         <controls:AegisTitleBar Grid.Row="0" Title="AegisVault" ShowIcon="True" />
 
-        <Border Grid.Row="1"
-                Background="{atom:SharedTokenResource ColorBgLayout}"
-                Padding="24,20,24,24">
+        <Border Grid.Row="1" Padding="24,20,24,24">
             <Border MaxWidth="460"
                     HorizontalAlignment="Center"
                     VerticalAlignment="Top"
-                    Classes="card"
-                    Padding="28,24"
-                    BoxShadow="0 4 16 0 #14000000">
+                    Padding="28,24">
                 <StackPanel Spacing="16">
                     <StackPanel Spacing="8">
                         <Border Width="52" Height="52"

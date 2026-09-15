@@ -9,33 +9,27 @@
         SizeToContent="Height"
         CanResize="False"
         WindowStartupLocation="CenterOwner"
-        Background="{DynamicResource AegisSidebarBrush}"
+        Background="{atom:SharedTokenResource ColorBgContainer}"
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaTitleBarHeightHint="40">
     <Grid RowDefinitions="40,*">
         <controls:AegisTitleBar x:Name="TitleBar" Grid.Row="0" ShowIcon="True" />
 
-        <Border Grid.Row="1"
-                Background="{atom:SharedTokenResource ColorBgLayout}"
-                Padding="20">
-            <Border Classes="card" Padding="20" BoxShadow="0 4 16 0 #14000000">
-                <StackPanel Spacing="12">
-                    <TextBlock x:Name="LabelText" Classes="field" />
-                    <atom:LineEdit x:Name="InputBox" />
-                    <TextBlock x:Name="ErrorBlock"
-                               Foreground="{atom:SharedTokenResource ColorError}"
-                               FontSize="12"
-                               TextWrapping="Wrap"
-                               IsVisible="False" />
-                    <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right" Margin="0,4,0,0">
-                        <atom:Button Content="{loc:Str Common_Cancel}" Click="OnCancelClicked" IsCancel="True" />
-                        <atom:Button ButtonType="Primary"
-                                     Content="{loc:Str Common_Ok}"
-                                     Click="OnOkClicked"
-                                     IsDefault="True" />
-                    </StackPanel>
-                </StackPanel>
-            </Border>
-        </Border>
+        <StackPanel Grid.Row="1" Margin="20" Spacing="12">
+            <TextBlock x:Name="LabelText" Classes="field" />
+            <atom:LineEdit x:Name="InputBox" />
+            <TextBlock x:Name="ErrorBlock"
+                       Foreground="{atom:SharedTokenResource ColorError}"
+                       FontSize="12"
+                       TextWrapping="Wrap"
+                       IsVisible="False" />
+            <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right" Margin="0,4,0,0">
+                <atom:Button Content="{loc:Str Common_Cancel}" Click="OnCancelClicked" IsCancel="True" />
+                <atom:Button ButtonType="Primary"
+                             Content="{loc:Str Common_Ok}"
+                             Click="OnOkClicked"
+                             IsDefault="True" />
+            </StackPanel>
+        </StackPanel>
     </Grid>
 </Window>

@@ -9,27 +9,21 @@
         SizeToContent="Height"
         CanResize="False"
         WindowStartupLocation="CenterOwner"
-        Background="{DynamicResource AegisSidebarBrush}"
+        Background="{atom:SharedTokenResource ColorBgContainer}"
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaTitleBarHeightHint="40">
     <Grid RowDefinitions="40,*">
         <controls:AegisTitleBar x:Name="TitleBar" Grid.Row="0" ShowIcon="True" />
 
-        <Border Grid.Row="1"
-                Background="{atom:SharedTokenResource ColorBgLayout}"
-                Padding="20">
-            <Border Classes="card" Padding="20" BoxShadow="0 4 16 0 #14000000">
-                <StackPanel Spacing="18">
-                    <TextBlock x:Name="MessageText" TextWrapping="Wrap" />
-                    <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
-                        <atom:Button Content="{loc:Str Common_Cancel}" Click="OnCancelClicked" IsCancel="True" />
-                        <atom:Button ButtonType="Primary"
-                                     Content="{loc:Str Common_Ok}"
-                                     Click="OnOkClicked"
-                                     IsDefault="True" />
-                    </StackPanel>
-                </StackPanel>
-            </Border>
-        </Border>
+        <StackPanel Grid.Row="1" Margin="20" Spacing="18">
+            <TextBlock x:Name="MessageText" TextWrapping="Wrap" />
+            <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
+                <atom:Button Content="{loc:Str Common_Cancel}" Click="OnCancelClicked" IsCancel="True" />
+                <atom:Button ButtonType="Primary"
+                             Content="{loc:Str Common_Ok}"
+                             Click="OnOkClicked"
+                             IsDefault="True" />
+            </StackPanel>
+        </StackPanel>
     </Grid>
 </Window>

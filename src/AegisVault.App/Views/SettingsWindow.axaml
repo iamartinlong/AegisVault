@@ -11,9 +11,15 @@
         Width="640" Height="760"
         MinWidth="540" MinHeight="520"
         WindowStartupLocation="CenterOwner"
-        Background="{DynamicResource AegisSidebarBrush}"
+        Background="{atom:SharedTokenResource ColorBgContainer}"
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaTitleBarHeightHint="40">
+    <Window.Styles>
+        <!-- Flat white surface: sections are separated by hairline outlines. -->
+        <Style Selector="Border.card">
+            <Setter Property="BorderBrush" Value="{DynamicResource AegisHairlineBrush}" />
+        </Style>
+    </Window.Styles>
     <Grid RowDefinitions="40,*,Auto">
         <controls:AegisTitleBar Grid.Row="0"
                                 Title="{loc:Str Settings_Title}"
@@ -22,7 +28,6 @@
                                 ShowMaximize="True" />
 
         <ScrollViewer Grid.Row="1"
-                      Background="{atom:SharedTokenResource ColorBgLayout}"
                       VerticalScrollBarVisibility="Auto">
             <StackPanel Margin="24,20,24,20" Spacing="14">
                 <Border Classes="card" Padding="18,16">

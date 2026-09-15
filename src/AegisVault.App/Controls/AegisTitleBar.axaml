@@ -20,7 +20,7 @@
     </UserControl.Styles>
 
     <Border Height="40"
-            Background="{DynamicResource AegisSidebarBrush}"
+            Background="Transparent"
             PointerPressed="OnStripPressed"
             DoubleTapped="OnStripDoubleTapped">
         <Grid ColumnDefinitions="*,Auto">
