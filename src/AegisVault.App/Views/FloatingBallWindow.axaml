@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="using:AegisVault.App.Localization"
         x:Class="AegisVault.App.Views.FloatingBallWindow"
         Width="52" Height="52"
         CanResize="False"
@@ -19,7 +20,7 @@
                 Foreground="White"
                 FontSize="20"
                 Content="🛡"
-                ToolTip.Tip="AegisVault 快速访问（拖动移动，点击打开）"
+                ToolTip.Tip="{loc:Str Ball_Tooltip}"
                 PointerPressed="OnBallPointerPressed"
                 PointerMoved="OnBallPointerMoved"
                 PointerReleased="OnBallPointerReleased" />

@@ -1,60 +1,80 @@
-using System.Globalization;
+using AegisVault.App.Localization;
+using AegisVault.Core.Services;
 
 namespace AegisVault.App.Services;
 
-/// <summary>Human-friendly formatting for password strength values.</summary>
+/// <summary>Human-friendly, localized formatting for password strength values.</summary>
 public static class StrengthFormatting
 {
+    public static string FormatLabel(PasswordStrengthLabel label) => Loc.T(label switch
+    {
+        PasswordStrengthLabel.VeryStrong => "Strength_Label_VeryStrong",
+        PasswordStrengthLabel.Strong => "Strength_Label_Strong",
+        PasswordStrengthLabel.Fair => "Strength_Label_Fair",
+        PasswordStrengthLabel.Weak => "Strength_Label_Weak",
+        _ => "Strength_Label_VeryWeak",
+    });
+
+    public static string FormatAdvice(PasswordAdvice advice) => Loc.T(advice switch
+    {
+        PasswordAdvice.Empty => "Strength_Advice_Empty",
+        PasswordAdvice.CommonPassword => "Strength_Advice_CommonPassword",
+        PasswordAdvice.Repetitive => "Strength_Advice_Repetitive",
+        PasswordAdvice.TooShort => "Strength_Advice_TooShort",
+        PasswordAdvice.MixedCase => "Strength_Advice_MixedCase",
+        PasswordAdvice.AddDigit => "Strength_Advice_AddDigit",
+        _ => "Strength_Advice_AddSymbol",
+    });
+
     public static string FormatCrackTime(TimeSpan crackTime)
     {
         if (crackTime <= TimeSpan.Zero)
         {
-            return "立即";
+            return Loc.T("Strength_CrackInstant");
         }
 
         if (crackTime == TimeSpan.MaxValue)
         {
-            return "超过 1000 年";
+            return Loc.T("Strength_CrackOver1000Years");
         }
 
         var seconds = crackTime.TotalSeconds;
         if (seconds < 1)
         {
-            return "立即";
+            return Loc.T("Strength_CrackInstant");
         }
 
         if (seconds < 60)
         {
-            return $"{Math.Round(seconds, 0, MidpointRounding.AwayFromZero)} 秒";
+            return Loc.Format("Strength_CrackSeconds", Math.Round(seconds, 0, MidpointRounding.AwayFromZero));
         }
 
         if (seconds < 3600)
         {
-            return $"{Math.Round(seconds / 60, 0, MidpointRounding.AwayFromZero)} 分钟";
+            return Loc.Format("Strength_CrackMinutes", Math.Round(seconds / 60, 0, MidpointRounding.AwayFromZero));
         }
 
         if (seconds < 86400)
         {
-            return $"{Math.Round(seconds / 3600, 0, MidpointRounding.AwayFromZero)} 小时";
+            return Loc.Format("Strength_CrackHours", Math.Round(seconds / 3600, 0, MidpointRounding.AwayFromZero));
         }
 
         var days = seconds / 86400;
         if (days < 365)
         {
-            return $"{Math.Round(days, 0, MidpointRounding.AwayFromZero)} 天";
+            return Loc.Format("Strength_CrackDays", Math.Round(days, 0, MidpointRounding.AwayFromZero));
         }
 
         var years = days / 365;
         return years < 1000
-            ? $"{Math.Round(years, 0, MidpointRounding.AwayFromZero)} 年"
-            : "超过 1000 年";
+            ? Loc.Format("Strength_CrackYears", Math.Round(years, 0, MidpointRounding.AwayFromZero))
+            : Loc.T("Strength_CrackOver1000Years");
     }
 
-    public static string FormatSummary(int score, string label, TimeSpan crackTime)
+    public static string FormatSummary(int score, PasswordStrengthLabel label, TimeSpan crackTime)
         => score <= 0 && crackTime <= TimeSpan.Zero
             ? string.Empty
-            : $"{label} · 离线破解约 {FormatCrackTime(crackTime)}";
+            : Loc.Format("Strength_Summary", FormatLabel(label), FormatCrackTime(crackTime));
 
-    public static string FormatInfo(double entropyBits)
-        => string.Create(CultureInfo.InvariantCulture, $"熵 {entropyBits:0} bits");
+    public static string FormatInfo(double entropyBits) => Loc.Format("Strength_Info", entropyBits);
 }

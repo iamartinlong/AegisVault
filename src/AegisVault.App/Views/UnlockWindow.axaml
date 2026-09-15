@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:AegisVault.App.ViewModels"
+        xmlns:loc="using:AegisVault.App.Localization"
         xmlns:atomui="https://atomui.net"
         x:Class="AegisVault.App.Views.UnlockWindow"
         x:DataType="vm:UnlockViewModel"
@@ -15,12 +16,12 @@
     <Grid RowDefinitions="Auto,*,Auto">
         <StackPanel Grid.Row="0" Margin="36,32,36,0" Spacing="10">
             <TextBlock Text="AegisVault" FontSize="30" FontWeight="SemiBold" />
-            <TextBlock Text="盾匣 · 本地加密密码库" Opacity="0.6" />
+            <TextBlock Text="{loc:Str Unlock_Subtitle}" Opacity="0.6" />
             <atomui:Segmented Margin="0,8,0,0"
                               HorizontalAlignment="Stretch"
                               SelectedIndex="{Binding ModeIndex, Mode=TwoWay}">
-                <atomui:SegmentedItem Content="打开已有密码库" />
-                <atomui:SegmentedItem Content="创建新密码库" />
+                <atomui:SegmentedItem Content="{loc:Str Unlock_TabOpen}" />
+                <atomui:SegmentedItem Content="{loc:Str Unlock_TabCreate}" />
             </atomui:Segmented>
         </StackPanel>
 
@@ -31,57 +32,57 @@
             <StackPanel Margin="36,0,36,8" Spacing="14">
                 <StackPanel Spacing="14" IsVisible="{Binding !IsCreateMode}">
                     <StackPanel Spacing="4">
-                        <TextBlock Text="密码库文件" FontSize="12" Opacity="0.7" />
+                        <TextBlock Text="{loc:Str Unlock_VaultFile}" FontSize="12" Opacity="0.7" />
                         <Grid ColumnDefinitions="*,8,Auto">
                             <TextBox Grid.Column="0" Text="{Binding VaultPath}" />
-                            <Button Grid.Column="2" Content="浏览…" Click="OnBrowseExistingClicked" />
+                            <Button Grid.Column="2" Content="{loc:Str Common_Browse}" Click="OnBrowseExistingClicked" />
                         </Grid>
                     </StackPanel>
 
                     <StackPanel Spacing="4">
-                        <TextBlock Text="主密码" FontSize="12" Opacity="0.7" />
+                        <TextBlock Text="{loc:Str Unlock_MasterPassword}" FontSize="12" Opacity="0.7" />
                         <Grid ColumnDefinitions="*,8,Auto">
                             <TextBox Grid.Column="0"
                                      PasswordChar="●"
                                      Text="{Binding MasterPassword, Mode=TwoWay}" />
                             <Button Grid.Column="2"
-                                    Content="安全输入"
+                                    Content="{loc:Str Unlock_SecureInput}"
                                     IsVisible="{Binding SecureInputAvailable}"
                                     Click="OnSecureInputClicked" />
                         </Grid>
                     </StackPanel>
 
-                    <CheckBox Content="记住此设备（使用 Windows 凭据保护）"
+                    <CheckBox Content="{loc:Str Unlock_RememberDevice}"
                               IsChecked="{Binding RememberDevice, Mode=TwoWay}"
                               IsVisible="{Binding CanRememberDevice}" />
                 </StackPanel>
 
                 <StackPanel Spacing="14" IsVisible="{Binding IsCreateMode}">
                     <StackPanel Spacing="4">
-                        <TextBlock Text="保存位置" FontSize="12" Opacity="0.7" />
+                        <TextBlock Text="{loc:Str Unlock_SaveLocation}" FontSize="12" Opacity="0.7" />
                         <Grid ColumnDefinitions="*,8,Auto">
                             <TextBox Grid.Column="0" Text="{Binding NewVaultPath}" />
-                            <Button Grid.Column="2" Content="选择位置…" Click="OnBrowseCreateClicked" />
+                            <Button Grid.Column="2" Content="{loc:Str Unlock_ChooseLocation}" Click="OnBrowseCreateClicked" />
                         </Grid>
                     </StackPanel>
 
                     <StackPanel Spacing="4">
-                        <TextBlock Text="主密码" FontSize="12" Opacity="0.7" />
+                        <TextBlock Text="{loc:Str Unlock_MasterPassword}" FontSize="12" Opacity="0.7" />
                         <TextBox PasswordChar="●" Text="{Binding MasterPassword, Mode=TwoWay}" />
                         <ProgressBar Value="{Binding MasterPasswordStrengthPercent}" Maximum="100" Height="6" />
                         <TextBlock Text="{Binding MasterPasswordStrengthSummary}" FontSize="12" Opacity="0.7" />
                     </StackPanel>
 
                     <StackPanel Spacing="4">
-                        <TextBlock Text="确认主密码" FontSize="12" Opacity="0.7" />
+                        <TextBlock Text="{loc:Str Unlock_ConfirmMasterPassword}" FontSize="12" Opacity="0.7" />
                         <TextBox PasswordChar="●" Text="{Binding ConfirmPassword, Mode=TwoWay}" />
                     </StackPanel>
 
-                    <CheckBox Content="记住此设备（使用 Windows 凭据保护）"
+                    <CheckBox Content="{loc:Str Unlock_RememberDevice}"
                               IsChecked="{Binding RememberDevice, Mode=TwoWay}"
                               IsVisible="{Binding CanRememberDevice}" />
 
-                    <TextBlock Text="⚠ 主密码无法找回：请务必牢记，并定期制作加密备份。"
+                    <TextBlock Text="{loc:Str Unlock_Warning}"
                                Foreground="#FAAD14"
                                FontSize="12"
                                TextWrapping="Wrap" />
@@ -94,13 +95,13 @@
                        Foreground="#E5484D"
                        TextWrapping="Wrap"
                        MinHeight="20" />
-            <TextBlock Text="正在处理，请稍候…" IsVisible="{Binding IsBusy}" Opacity="0.6" />
+            <TextBlock Text="{loc:Str Unlock_Busy}" IsVisible="{Binding IsBusy}" Opacity="0.6" />
             <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
-                <Button Content="创建密码库"
+                <Button Content="{loc:Str Unlock_CreateVault}"
                         Command="{Binding CreateCommand}"
                         IsVisible="{Binding IsCreateMode}"
                         IsDefault="True" />
-                <Button Content="解锁"
+                <Button Content="{loc:Str Unlock_Unlock}"
                         Command="{Binding UnlockCommand}"
                         IsVisible="{Binding !IsCreateMode}"
                         IsDefault="True" />

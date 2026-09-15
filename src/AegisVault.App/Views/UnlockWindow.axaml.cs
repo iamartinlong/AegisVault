@@ -1,3 +1,4 @@
+using AegisVault.App.Localization;
 using AegisVault.App.ViewModels;
 using AegisVault.Platform;
 using Avalonia.Controls;
@@ -23,7 +24,7 @@ public partial class UnlockWindow : Window
             }
 
             var parentHandle = TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
-            var password = WindowsSecureInput.PromptForPassword("AegisVault", "请输入主密码（系统安全桌面输入）", parentHandle);
+            var password = WindowsSecureInput.PromptForPassword("AegisVault", Loc.T("Unlock_SecureInputTitle"), parentHandle);
             if (!string.IsNullOrEmpty(password))
             {
                 viewModel.MasterPassword = password;
@@ -33,7 +34,7 @@ public partial class UnlockWindow : Window
         {
             if (DataContext is UnlockViewModel viewModel)
             {
-                viewModel.ErrorMessage = "安全输入不可用，请手动输入主密码。";
+                viewModel.ErrorMessage = Loc.T("Unlock_SecureInputUnavailable");
             }
         }
     }
@@ -44,9 +45,9 @@ public partial class UnlockWindow : Window
         {
             var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
             {
-                Title = "选择密码库文件",
+                Title = Loc.T("Unlock_PickVaultTitle"),
                 AllowMultiple = false,
-                FileTypeFilter = [new FilePickerFileType("AegisVault 密码库") { Patterns = ["*.aegis"] }],
+                FileTypeFilter = [new FilePickerFileType(Loc.T("Unlock_VaultFileType")) { Patterns = ["*.aegis"] }],
             });
 
             if (files.Count > 0 && DataContext is UnlockViewModel viewModel)
@@ -83,10 +84,10 @@ public partial class UnlockWindow : Window
 
             var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
-                Title = "选择密码库保存位置",
+                Title = Loc.T("Unlock_PickSaveTitle"),
                 SuggestedFileName = fileName,
                 DefaultExtension = "aegis",
-                FileTypeChoices = [new FilePickerFileType("AegisVault 密码库") { Patterns = ["*.aegis"] }],
+                FileTypeChoices = [new FilePickerFileType(Loc.T("Unlock_VaultFileType")) { Patterns = ["*.aegis"] }],
                 SuggestedStartLocation = startLocation,
             });
 

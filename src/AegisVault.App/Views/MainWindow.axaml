@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:AegisVault.App.ViewModels"
         xmlns:models="using:AegisVault.Core.Models"
+        xmlns:loc="using:AegisVault.App.Localization"
         x:Class="AegisVault.App.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Icon="/Assets/app.png"
@@ -23,10 +24,10 @@
                        VerticalAlignment="Center"
                        Opacity="0.7" />
             <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
-                <Button Content="＋ 新建条目" Command="{Binding AddEntryCommand}" />
-                <Button Content="生成器" Click="OnGeneratePasswordClicked" />
-                <Button Content="设置" Click="OnSettingsClicked" />
-                <Button Content="锁定" Command="{Binding LockCommand}" />
+                <Button Content="{loc:Str Main_NewEntry}" Command="{Binding AddEntryCommand}" />
+                <Button Content="{loc:Str Main_Generator}" Click="OnGeneratePasswordClicked" />
+                <Button Content="{loc:Str Main_Settings}" Click="OnSettingsClicked" />
+                <Button Content="{loc:Str Main_Lock}" Command="{Binding LockCommand}" />
             </StackPanel>
         </Grid>
 
@@ -37,13 +38,13 @@
                         HorizontalContentAlignment="Stretch"
                         Padding="8,6"
                         Command="{Binding ShowSecurityCommand}"
-                        ToolTip.Tip="查看弱密码与重复密码条目">
+                        ToolTip.Tip="{loc:Str Main_HealthTip}">
                     <TextBlock Text="{Binding HealthSummary}"
                                FontSize="11"
                                TextWrapping="Wrap"
                                HorizontalAlignment="Left" />
                 </Button>
-                <TextBlock Grid.Row="1" Text="分类" FontSize="11" Opacity="0.5" Margin="4,8,0,4" />
+                <TextBlock Grid.Row="1" Text="{loc:Str Main_Categories}" FontSize="11" Opacity="0.5" Margin="4,8,0,4" />
                 <ListBox Grid.Row="2"
                          ItemsSource="{Binding Categories}"
                          SelectedItem="{Binding SelectedCategory}">
@@ -70,7 +71,7 @@
                 <TextBox x:Name="SearchBox"
                          Grid.Row="0"
                          Text="{Binding SearchText}"
-                         PlaceholderText="搜索标题、用户名、网址、标签" />
+                         PlaceholderText="{loc:Str Main_SearchPlaceholder}" />
                 <Panel Grid.Row="1" Margin="0,8,0,0">
                     <ListBox ItemsSource="{Binding FilteredEntries}"
                              SelectedItem="{Binding SelectedEntry}">
@@ -108,13 +109,13 @@
                                                 Spacing="2"
                                                 VerticalAlignment="Center">
                                         <Button Content="👤"
-                                                ToolTip.Tip="复制用户名"
+                                                ToolTip.Tip="{loc:Str Main_CopyUsernameTip}"
                                                 Click="OnRowCopyUsernameClicked" />
                                         <Button Content="🔑"
-                                                ToolTip.Tip="复制密码"
+                                                ToolTip.Tip="{loc:Str Main_CopyPasswordTip}"
                                                 Click="OnRowCopyPasswordClicked" />
                                         <Button Content="⏱"
-                                                ToolTip.Tip="复制验证码"
+                                                ToolTip.Tip="{loc:Str Main_CopyTotpTip}"
                                                 IsVisible="{Binding TotpSecret, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
                                                 Click="OnRowCopyTotpClicked" />
                                     </StackPanel>
@@ -122,7 +123,7 @@
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
-                    <TextBlock Text="没有可显示的条目"
+                    <TextBlock Text="{loc:Str Main_EmptyList}"
                                HorizontalAlignment="Center"
                                VerticalAlignment="Center"
                                Opacity="0.45"
@@ -133,7 +134,7 @@
             <GridSplitter Grid.Column="3" Width="4" Background="Transparent" />
 
             <Panel Grid.Column="4">
-                <TextBlock Text="选择一个条目查看详情"
+                <TextBlock Text="{loc:Str Main_SelectEntryHint}"
                            HorizontalAlignment="Center"
                            VerticalAlignment="Center"
                            Opacity="0.45"
@@ -148,20 +149,20 @@
                                        TextWrapping="Wrap" />
 
                             <StackPanel Spacing="4">
-                                <TextBlock Text="用户名" FontSize="12" Opacity="0.6" />
+                                <TextBlock Text="{loc:Str Main_Username}" FontSize="12" Opacity="0.6" />
                                 <Grid ColumnDefinitions="*,8,Auto">
                                     <SelectableTextBlock Grid.Column="0"
                                                          Text="{Binding EditUsername}"
                                                          VerticalAlignment="Center"
                                                          TextWrapping="Wrap" />
                                     <Button Grid.Column="2"
-                                            Content="复制"
+                                            Content="{loc:Str Common_Copy}"
                                             Command="{Binding CopyUsernameCommand}" />
                                 </Grid>
                             </StackPanel>
 
                             <StackPanel Spacing="4">
-                                <TextBlock Text="密码" FontSize="12" Opacity="0.6" />
+                                <TextBlock Text="{loc:Str Main_Password}" FontSize="12" Opacity="0.6" />
                                 <Grid ColumnDefinitions="*,8,Auto,Auto">
                                     <SelectableTextBlock Grid.Column="0"
                                                          Text="{Binding PasswordPreview}"
@@ -169,17 +170,17 @@
                                                          VerticalAlignment="Center"
                                                          TextWrapping="Wrap" />
                                     <Button Grid.Column="2"
-                                            Content="显示"
+                                            Content="{loc:Str Common_Reveal}"
                                             Command="{Binding TogglePasswordRevealCommand}" />
                                     <Button Grid.Column="3"
                                             Margin="8,0,0,0"
-                                            Content="复制"
+                                            Content="{loc:Str Common_Copy}"
                                             Command="{Binding CopyPasswordCommand}" />
                                 </Grid>
                             </StackPanel>
 
                             <StackPanel Spacing="4" IsVisible="{Binding HasTotp}">
-                                <TextBlock Text="动态验证码" FontSize="12" Opacity="0.6" />
+                                <TextBlock Text="{loc:Str Main_TotpSection}" FontSize="12" Opacity="0.6" />
                                 <Grid ColumnDefinitions="Auto,8,*,8,Auto">
                                     <TextBlock Grid.Column="0"
                                                Text="{Binding TotpCode}"
@@ -191,31 +192,31 @@
                                                Opacity="0.6"
                                                VerticalAlignment="Bottom" />
                                     <Button Grid.Column="4"
-                                            Content="复制"
+                                            Content="{loc:Str Common_Copy}"
                                             Command="{Binding CopyTotpCommand}" />
                                 </Grid>
                             </StackPanel>
 
                             <StackPanel Spacing="4">
-                                <TextBlock Text="网址" FontSize="12" Opacity="0.6" />
+                                <TextBlock Text="{loc:Str Main_Url}" FontSize="12" Opacity="0.6" />
                                 <Grid ColumnDefinitions="*,8,Auto">
                                     <SelectableTextBlock Grid.Column="0"
                                                          Text="{Binding EditUrl}"
                                                          VerticalAlignment="Center"
                                                          TextWrapping="Wrap" />
                                     <Button Grid.Column="2"
-                                            Content="打开"
+                                            Content="{loc:Str Common_Open}"
                                             Command="{Binding OpenUrlCommand}" />
                                 </Grid>
                             </StackPanel>
 
                             <StackPanel Spacing="4">
-                                <TextBlock Text="标签" FontSize="12" Opacity="0.6" />
+                                <TextBlock Text="{loc:Str Main_Tags}" FontSize="12" Opacity="0.6" />
                                 <SelectableTextBlock Text="{Binding EditTags}" TextWrapping="Wrap" />
                             </StackPanel>
 
                             <StackPanel Spacing="4">
-                                <TextBlock Text="备注" FontSize="12" Opacity="0.6" />
+                                <TextBlock Text="{loc:Str Main_Notes}" FontSize="12" Opacity="0.6" />
                                 <SelectableTextBlock Text="{Binding EditNotes}" TextWrapping="Wrap" />
                             </StackPanel>
 
@@ -223,33 +224,33 @@
                                         Spacing="8"
                                         HorizontalAlignment="Right"
                                         Margin="0,8,0,0">
-                                <Button Content="收藏 / 取消"
+                                <Button Content="{loc:Str Main_FavoriteToggle}"
                                         Command="{Binding ToggleFavoriteCommand}" />
-                                <Button Content="编辑" Command="{Binding BeginEditCommand}" />
-                                <Button Content="删除" Command="{Binding DeleteEntryCommand}" />
+                                <Button Content="{loc:Str Common_Edit}" Command="{Binding BeginEditCommand}" />
+                                <Button Content="{loc:Str Common_Delete}" Command="{Binding DeleteEntryCommand}" />
                             </StackPanel>
                         </StackPanel>
 
                         <StackPanel Margin="10,4,4,4" Spacing="10" IsVisible="{Binding IsEditing}">
                             <StackPanel Spacing="4">
-                                <TextBlock Text="标题" FontSize="12" Opacity="0.6" />
+                                <TextBlock Text="{loc:Str Main_Title}" FontSize="12" Opacity="0.6" />
                                 <TextBox Text="{Binding EditTitle}" />
                             </StackPanel>
 
                             <StackPanel Spacing="4">
-                                <TextBlock Text="用户名" FontSize="12" Opacity="0.6" />
+                                <TextBlock Text="{loc:Str Main_Username}" FontSize="12" Opacity="0.6" />
                                 <TextBox Text="{Binding EditUsername}" />
                             </StackPanel>
 
                             <StackPanel Spacing="4">
-                                <TextBlock Text="密码" FontSize="12" Opacity="0.6" />
+                                <TextBlock Text="{loc:Str Main_Password}" FontSize="12" Opacity="0.6" />
                                 <Grid ColumnDefinitions="*,8,Auto">
                                     <TextBox Grid.Column="0"
                                              PasswordChar="●"
                                              RevealPassword="True"
                                              Text="{Binding EditPassword, Mode=TwoWay}" />
                                     <Button Grid.Column="2"
-                                            Content="生成"
+                                            Content="{loc:Str Common_Generate}"
                                             Click="OnGeneratePasswordClicked" />
                                 </Grid>
                                 <ProgressBar Value="{Binding EditPasswordStrengthPercent}"
@@ -261,36 +262,36 @@
                             </StackPanel>
 
                             <StackPanel Spacing="4">
-                                <TextBlock Text="网址" FontSize="12" Opacity="0.6" />
+                                <TextBlock Text="{loc:Str Main_Url}" FontSize="12" Opacity="0.6" />
                                 <TextBox Text="{Binding EditUrl}" />
                             </StackPanel>
 
                             <StackPanel Spacing="4">
-                                <TextBlock Text="TOTP 密钥（Base32）" FontSize="12" Opacity="0.6" />
+                                <TextBlock Text="{loc:Str Main_TotpSecret}" FontSize="12" Opacity="0.6" />
                                 <TextBox Text="{Binding EditTotpSecret}" />
                             </StackPanel>
 
                             <StackPanel Spacing="4">
-                                <TextBlock Text="标签（逗号分隔）" FontSize="12" Opacity="0.6" />
+                                <TextBlock Text="{loc:Str Main_TagsComma}" FontSize="12" Opacity="0.6" />
                                 <TextBox Text="{Binding EditTags}" />
                             </StackPanel>
 
                             <StackPanel Spacing="4">
-                                <TextBlock Text="备注" FontSize="12" Opacity="0.6" />
+                                <TextBlock Text="{loc:Str Main_Notes}" FontSize="12" Opacity="0.6" />
                                 <TextBox Text="{Binding EditNotes}"
                                          AcceptsReturn="True"
                                          TextWrapping="Wrap"
                                          Height="90" />
                             </StackPanel>
 
-                            <CheckBox Content="收藏" IsChecked="{Binding EditIsFavorite, Mode=TwoWay}" />
+                            <CheckBox Content="{loc:Str Main_Favorite}" IsChecked="{Binding EditIsFavorite, Mode=TwoWay}" />
 
                             <StackPanel Orientation="Horizontal"
                                         Spacing="8"
                                         HorizontalAlignment="Right"
                                         Margin="0,4,0,0">
-                                <Button Content="取消" Command="{Binding CancelEditCommand}" />
-                                <Button Content="保存" Command="{Binding SaveEntryCommand}" />
+                                <Button Content="{loc:Str Common_Cancel}" Command="{Binding CancelEditCommand}" />
+                                <Button Content="{loc:Str Common_Save}" Command="{Binding SaveEntryCommand}" />
                             </StackPanel>
                         </StackPanel>
                     </Grid>
@@ -312,7 +313,7 @@
                 <TextBlock Text="{Binding ClipboardToastText}"
                            Foreground="White"
                            VerticalAlignment="Center" />
-                <Button Content="立即清除"
+                <Button Content="{loc:Str Main_ClearNow}"
                         Command="{Binding ClearClipboardNowCommand}" />
             </StackPanel>
         </Border>
@@ -332,16 +333,16 @@
                         <TextBlock Text="🔒"
                                    FontSize="40"
                                    HorizontalAlignment="Center" />
-                        <TextBlock Text="密码库已锁定"
+                        <TextBlock Text="{loc:Str Main_Locked}"
                                    FontSize="20"
                                    FontWeight="SemiBold"
                                    HorizontalAlignment="Center" />
-                        <TextBlock Text="内容已在内存中清除，输入主密码即可继续。"
+                        <TextBlock Text="{loc:Str Main_LockedHint}"
                                    FontSize="12"
                                    Opacity="0.65"
                                    HorizontalAlignment="Center" />
                         <Button x:Name="UnlockButton"
-                                Content="解锁"
+                                Content="{loc:Str Main_Unlock}"
                                 MinWidth="120"
                                 HorizontalAlignment="Center"
                                 Click="OnUnlockClicked" />

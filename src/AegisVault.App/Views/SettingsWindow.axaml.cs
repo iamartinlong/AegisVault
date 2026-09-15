@@ -1,3 +1,4 @@
+using AegisVault.App.Localization;
 using AegisVault.App.ViewModels;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
@@ -25,10 +26,10 @@ public partial class SettingsWindow : Window
 
             var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
-                Title = "备份密码库",
+                Title = Loc.T("Settings_BackupTitle"),
                 SuggestedFileName = "vault-backup.aegis",
                 DefaultExtension = "aegis",
-                FileTypeChoices = [new FilePickerFileType("AegisVault 密码库") { Patterns = ["*.aegis"] }],
+                FileTypeChoices = [new FilePickerFileType(Loc.T("Unlock_VaultFileType")) { Patterns = ["*.aegis"] }],
             });
 
             if (file is not null)
@@ -52,9 +53,9 @@ public partial class SettingsWindow : Window
 
             var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
             {
-                Title = "选择要导入的 CSV 文件",
+                Title = Loc.T("Settings_ImportPickTitle"),
                 AllowMultiple = false,
-                FileTypeFilter = [new FilePickerFileType("CSV 导出") { Patterns = ["*.csv"] }],
+                FileTypeFilter = [new FilePickerFileType(Loc.T("Settings_CsvFileType")) { Patterns = ["*.csv"] }],
             });
 
             if (files is { Count: 1 })

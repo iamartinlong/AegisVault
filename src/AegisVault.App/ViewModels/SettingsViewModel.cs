@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
+using AegisVault.App.Localization;
 using AegisVault.Core.Models;
 using AegisVault.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -14,6 +15,8 @@ public sealed record ClipboardOption(int Seconds, string Label);
 
 public sealed record ThemeOption(string Value, string Label);
 
+public sealed record LanguageOption(string Value, string Label);
+
 public partial class SettingsViewModel : ObservableObject
 {
     private readonly VaultService _vault;
@@ -22,6 +25,7 @@ public partial class SettingsViewModel : ObservableObject
     private readonly Action<string>? _applyTheme;
     private readonly Action<bool>? _applyScreenGuard;
     private readonly Action<bool>? _applyFloatingBall;
+    private readonly Action<string>? _applyLanguage;
     private readonly Action? _imported;
 
     public SettingsViewModel(
@@ -34,7 +38,9 @@ public partial class SettingsViewModel : ObservableObject
         Action<bool>? applyScreenGuard = null,
         bool showFloatingBall = false,
         Action<bool>? applyFloatingBall = null,
-        Action? imported = null)
+        Action? imported = null,
+        string currentLanguage = Loc.System,
+        Action<string>? applyLanguage = null)
     {
         _vault = vault;
         _config = config;
@@ -42,6 +48,7 @@ public partial class SettingsViewModel : ObservableObject
         _applyTheme = applyTheme;
         _applyScreenGuard = applyScreenGuard;
         _applyFloatingBall = applyFloatingBall;
+        _applyLanguage = applyLanguage;
         _imported = imported;
 
         var user = config.Current;
@@ -54,6 +61,7 @@ public partial class SettingsViewModel : ObservableObject
         GeneratorSymbols = user.Generator.IncludeSymbols;
         GeneratorExcludeAmbiguous = user.Generator.ExcludeAmbiguous;
         SelectedTheme = ThemeOptions.FirstOrDefault(option => option.Value == currentTheme) ?? ThemeOptions[0];
+        SelectedLanguage = LanguageOptions.FirstOrDefault(option => option.Value == currentLanguage) ?? LanguageOptions[0];
 
         DeviceKeySupported = protector?.IsAvailable == true;
         HasDeviceKey = DeviceKeySupported && vault.HasDeviceKey(protector!);
@@ -64,13 +72,28 @@ public partial class SettingsViewModel : ObservableObject
     }
 
     public IReadOnlyList<AutoLockOption> AutoLockOptions { get; } =
-        [new(0, "关闭"), new(1, "1 分钟"), new(5, "5 分钟"), new(15, "15 分钟"), new(30, "30 分钟")];
+        [new(0, Loc.T("Settings_Off")),
+         new(1, Loc.Format("Settings_Minutes", 1)),
+         new(5, Loc.Format("Settings_Minutes", 5)),
+         new(15, Loc.Format("Settings_Minutes", 15)),
+         new(30, Loc.Format("Settings_Minutes", 30))];
 
     public IReadOnlyList<ClipboardOption> ClipboardOptions { get; } =
-        [new(0, "不自动清除"), new(15, "15 秒"), new(30, "30 秒"), new(60, "1 分钟"), new(120, "2 分钟")];
+        [new(0, Loc.T("Settings_ClipboardOff")),
+         new(15, Loc.Format("Settings_Seconds", 15)),
+         new(30, Loc.Format("Settings_Seconds", 30)),
+         new(60, Loc.Format("Settings_Minutes", 1)),
+         new(120, Loc.Format("Settings_Minutes", 2))];
 
     public IReadOnlyList<ThemeOption> ThemeOptions { get; } =
-        [new("system", "跟随系统"), new("light", "浅色"), new("dark", "深色")];
+        [new("system", Loc.T("Settings_ThemeSystem")),
+         new("light", Loc.T("Settings_ThemeLight")),
+         new("dark", Loc.T("Settings_ThemeDark"))];
+
+    public IReadOnlyList<LanguageOption> LanguageOptions { get; } =
+        [new(Loc.System, Loc.T("Settings_LanguageSystem")),
+         new(Loc.Chinese, Loc.T("Settings_LanguageZh")),
+         new(Loc.English, Loc.T("Settings_LanguageEn"))];
 
     [ObservableProperty]
     private AutoLockOption? selectedAutoLock;
@@ -90,6 +113,10 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty]
     private double generatorLength = 20;
 
+    public string GeneratorLengthText => Loc.Format("Settings_GeneratorLength", GeneratorLength);
+
+    partial void OnGeneratorLengthChanged(double value) => OnPropertyChanged(nameof(GeneratorLengthText));
+
     [ObservableProperty]
     private bool generatorSymbols = true;
 
@@ -98,6 +125,9 @@ public partial class SettingsViewModel : ObservableObject
 
     [ObservableProperty]
     private ThemeOption? selectedTheme;
+
+    [ObservableProperty]
+    private LanguageOption? selectedLanguage;
 
     [ObservableProperty]
     private bool screenGuardSupported;
@@ -150,7 +180,8 @@ public partial class SettingsViewModel : ObservableObject
         _applyTheme?.Invoke(SelectedTheme?.Value ?? "system");
         _applyScreenGuard?.Invoke(!DisableScreenCapture);
         _applyFloatingBall?.Invoke(ShowFloatingBall);
-        StatusMessage = "设置已保存。";
+        _applyLanguage?.Invoke(SelectedLanguage?.Value ?? Loc.System);
+        StatusMessage = Loc.T("Settings_StatusSaved");
     }
 
     [RelayCommand]
@@ -160,19 +191,19 @@ public partial class SettingsViewModel : ObservableObject
 
         if (string.IsNullOrEmpty(NewMasterPassword))
         {
-            StatusMessage = "请输入新主密码。";
+            StatusMessage = Loc.T("Settings_StatusPasswordRequired");
             return;
         }
 
         if (NewMasterPassword.Length < 8)
         {
-            StatusMessage = "主密码至少需要 8 个字符。";
+            StatusMessage = Loc.T("Settings_StatusPasswordTooShort");
             return;
         }
 
         if (!string.Equals(NewMasterPassword, ConfirmMasterPassword, StringComparison.Ordinal))
         {
-            StatusMessage = "两次输入的密码不一致。";
+            StatusMessage = Loc.T("Settings_StatusPasswordMismatch");
             return;
         }
 
@@ -183,11 +214,11 @@ public partial class SettingsViewModel : ObservableObject
             NewMasterPassword = string.Empty;
             ConfirmMasterPassword = string.Empty;
             HasDeviceKey = _protector is { IsAvailable: true } && _vault.HasDeviceKey(_protector);
-            StatusMessage = "主密码已更改。设备密钥已重置，可重新“记住此设备”。";
+            StatusMessage = Loc.T("Settings_StatusPasswordChanged");
         }
         catch (Exception)
         {
-            StatusMessage = "更改主密码失败。";
+            StatusMessage = Loc.T("Settings_StatusPasswordChangeFailed");
         }
         finally
         {
@@ -207,11 +238,11 @@ public partial class SettingsViewModel : ObservableObject
         {
             _vault.RememberDevice(protector);
             HasDeviceKey = true;
-            StatusMessage = "已记住此设备。";
+            StatusMessage = Loc.T("Settings_StatusDeviceRemembered");
         }
         catch (Exception)
         {
-            StatusMessage = "无法记住此设备。";
+            StatusMessage = Loc.T("Settings_StatusDeviceRememberFailed");
         }
     }
 
@@ -225,7 +256,7 @@ public partial class SettingsViewModel : ObservableObject
 
         _vault.ForgetDevice(protector);
         HasDeviceKey = false;
-        StatusMessage = "已移除此设备上的密钥。";
+        StatusMessage = Loc.T("Settings_StatusDeviceForgotten");
     }
 
     public void SaveBackupTo(string path)
@@ -233,11 +264,11 @@ public partial class SettingsViewModel : ObservableObject
         try
         {
             _vault.SaveBackup(path);
-            StatusMessage = "备份已保存。";
+            StatusMessage = Loc.T("Settings_StatusBackupSaved");
         }
         catch (Exception)
         {
-            StatusMessage = "备份失败。";
+            StatusMessage = Loc.T("Settings_StatusBackupFailed");
         }
     }
 
@@ -249,13 +280,13 @@ public partial class SettingsViewModel : ObservableObject
             // Parsing + vault writes run off the UI thread; the completion
             // message and reload marshalled back by the callers.
             var (imported, skipped) = await Task.Run(() => VaultCsvImporter.Import(_vault, File.ReadAllText(path)));
-            StatusMessage = $"导入完成：新增 {imported} 条，跳过 {skipped} 条。";
+            StatusMessage = Loc.Format("Settings_StatusImportDone", imported, skipped);
             _imported?.Invoke();
             return new ImportResult(imported, skipped);
         }
         catch (Exception)
         {
-            StatusMessage = "导入失败：无法读取该 CSV 文件。";
+            StatusMessage = Loc.T("Settings_StatusImportFailed");
             return new ImportResult(0, 0);
         }
     }

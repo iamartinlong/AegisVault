@@ -1,3 +1,4 @@
+using AegisVault.App.Localization;
 using AegisVault.App.Services;
 using AegisVault.Core.Models;
 using AegisVault.Core.Services;
@@ -43,13 +44,23 @@ public partial class GeneratorViewModel : ObservableObject
     [ObservableProperty]
     private string strengthSummary = string.Empty;
 
+    public string LengthText => Loc.Format("Generator_LengthFormat", Length);
+
+    public string EntropyText => StrengthFormatting.FormatInfo(EntropyBits);
+
     public GeneratorViewModel(ClipboardService? clipboard = null)
     {
         _clipboard = clipboard;
         Regenerate();
     }
 
-    partial void OnLengthChanged(double value) => Regenerate();
+    partial void OnLengthChanged(double value)
+    {
+        OnPropertyChanged(nameof(LengthText));
+        Regenerate();
+    }
+
+    partial void OnEntropyBitsChanged(double value) => OnPropertyChanged(nameof(EntropyText));
 
     partial void OnIncludeLowercaseChanged(bool value) => Regenerate();
 
@@ -103,6 +114,6 @@ public partial class GeneratorViewModel : ObservableObject
         }
 
         await _clipboard.CopyAsync(Password);
-        CopyStatus = "已复制，将按设置自动清除";
+        CopyStatus = Loc.T("Generator_Copied");
     }
 }

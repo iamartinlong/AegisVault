@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using AegisVault.App.Localization;
 using AegisVault.App.Services;
 using AegisVault.Core.Models;
 using AegisVault.Core.Services;
@@ -112,17 +113,17 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private int clipboardToastRemaining;
 
-    public string ClipboardToastText => $"已复制到剪贴板，{ClipboardToastRemaining} 秒后自动清除。";
+    public string ClipboardToastText => Loc.Format("Main_ToastFormat", ClipboardToastRemaining);
 
     public VaultHealthReport Health => _health;
 
     public bool HasSecurityIssues => _health.WeakCount > 0 || _health.ReusedCount > 0;
 
     public string HealthSummary => _health.TotalEntries == 0
-        ? "密码库为空"
+        ? Loc.T("Main_HealthEmpty")
         : HasSecurityIssues
-            ? $"安全：{_health.WeakCount} 条弱密码，{_health.ReusedCount} 条重复"
-            : $"安全：{_health.TotalEntries} 条密码全部良好";
+            ? Loc.Format("Main_HealthIssues", _health.WeakCount, _health.ReusedCount)
+            : Loc.Format("Main_HealthOk", _health.TotalEntries);
 
     public bool HasSelection => SelectedEntry is not null;
 
@@ -181,13 +182,13 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void AddEntry()
     {
-        var entry = _vault.AddEntry(new PasswordEntry { Title = "新条目" });
+        var entry = _vault.AddEntry(new PasswordEntry { Title = Loc.T("Main_NewEntryTitle") });
         Entries.Add(entry);
         RefreshCategories();
         ApplyFilter();
         SelectedEntry = entry;
         IsEditing = true;
-        StatusMessage = "已创建新条目，请填写信息。";
+        StatusMessage = Loc.T("Main_StatusNewEntry");
     }
 
     [RelayCommand]
@@ -231,7 +232,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
         if (!_vault.UpdateEntry(updated))
         {
-            StatusMessage = "条目已不存在。";
+            StatusMessage = Loc.T("Main_StatusEntryMissing");
             return;
         }
 
@@ -240,7 +241,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         IsEditing = false;
         RefreshCategories();
         ApplyFilter();
-        StatusMessage = "已保存。";
+        StatusMessage = Loc.T("Main_StatusSaved");
     }
 
     [RelayCommand]
@@ -260,7 +261,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
             IsEditing = false;
             RefreshCategories();
             ApplyFilter();
-            StatusMessage = "已删除条目。";
+            StatusMessage = Loc.T("Main_StatusDeleted");
         }
     }
 
@@ -287,7 +288,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         SelectedEntry = updated;
         RefreshCategories();
         ApplyFilter();
-        StatusMessage = updated.IsFavorite ? "已加入收藏。" : "已取消收藏。";
+        StatusMessage = updated.IsFavorite ? Loc.T("Main_StatusFavoriteAdded") : Loc.T("Main_StatusFavoriteRemoved");
     }
 
     [RelayCommand]
@@ -312,7 +313,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         }
 
         await _clipboard.CopyAsync(EditPassword);
-        StatusMessage = "密码已复制，将按设置自动清除。";
+        StatusMessage = Loc.T("Main_StatusPasswordCopied");
     }
 
     [RelayCommand]
@@ -324,7 +325,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         }
 
         await _clipboard.CopyAsync(EditUsername);
-        StatusMessage = "用户名已复制。";
+        StatusMessage = Loc.T("Main_StatusUsernameCopied");
     }
 
     [RelayCommand]
@@ -336,7 +337,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         }
 
         await _clipboard.CopyAsync(TotpCode);
-        StatusMessage = "验证码已复制，将按设置自动清除。";
+        StatusMessage = Loc.T("Main_StatusTotpCopied");
     }
 
     [RelayCommand]
@@ -433,10 +434,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(HealthSummary));
 
         Categories.Clear();
-        Categories.Add(new CategoryItem(AllCategoryKey, "全部条目", null, false, Entries.Count));
+        Categories.Add(new CategoryItem(AllCategoryKey, Loc.T("Main_CategoryAll"), null, false, Entries.Count));
         Categories.Add(new CategoryItem(
             FavoritesCategoryKey,
-            "收藏",
+            Loc.T("Main_CategoryFavorites"),
             null,
             true,
             Entries.Count(entry => entry.IsFavorite)));
@@ -444,7 +445,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         var issueCount = _health.IssueCount;
         if (issueCount > 0)
         {
-            Categories.Add(new CategoryItem(WeakCategoryKey, "安全", null, false, issueCount));
+            Categories.Add(new CategoryItem(WeakCategoryKey, Loc.T("Main_CategorySecurity"), null, false, issueCount));
         }
 
         var tags = Entries
@@ -594,7 +595,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         }
         catch (Exception exception) when (exception is FormatException or ArgumentException)
         {
-            TotpCode = "无效密钥";
+            TotpCode = Loc.T("Main_StatusInvalidTotp");
             TotpRemaining = 0;
         }
     }

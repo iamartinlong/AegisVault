@@ -35,7 +35,7 @@ public sealed record VaultHealthReport(
 /// </summary>
 public static class VaultHealth
 {
-    /// <summary>Scores of 0–2 (极弱/弱) count as weak.</summary>
+    /// <summary>Scores of 0–2 (VeryWeak/Weak) count as weak.</summary>
     public const int WeakScoreThreshold = 2;
 
     private static readonly TimeSpan OldAge = TimeSpan.FromDays(365);

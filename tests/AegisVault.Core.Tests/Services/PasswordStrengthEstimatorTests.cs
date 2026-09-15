@@ -11,7 +11,7 @@ public sealed class PasswordStrengthEstimatorTests
         var result = PasswordStrengthEstimator.Evaluate("password123");
 
         Assert.Equal(0, result.Score);
-        Assert.Contains(result.Suggestions, s => s.Contains("常见密码", StringComparison.Ordinal));
+        Assert.Contains(PasswordAdvice.CommonPassword, result.Suggestions);
     }
 
     [Fact]
@@ -20,7 +20,7 @@ public sealed class PasswordStrengthEstimatorTests
         var result = PasswordStrengthEstimator.Evaluate("aaaaaaaaaaaaaaaa");
 
         Assert.True(result.Score <= 1, $"Expected <= 1, got {result.Score}.");
-        Assert.Contains(result.Suggestions, s => s.Contains("重复", StringComparison.Ordinal));
+        Assert.Contains(PasswordAdvice.Repetitive, result.Suggestions);
     }
 
     [Fact]
@@ -29,7 +29,7 @@ public sealed class PasswordStrengthEstimatorTests
         var result = PasswordStrengthEstimator.Evaluate("aB3!");
 
         Assert.True(result.Score <= 1);
-        Assert.Contains(result.Suggestions, s => s.Contains("12 位", StringComparison.Ordinal));
+        Assert.Contains(PasswordAdvice.TooShort, result.Suggestions);
     }
 
     [Fact]
@@ -64,7 +64,8 @@ public sealed class PasswordStrengthEstimatorTests
         var result = PasswordStrengthEstimator.Evaluate(null);
 
         Assert.Equal(0, result.Score);
-        Assert.Equal("极弱", result.Label);
+        Assert.Equal(PasswordStrengthLabel.VeryWeak, result.Label);
+        Assert.Contains(PasswordAdvice.Empty, result.Suggestions);
     }
 
     [Fact]
@@ -72,8 +73,15 @@ public sealed class PasswordStrengthEstimatorTests
     {
         var result = PasswordStrengthEstimator.Evaluate("abcdefghijklmnop");
 
-        Assert.Contains(result.Suggestions, s => s.Contains("大小写", StringComparison.Ordinal));
-        Assert.Contains(result.Suggestions, s => s.Contains("数字", StringComparison.Ordinal));
-        Assert.Contains(result.Suggestions, s => s.Contains("符号", StringComparison.Ordinal));
+        Assert.Contains(PasswordAdvice.MixedCase, result.Suggestions);
+        Assert.Contains(PasswordAdvice.AddDigit, result.Suggestions);
+        Assert.Contains(PasswordAdvice.AddSymbol, result.Suggestions);
+    }
+
+    [Fact]
+    public void LabelsMatchScoreBuckets()
+    {
+        Assert.Equal(PasswordStrengthLabel.VeryWeak, PasswordStrengthEstimator.Evaluate("abc").Label);
+        Assert.Equal(PasswordStrengthLabel.VeryStrong, PasswordStrengthEstimator.Evaluate("kR7#mQ2!vX9@Lp4$wZt6&").Label);
     }
 }

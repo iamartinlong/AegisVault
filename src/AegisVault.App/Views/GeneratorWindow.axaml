@@ -1,27 +1,28 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:AegisVault.App.ViewModels"
+        xmlns:loc="using:AegisVault.App.Localization"
         x:Class="AegisVault.App.Views.GeneratorWindow"
         x:DataType="vm:GeneratorViewModel"
         Icon="/Assets/app.png"
-        Title="密码生成器"
+        Title="{loc:Str Generator_Title}"
         Width="480" Height="470"
         CanResize="False"
         WindowStartupLocation="CenterOwner">
     <StackPanel Margin="24" Spacing="10">
-        <TextBlock Text="长度" FontSize="12" Opacity="0.7" />
+        <TextBlock Text="{loc:Str Generator_Length}" FontSize="12" Opacity="0.7" />
         <Slider Minimum="8"
                 Maximum="64"
                 TickFrequency="1"
                 IsSnapToTickEnabled="True"
                 Value="{Binding Length}" />
-        <TextBlock Text="{Binding Length, StringFormat='{}{0:0} 个字符'}" Opacity="0.7" />
+        <TextBlock Text="{Binding LengthText}" Opacity="0.7" />
 
-        <CheckBox Content="小写字母" IsChecked="{Binding IncludeLowercase}" />
-        <CheckBox Content="大写字母" IsChecked="{Binding IncludeUppercase}" />
-        <CheckBox Content="数字" IsChecked="{Binding IncludeDigits}" />
-        <CheckBox Content="符号" IsChecked="{Binding IncludeSymbols}" />
-        <CheckBox Content="排除易混淆字符（I l 1 O 0 o）" IsChecked="{Binding ExcludeAmbiguous}" />
+        <CheckBox Content="{loc:Str Generator_Lowercase}" IsChecked="{Binding IncludeLowercase}" />
+        <CheckBox Content="{loc:Str Generator_Uppercase}" IsChecked="{Binding IncludeUppercase}" />
+        <CheckBox Content="{loc:Str Generator_Digits}" IsChecked="{Binding IncludeDigits}" />
+        <CheckBox Content="{loc:Str Generator_Symbols}" IsChecked="{Binding IncludeSymbols}" />
+        <CheckBox Content="{loc:Str Generator_ExcludeAmbiguous}" IsChecked="{Binding ExcludeAmbiguous}" />
 
         <TextBox Text="{Binding Password, Mode=OneWay}"
                  IsReadOnly="True"
@@ -30,12 +31,12 @@
                  Margin="0,6,0,0" />
         <ProgressBar Value="{Binding StrengthPercent}" Maximum="100" Height="6" />
         <TextBlock Text="{Binding StrengthSummary}" FontSize="12" Opacity="0.75" />
-        <TextBlock Text="{Binding EntropyBits, StringFormat='熵估计：{0:0} bits'}" Opacity="0.7" />
+        <TextBlock Text="{Binding EntropyText}" Opacity="0.7" />
 
         <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right" Margin="0,8,0,0">
-            <Button Content="重新生成" Command="{Binding RegenerateCommand}" />
-            <Button Content="复制" Command="{Binding CopyPasswordCommand}" />
-            <Button Content="使用" Click="OnUseClicked" IsDefault="True" />
+            <Button Content="{loc:Str Generator_Regenerate}" Command="{Binding RegenerateCommand}" />
+            <Button Content="{loc:Str Common_Copy}" Command="{Binding CopyPasswordCommand}" />
+            <Button Content="{loc:Str Generator_Use}" Click="OnUseClicked" IsDefault="True" />
         </StackPanel>
         <TextBlock Text="{Binding CopyStatus}" Foreground="#52C41A" Opacity="0.9" MinHeight="18" />
     </StackPanel>

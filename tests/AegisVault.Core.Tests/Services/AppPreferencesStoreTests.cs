@@ -35,12 +35,14 @@ public sealed class AppPreferencesStoreTests : IDisposable
         {
             LastVaultPath = Path.Combine(_directory, "vault.aegis"),
             Theme = "dark",
+            Language = "en",
         });
 
         var loaded = new AppPreferencesStore(path).Load();
 
         Assert.Equal(Path.Combine(_directory, "vault.aegis"), loaded.LastVaultPath);
         Assert.Equal("dark", loaded.Theme);
+        Assert.Equal("en", loaded.Language);
     }
 
     [Fact]
@@ -52,6 +54,7 @@ public sealed class AppPreferencesStoreTests : IDisposable
 
         Assert.Null(loaded.LastVaultPath);
         Assert.Equal("system", loaded.Theme);
+        Assert.Equal("system", loaded.Language);
     }
 
     [Fact]

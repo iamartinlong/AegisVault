@@ -1,4 +1,5 @@
 using System.Text;
+using AegisVault.App.Localization;
 using AegisVault.App.Services;
 using AegisVault.Core.Models;
 using AegisVault.Core.Services;
@@ -153,14 +154,14 @@ public partial class UnlockViewModel : ObservableObject
 
         if (string.IsNullOrEmpty(MasterPassword))
         {
-            ErrorMessage = "请输入主密码。";
+            ErrorMessage = Loc.T("Unlock_ErrorPasswordRequired");
             return;
         }
 
         var path = VaultPath.Trim();
         if (!File.Exists(path))
         {
-            ErrorMessage = "找不到密码库文件，请检查路径，或切换到\u201c创建新密码库\u201d。";
+            ErrorMessage = Loc.T("Unlock_ErrorVaultNotFound");
             return;
         }
 
@@ -192,13 +193,13 @@ public partial class UnlockViewModel : ObservableObject
                         VaultOpened?.Invoke(vault!);
                         break;
                     case VaultUnlockStatus.WrongPassword:
-                        ErrorMessage = "主密码错误。";
+                        ErrorMessage = Loc.T("Unlock_ErrorWrongPassword");
                         break;
                     case VaultUnlockStatus.UnsupportedVersion:
-                        ErrorMessage = "该密码库由更高版本的 AegisVault 创建，请升级应用。";
+                        ErrorMessage = Loc.T("Unlock_ErrorUnsupportedVersion");
                         break;
                     default:
-                        ErrorMessage = "密码库文件已损坏或无法识别。";
+                        ErrorMessage = Loc.T("Unlock_ErrorCorrupted");
                         break;
                 }
             }
@@ -209,7 +210,7 @@ public partial class UnlockViewModel : ObservableObject
         }
         catch (Exception)
         {
-            ErrorMessage = "无法打开密码库。";
+            ErrorMessage = Loc.T("Unlock_ErrorOpenFailed");
         }
         finally
         {
@@ -229,32 +230,32 @@ public partial class UnlockViewModel : ObservableObject
 
         if (string.IsNullOrEmpty(MasterPassword))
         {
-            ErrorMessage = "请输入主密码。";
+            ErrorMessage = Loc.T("Unlock_ErrorPasswordRequired");
             return;
         }
 
         if (!string.Equals(MasterPassword, ConfirmPassword, StringComparison.Ordinal))
         {
-            ErrorMessage = "两次输入的密码不一致。";
+            ErrorMessage = Loc.T("Unlock_ErrorConfirmMismatch");
             return;
         }
 
         if (MasterPassword.Length < 8)
         {
-            ErrorMessage = "主密码至少需要 8 个字符。";
+            ErrorMessage = Loc.T("Unlock_ErrorPasswordTooShort");
             return;
         }
 
         var path = NormalizeVaultPath(NewVaultPath);
         if (path.Length == 0)
         {
-            ErrorMessage = "请选择密码库保存位置。";
+            ErrorMessage = Loc.T("Unlock_ErrorPathRequired");
             return;
         }
 
         if (File.Exists(path))
         {
-            ErrorMessage = "该位置已存在文件，请更换位置或切换到\u201c打开已有密码库\u201d。";
+            ErrorMessage = Loc.T("Unlock_ErrorFileExists");
             return;
         }
 
@@ -281,7 +282,7 @@ public partial class UnlockViewModel : ObservableObject
         }
         catch (Exception)
         {
-            ErrorMessage = "无法创建密码库。";
+            ErrorMessage = Loc.T("Unlock_ErrorCreateFailed");
         }
         finally
         {

@@ -1,16 +1,41 @@
 namespace AegisVault.Core.Services;
 
+/// <summary>Strength buckets, ordered from weakest to strongest.</summary>
+public enum PasswordStrengthLabel
+{
+    VeryWeak,
+    Weak,
+    Fair,
+    Strong,
+    VeryStrong,
+}
+
+/// <summary>Actionable advice; the UI layer maps these to localized text.</summary>
+[Flags]
+public enum PasswordAdvice
+{
+    None = 0,
+    Empty = 1,
+    CommonPassword = 2,
+    Repetitive = 4,
+    TooShort = 8,
+    MixedCase = 16,
+    AddDigit = 32,
+    AddSymbol = 64,
+}
+
 public sealed record PasswordStrengthResult(
     int Score,
-    string Label,
+    PasswordStrengthLabel Label,
     double EntropyBits,
     TimeSpan CrackTime,
-    IReadOnlyList<string> Suggestions);
+    IReadOnlyList<PasswordAdvice> Suggestions);
 
 /// <summary>
 /// Pragmatic password strength estimation: entropy from length and character
 /// classes, penalised for common passwords and repetitive patterns, with an
-/// offline crack-time estimate (10^10 guesses/second).
+/// offline crack-time estimate (10^10 guesses/second). Language-neutral: the
+/// result carries an enum label and advice codes, never user-facing text.
 /// </summary>
 public static class PasswordStrengthEstimator
 {
@@ -28,7 +53,12 @@ public static class PasswordStrengthEstimator
     {
         if (string.IsNullOrEmpty(password))
         {
-            return new PasswordStrengthResult(0, "极弱", 0, TimeSpan.Zero, ["请输入密码。"]);
+            return new PasswordStrengthResult(
+                0,
+                PasswordStrengthLabel.VeryWeak,
+                0,
+                TimeSpan.Zero,
+                [PasswordAdvice.Empty]);
         }
 
         var hasLower = password.Any(char.IsLower);
@@ -77,35 +107,35 @@ public static class PasswordStrengthEstimator
 
         var effectiveEntropy = Math.Max(0, entropy - adjustment);
 
-        var suggestions = new List<string>();
+        var suggestions = new List<PasswordAdvice>();
         if (isCommon)
         {
-            suggestions.Add("该密码出现在常见密码列表中");
+            suggestions.Add(PasswordAdvice.CommonPassword);
         }
 
         if (isRepetitive)
         {
-            suggestions.Add("避免重复或规律字符");
+            suggestions.Add(PasswordAdvice.Repetitive);
         }
 
         if (password.Length < 12)
         {
-            suggestions.Add("长度建议 12 位以上");
+            suggestions.Add(PasswordAdvice.TooShort);
         }
 
         if (!(hasLower && hasUpper))
         {
-            suggestions.Add("混合大小写字母");
+            suggestions.Add(PasswordAdvice.MixedCase);
         }
 
         if (!hasDigit)
         {
-            suggestions.Add("加入数字");
+            suggestions.Add(PasswordAdvice.AddDigit);
         }
 
         if (!hasSymbol)
         {
-            suggestions.Add("加入符号");
+            suggestions.Add(PasswordAdvice.AddSymbol);
         }
 
         var score = effectiveEntropy switch
@@ -119,11 +149,11 @@ public static class PasswordStrengthEstimator
 
         var label = score switch
         {
-            4 => "极强",
-            3 => "强",
-            2 => "中等",
-            1 => "弱",
-            _ => "极弱",
+            4 => PasswordStrengthLabel.VeryStrong,
+            3 => PasswordStrengthLabel.Strong,
+            2 => PasswordStrengthLabel.Fair,
+            1 => PasswordStrengthLabel.Weak,
+            _ => PasswordStrengthLabel.VeryWeak,
         };
 
         var crackSeconds = Math.Pow(2, Math.Min(effectiveEntropy, 128)) / GuessesPerSecond;

@@ -1,3 +1,4 @@
+using AegisVault.App.Localization;
 using AegisVault.App.Services;
 using AegisVault.App.ViewModels;
 using AegisVault.App.Views;
@@ -52,6 +53,7 @@ public partial class App : Application
         {
             _desktop = desktop;
             _preferences = _preferencesStore.Load();
+            Loc.ApplyPreference(_preferences.Language);
             ApplyThemeVariant(_preferences.Theme);
             InitializeTray();
             InitializeHotKey();
@@ -73,13 +75,13 @@ public partial class App : Application
             trayIcon.Clicked += OnTrayClicked;
 
             var menu = new NativeMenu();
-            menu.Add(CreateMenuItem("打开 AegisVault", OnTrayOpenClicked));
-            menu.Add(CreateMenuItem("快速访问", OnTrayQuickAccessClicked));
-            menu.Add(CreateMenuItem("设置", OnTraySettingsClicked));
+            menu.Add(CreateMenuItem(Loc.T("Tray_Open"), OnTrayOpenClicked));
+            menu.Add(CreateMenuItem(Loc.T("Tray_QuickAccess"), OnTrayQuickAccessClicked));
+            menu.Add(CreateMenuItem(Loc.T("Tray_Settings"), OnTraySettingsClicked));
             menu.Add(new NativeMenuItemSeparator());
-            menu.Add(CreateMenuItem("锁定", OnTrayLockClicked));
+            menu.Add(CreateMenuItem(Loc.T("Tray_Lock"), OnTrayLockClicked));
             menu.Add(new NativeMenuItemSeparator());
-            menu.Add(CreateMenuItem("退出", OnTrayExitClicked));
+            menu.Add(CreateMenuItem(Loc.T("Tray_Exit"), OnTrayExitClicked));
             trayIcon.Menu = menu;
 
             TrayIcon.SetIcons(this, new TrayIcons { trayIcon });
@@ -435,7 +437,13 @@ public partial class App : Application
                 SavePreferences();
                 UpdateFloatingBall();
             },
-            imported: () => _mainViewModel?.ReloadFromVault());
+            imported: () => _mainViewModel?.ReloadFromVault(),
+            currentLanguage: _preferences.Language,
+            applyLanguage: language =>
+            {
+                _preferences = _preferences with { Language = language };
+                SavePreferences();
+            });
         var window = new SettingsWindow { DataContext = viewModel };
         _ = window.ShowDialog(_mainWindow);
     }

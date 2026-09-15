@@ -139,6 +139,29 @@ public sealed class SettingsViewModelTests : IDisposable
     });
 
     [Fact]
+    public Task SaveAppliesLanguageSelection() => Headless.Run(() =>
+    {
+        using var vault = VaultService.CreateNew(_vaultPath, Password, FastOptions);
+        var config = new SecureConfigService(vault);
+        string? appliedLanguage = null;
+        var viewModel = new SettingsViewModel(
+            vault,
+            config,
+            null,
+            null,
+            "system",
+            currentLanguage: "en",
+            applyLanguage: value => appliedLanguage = value);
+
+        Assert.Equal("en", viewModel.SelectedLanguage?.Value);
+
+        viewModel.SelectedLanguage = viewModel.LanguageOptions.Single(option => option.Value == "zh");
+        viewModel.SaveCommand.Execute(null);
+
+        Assert.Equal("zh", appliedLanguage);
+    });
+
+    [Fact]
     public Task SettingsWindowCanBeConstructed() => Headless.Run(() =>
     {
         using var vault = VaultService.CreateNew(_vaultPath, Password, FastOptions);
