@@ -2,9 +2,11 @@ using AegisVault.App.Localization;
 using AegisVault.App.Services;
 using AegisVault.App.ViewModels;
 using AegisVault.Core.Models;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.VisualTree;
 
 namespace AegisVault.App.Views;
 
@@ -34,6 +36,46 @@ public partial class MainWindow : Window
     public void HideLockOverlay() => LockOverlay.IsVisible = false;
 
     private void OnUnlockClicked(object? sender, RoutedEventArgs e) => UnlockRequested?.Invoke();
+
+    private void OnTitleBarPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (IsCaptionButton(e.Source) || !e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+        {
+            return;
+        }
+
+        BeginMoveDrag(e);
+    }
+
+    private void OnTitleBarDoubleTapped(object? sender, TappedEventArgs e)
+    {
+        if (IsCaptionButton(e.Source))
+        {
+            return;
+        }
+
+        WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+    }
+
+    private void OnMinimizeClicked(object? sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
+
+    private void OnMaximizeClicked(object? sender, RoutedEventArgs e)
+        => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+
+    private void OnCloseClicked(object? sender, RoutedEventArgs e) => Close();
+
+    private static bool IsCaptionButton(object? source)
+    {
+        for (var current = source as Visual; current is not null; current = current.GetVisualParent())
+        {
+            if (current is Button)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     public void Attach(
         MainViewModel viewModel,

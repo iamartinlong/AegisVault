@@ -13,7 +13,9 @@
         Width="1180" Height="760"
         MinWidth="980" MinHeight="620"
         WindowStartupLocation="CenterScreen"
-        Background="{atom:SharedTokenResource ColorBgLayout}">
+        Background="{DynamicResource AegisSidebarBrush}"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaTitleBarHeightHint="40">
     <Window.Resources>
         <conv:InitialConverter x:Key="InitialConverter" />
         <conv:InitialTileBackgroundConverter x:Key="TileBackgroundConverter" />
@@ -24,7 +26,8 @@
     <Window.Styles>
         <!-- Chips -->
         <Style Selector="Button.chip">
-            <Setter Property="Background" Value="{DynamicResource AegisChipBrush}" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{atom:SharedTokenResource ColorTextSecondary}" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="CornerRadius" Value="8" />
             <Setter Property="Padding" Value="12,5" />
@@ -38,6 +41,7 @@
         </Style>
         <Style Selector="Button.chip.active">
             <Setter Property="Background" Value="{DynamicResource AegisChipSelectedBrush}" />
+            <Setter Property="Foreground" Value="{atom:SharedTokenResource ColorText}" />
             <Setter Property="FontWeight" Value="SemiBold" />
         </Style>
         <Style Selector="Button.chip.active:pointerover">
@@ -85,6 +89,19 @@
         <Style Selector="ListBox.entries ListBoxItem:selected StackPanel.rowActions">
             <Setter Property="Opacity" Value="1" />
         </Style>
+        <!-- Caption buttons -->
+        <Style Selector="atom|Button.caption">
+            <Setter Property="Width" Value="46" />
+            <Setter Property="Height" Value="40" />
+            <Setter Property="CornerRadius" Value="0" />
+            <Setter Property="Foreground" Value="{atom:SharedTokenResource ColorTextSecondary}" />
+        </Style>
+        <Style Selector="atom|Button.caption:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AegisHoverBrush}" />
+        </Style>
+        <Style Selector="atom|Button.caption.close:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#E81123" />
+        </Style>
         <!-- Section headers / fields -->
         <Style Selector="TextBlock.section">
             <Setter Property="FontSize" Value="12" />
@@ -100,31 +117,52 @@
     </Window.Styles>
 
     <Panel>
-        <Grid ColumnDefinitions="260,*">
-            <!-- ==================== Sidebar ==================== -->
-            <Border Grid.Column="0"
+        <Grid RowDefinitions="40,*">
+            <!-- ==================== Title bar ==================== -->
+            <Border Grid.Row="0"
                     Background="{DynamicResource AegisSidebarBrush}"
-                    BorderBrush="{DynamicResource AegisHairlineBrush}"
-                    BorderThickness="0,0,1,0">
-                <Grid RowDefinitions="Auto,*,Auto">
-                    <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8" Margin="16,16,16,8">
+                    PointerPressed="OnTitleBarPressed"
+                    DoubleTapped="OnTitleBarDoubleTapped">
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" Margin="14,0" VerticalAlignment="Center">
                         <ContentControl VerticalAlignment="Center"
                                         Content="{antd:AntDesignIconProvider SafetyCertificateFilled}">
                             <ContentControl.Styles>
                                 <Style Selector="PathIcon">
-                                    <Setter Property="Width" Value="18" />
-                                    <Setter Property="Height" Value="18" />
+                                    <Setter Property="Width" Value="15" />
+                                    <Setter Property="Height" Value="15" />
                                     <Setter Property="Foreground" Value="#0F6B4F" />
                                 </Style>
                             </ContentControl.Styles>
                         </ContentControl>
                         <TextBlock Text="AegisVault"
-                                   FontSize="15"
+                                   FontSize="13"
                                    FontWeight="SemiBold"
                                    VerticalAlignment="Center" />
                     </StackPanel>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="0">
+                        <atom:Button Classes="caption"
+                                     ButtonType="Text"
+                                     Icon="{antd:AntDesignIconProvider MinusOutlined}"
+                                     Click="OnMinimizeClicked" />
+                        <atom:Button Classes="caption"
+                                     ButtonType="Text"
+                                     Icon="{antd:AntDesignIconProvider BorderOutlined}"
+                                     Click="OnMaximizeClicked" />
+                        <atom:Button Classes="caption close"
+                                     ButtonType="Text"
+                                     Icon="{antd:AntDesignIconProvider CloseOutlined}"
+                                     Click="OnCloseClicked" />
+                    </StackPanel>
+                </Grid>
+            </Border>
 
-                    <ScrollViewer Grid.Row="1" Margin="8,0,8,8">
+            <Grid Grid.Row="1" ColumnDefinitions="260,*">
+            <!-- ==================== Sidebar ==================== -->
+            <Border Grid.Column="0"
+                    Background="{DynamicResource AegisSidebarBrush}">
+                <Grid RowDefinitions="*,Auto">
+                    <ScrollViewer Grid.Row="0" Margin="8,12,8,8">
                         <StackPanel>
                             <TextBlock Classes="section" Text="{loc:Str Main_SectionViews}" />
                             <ListBox Classes="nav"
@@ -229,7 +267,7 @@
                         </StackPanel>
                     </ScrollViewer>
 
-                    <Border Grid.Row="2"
+                    <Border Grid.Row="1"
                             BorderBrush="{DynamicResource AegisHairlineBrush}"
                             BorderThickness="0,1,0,0"
                             Padding="12,8">
@@ -275,8 +313,15 @@
                 </Grid>
             </Border>
 
-            <!-- ==================== Content ==================== -->
-            <Grid Grid.Column="1" RowDefinitions="Auto,Auto,*">
+            <!-- ==================== Content card ==================== -->
+            <Border Grid.Column="1"
+                    Margin="8"
+                    CornerRadius="10"
+                    Background="{atom:SharedTokenResource ColorBgContainer}"
+                    BorderBrush="{DynamicResource AegisCardBorderBrush}"
+                    BorderThickness="1"
+                    BoxShadow="0 2 12 0 #14000000">
+            <Grid RowDefinitions="Auto,Auto,*">
                 <!-- Toolbar -->
                 <Border Grid.Row="0"
                         BorderBrush="{DynamicResource AegisHairlineBrush}"
@@ -688,6 +733,8 @@
                         </ScrollViewer>
                     </Panel>
                 </Grid>
+            </Grid>
+            </Border>
             </Grid>
         </Grid>
 

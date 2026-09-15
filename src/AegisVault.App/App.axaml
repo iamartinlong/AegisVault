@@ -14,6 +14,7 @@
                     <SolidColorBrush x:Key="AegisSelectedBrush" Color="#EFEFF1" />
                     <SolidColorBrush x:Key="AegisChipBrush" Color="#F4F4F5" />
                     <SolidColorBrush x:Key="AegisChipSelectedBrush" Color="#E7E7E9" />
+                    <SolidColorBrush x:Key="AegisCardBorderBrush" Color="Transparent" />
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Dark">
                     <SolidColorBrush x:Key="AegisSidebarBrush" Color="#0E0E10" />
@@ -22,6 +23,7 @@
                     <SolidColorBrush x:Key="AegisSelectedBrush" Color="#232329" />
                     <SolidColorBrush x:Key="AegisChipBrush" Color="#1B1B1F" />
                     <SolidColorBrush x:Key="AegisChipSelectedBrush" Color="#26262B" />
+                    <SolidColorBrush x:Key="AegisCardBorderBrush" Color="#232326" />
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
         </ResourceDictionary>
