@@ -434,7 +434,7 @@
 
                     <Border Grid.Column="1" Background="{DynamicResource AegisHairlineBrush}" />
 
-                    <Panel Grid.Column="2" Margin="20,12,20,16">
+                    <Panel Grid.Column="2" Margin="20,12,12,16">
                         <StackPanel HorizontalAlignment="Center"
                                     VerticalAlignment="Center"
                                     Spacing="10"
@@ -455,7 +455,7 @@
                         </StackPanel>
 
                         <ScrollViewer IsVisible="{Binding HasSelection}">
-                            <Grid>
+                            <Grid Margin="0,0,16,4">
                                 <!-- Preview -->
                                 <StackPanel IsVisible="{Binding !IsEditing}">
                                     <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,10">
