@@ -144,6 +144,10 @@ public partial class App : Application
         {
             window = new MainWindow();
             _mainWindow = window;
+            // Subscribe exactly once per window: the lock overlay must be able
+            // to raise UnlockRequested while the vault is locked (the handler
+            // is deliberately NOT removed in LockVault).
+            window.UnlockRequested += OnUnlockRequested;
             window.Closed += (_, _) =>
             {
                 if (ReferenceEquals(_mainWindow, window))
@@ -166,7 +170,6 @@ public partial class App : Application
         window.Attach(viewModel, clipboard, autoLock, ShowSettings);
         viewModel.LockRequested += LockVault;
         autoLock.LockTriggered += _ => LockVault();
-        window.UnlockRequested += OnUnlockRequested;
 
         window.Show();
         window.WindowState = WindowState.Normal;
@@ -197,7 +200,6 @@ public partial class App : Application
             return;
         }
 
-        window.UnlockRequested -= OnUnlockRequested;
         CleanupSession(keepWindow: true);
         window.DataContext = new LockViewModel();
         window.ShowLockOverlay();

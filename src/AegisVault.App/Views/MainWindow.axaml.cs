@@ -12,6 +12,7 @@ public partial class MainWindow : Window
     private ClipboardService? _clipboard;
     private AutoLockService? _autoLock;
     private Action? _openSettings;
+    private bool _handlersAttached;
 
     /// <summary>Raised when the user asks to unlock from the lock overlay.</summary>
     public event Action? UnlockRequested;
@@ -39,6 +40,15 @@ public partial class MainWindow : Window
         _autoLock = autoLock;
         _openSettings = openSettings;
         HideLockOverlay();
+
+        if (_handlersAttached)
+        {
+            // Unlock after a lock re-attaches a fresh session; handlers must
+            // not accumulate across lock/unlock cycles.
+            return;
+        }
+
+        _handlersAttached = true;
 
         AddHandler(PointerMovedEvent, (_, _) => _autoLock.ReportActivity(), RoutingStrategies.Tunnel);
         AddHandler(KeyDownEvent, (_, _) => _autoLock.ReportActivity(), RoutingStrategies.Tunnel);
