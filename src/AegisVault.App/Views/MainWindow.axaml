@@ -4,6 +4,7 @@
         xmlns:models="using:AegisVault.Core.Models"
         xmlns:loc="using:AegisVault.App.Localization"
         xmlns:conv="using:AegisVault.App.Converters"
+        xmlns:controls="using:AegisVault.App.Controls"
         xmlns:atom="https://atomui.net"
         xmlns:antd="https://atomui.net/icons/antdesign"
         x:Class="AegisVault.App.Views.MainWindow"
@@ -89,19 +90,6 @@
         <Style Selector="ListBox.entries ListBoxItem:selected StackPanel.rowActions">
             <Setter Property="Opacity" Value="1" />
         </Style>
-        <!-- Caption buttons -->
-        <Style Selector="atom|Button.caption">
-            <Setter Property="Width" Value="46" />
-            <Setter Property="Height" Value="40" />
-            <Setter Property="CornerRadius" Value="0" />
-            <Setter Property="Foreground" Value="{atom:SharedTokenResource ColorTextSecondary}" />
-        </Style>
-        <Style Selector="atom|Button.caption:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="{DynamicResource AegisHoverBrush}" />
-        </Style>
-        <Style Selector="atom|Button.caption.close:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#E81123" />
-        </Style>
         <!-- Section headers / fields -->
         <Style Selector="TextBlock.section">
             <Setter Property="FontSize" Value="12" />
@@ -119,43 +107,11 @@
     <Panel>
         <Grid RowDefinitions="40,*">
             <!-- ==================== Title bar ==================== -->
-            <Border Grid.Row="0"
-                    Background="{DynamicResource AegisSidebarBrush}"
-                    PointerPressed="OnTitleBarPressed"
-                    DoubleTapped="OnTitleBarDoubleTapped">
-                <Grid ColumnDefinitions="*,Auto">
-                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" Margin="14,0" VerticalAlignment="Center">
-                        <ContentControl VerticalAlignment="Center"
-                                        Content="{antd:AntDesignIconProvider SafetyCertificateFilled}">
-                            <ContentControl.Styles>
-                                <Style Selector="PathIcon">
-                                    <Setter Property="Width" Value="15" />
-                                    <Setter Property="Height" Value="15" />
-                                    <Setter Property="Foreground" Value="#0F6B4F" />
-                                </Style>
-                            </ContentControl.Styles>
-                        </ContentControl>
-                        <TextBlock Text="AegisVault"
-                                   FontSize="13"
-                                   FontWeight="SemiBold"
-                                   VerticalAlignment="Center" />
-                    </StackPanel>
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="0">
-                        <atom:Button Classes="caption"
-                                     ButtonType="Text"
-                                     Icon="{antd:AntDesignIconProvider MinusOutlined}"
-                                     Click="OnMinimizeClicked" />
-                        <atom:Button Classes="caption"
-                                     ButtonType="Text"
-                                     Icon="{antd:AntDesignIconProvider BorderOutlined}"
-                                     Click="OnMaximizeClicked" />
-                        <atom:Button Classes="caption close"
-                                     ButtonType="Text"
-                                     Icon="{antd:AntDesignIconProvider CloseOutlined}"
-                                     Click="OnCloseClicked" />
-                    </StackPanel>
-                </Grid>
-            </Border>
+            <controls:AegisTitleBar Grid.Row="0"
+                                    Title="AegisVault"
+                                    ShowIcon="True"
+                                    ShowMinimize="True"
+                                    ShowMaximize="True" />
 
             <Grid Grid.Row="1" ColumnDefinitions="260,*">
             <!-- ==================== Sidebar ==================== -->

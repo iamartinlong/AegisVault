@@ -1,17 +1,35 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:loc="using:AegisVault.App.Localization"
+        xmlns:controls="using:AegisVault.App.Controls"
+        xmlns:atom="https://atomui.net"
         x:Class="AegisVault.App.Views.ConfirmWindow"
         Icon="/Assets/app.png"
-        Width="400"
+        Width="420"
         SizeToContent="Height"
         CanResize="False"
-        WindowStartupLocation="CenterOwner">
-    <StackPanel Margin="24" Spacing="18">
-        <TextBlock x:Name="MessageText" TextWrapping="Wrap" />
-        <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
-            <Button Content="{loc:Str Common_Cancel}" Click="OnCancelClicked" IsCancel="True" />
-            <Button Content="{loc:Str Common_Ok}" Click="OnOkClicked" IsDefault="True" />
-        </StackPanel>
-    </StackPanel>
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource AegisSidebarBrush}"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaTitleBarHeightHint="40">
+    <Grid RowDefinitions="40,*">
+        <controls:AegisTitleBar x:Name="TitleBar" Grid.Row="0" ShowIcon="True" />
+
+        <Border Grid.Row="1"
+                Background="{atom:SharedTokenResource ColorBgLayout}"
+                Padding="20">
+            <Border Classes="card" Padding="20" BoxShadow="0 4 16 0 #14000000">
+                <StackPanel Spacing="18">
+                    <TextBlock x:Name="MessageText" TextWrapping="Wrap" />
+                    <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
+                        <atom:Button Content="{loc:Str Common_Cancel}" Click="OnCancelClicked" IsCancel="True" />
+                        <atom:Button ButtonType="Primary"
+                                     Content="{loc:Str Common_Ok}"
+                                     Click="OnOkClicked"
+                                     IsDefault="True" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Border>
+    </Grid>
 </Window>

@@ -2,110 +2,172 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:AegisVault.App.ViewModels"
         xmlns:loc="using:AegisVault.App.Localization"
-        xmlns:atomui="https://atomui.net"
+        xmlns:controls="using:AegisVault.App.Controls"
+        xmlns:atom="https://atomui.net"
+        xmlns:antd="https://atomui.net/icons/antdesign"
         x:Class="AegisVault.App.Views.UnlockWindow"
         x:DataType="vm:UnlockViewModel"
         Icon="/Assets/app.png"
         Title="AegisVault"
         Width="560"
-        MinHeight="440"
-        MaxHeight="780"
+        MinHeight="480"
+        MaxHeight="820"
         SizeToContent="Height"
         CanResize="False"
-        WindowStartupLocation="CenterScreen">
-    <Grid RowDefinitions="Auto,*,Auto">
-        <StackPanel Grid.Row="0" Margin="36,32,36,0" Spacing="10">
-            <TextBlock Text="AegisVault" FontSize="30" FontWeight="SemiBold" />
-            <TextBlock Text="{loc:Str Unlock_Subtitle}" Opacity="0.6" />
-            <atomui:Segmented Margin="0,8,0,0"
-                              HorizontalAlignment="Stretch"
-                              SelectedIndex="{Binding ModeIndex, Mode=TwoWay}">
-                <atomui:SegmentedItem Content="{loc:Str Unlock_TabOpen}" />
-                <atomui:SegmentedItem Content="{loc:Str Unlock_TabCreate}" />
-            </atomui:Segmented>
-        </StackPanel>
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource AegisSidebarBrush}"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaTitleBarHeightHint="40">
+    <Grid RowDefinitions="40,*">
+        <controls:AegisTitleBar Grid.Row="0" Title="AegisVault" ShowIcon="True" />
 
-        <ScrollViewer Grid.Row="1"
-                      Margin="0,16,0,0"
-                      MaxHeight="560"
-                      VerticalScrollBarVisibility="Auto">
-            <StackPanel Margin="36,0,36,8" Spacing="14">
-                <StackPanel Spacing="14" IsVisible="{Binding !IsCreateMode}">
-                    <StackPanel Spacing="4">
-                        <TextBlock Text="{loc:Str Unlock_VaultFile}" FontSize="12" Opacity="0.7" />
-                        <Grid ColumnDefinitions="*,8,Auto">
-                            <TextBox Grid.Column="0" Text="{Binding VaultPath}" />
-                            <Button Grid.Column="2" Content="{loc:Str Common_Browse}" Click="OnBrowseExistingClicked" />
-                        </Grid>
+        <Border Grid.Row="1"
+                Background="{atom:SharedTokenResource ColorBgLayout}"
+                Padding="24,20,24,24">
+            <Border MaxWidth="460"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Top"
+                    Classes="card"
+                    Padding="28,24"
+                    BoxShadow="0 4 16 0 #14000000">
+                <StackPanel Spacing="16">
+                    <StackPanel Spacing="8">
+                        <Border Width="52" Height="52"
+                                CornerRadius="14"
+                                HorizontalAlignment="Center"
+                                Background="{atom:SharedTokenResource ColorPrimaryBg}">
+                            <ContentControl HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            Content="{antd:AntDesignIconProvider SafetyCertificateFilled}">
+                                <ContentControl.Styles>
+                                    <Style Selector="PathIcon">
+                                        <Setter Property="Width" Value="26" />
+                                        <Setter Property="Height" Value="26" />
+                                        <Setter Property="Foreground" Value="{atom:SharedTokenResource ColorPrimary}" />
+                                    </Style>
+                                </ContentControl.Styles>
+                            </ContentControl>
+                        </Border>
+                        <TextBlock Text="AegisVault"
+                                   FontSize="24"
+                                   FontWeight="SemiBold"
+                                   HorizontalAlignment="Center" />
+                        <TextBlock Text="{loc:Str Unlock_Subtitle}"
+                                   FontSize="13"
+                                   Opacity="0.6"
+                                   HorizontalAlignment="Center"
+                                   TextAlignment="Center"
+                                   TextWrapping="Wrap" />
                     </StackPanel>
 
-                    <StackPanel Spacing="4">
-                        <TextBlock Text="{loc:Str Unlock_MasterPassword}" FontSize="12" Opacity="0.7" />
-                        <Grid ColumnDefinitions="*,8,Auto">
-                            <TextBox Grid.Column="0"
-                                     PasswordChar="●"
-                                     Text="{Binding MasterPassword, Mode=TwoWay}" />
-                            <Button Grid.Column="2"
-                                    Content="{loc:Str Unlock_SecureInput}"
-                                    IsVisible="{Binding SecureInputAvailable}"
-                                    Click="OnSecureInputClicked" />
-                        </Grid>
-                    </StackPanel>
+                    <atom:Segmented HorizontalAlignment="Stretch"
+                                    SelectedIndex="{Binding ModeIndex, Mode=TwoWay}">
+                        <atom:SegmentedItem Content="{loc:Str Unlock_TabOpen}" />
+                        <atom:SegmentedItem Content="{loc:Str Unlock_TabCreate}" />
+                    </atom:Segmented>
 
-                    <CheckBox Content="{loc:Str Unlock_RememberDevice}"
-                              IsChecked="{Binding RememberDevice, Mode=TwoWay}"
-                              IsVisible="{Binding CanRememberDevice}" />
+                    <ScrollViewer MaxHeight="400" VerticalScrollBarVisibility="Auto">
+                        <StackPanel Spacing="14">
+                            <StackPanel Spacing="14" IsVisible="{Binding !IsCreateMode}">
+                                <StackPanel Spacing="6">
+                                    <TextBlock Classes="field" Text="{loc:Str Unlock_VaultFile}" />
+                                    <Grid ColumnDefinitions="*,8,Auto">
+                                        <atom:LineEdit Grid.Column="0" Text="{Binding VaultPath}" />
+                                        <atom:Button Grid.Column="2"
+                                                     ButtonType="Default"
+                                                     Content="{loc:Str Common_Browse}"
+                                                     Click="OnBrowseExistingClicked" />
+                                    </Grid>
+                                </StackPanel>
+
+                                <StackPanel Spacing="6">
+                                    <TextBlock Classes="field" Text="{loc:Str Unlock_MasterPassword}" />
+                                    <Grid ColumnDefinitions="*,8,Auto">
+                                        <atom:LineEdit Grid.Column="0"
+                                                       PasswordChar="●"
+                                                       IsEnableRevealButton="True"
+                                                       Text="{Binding MasterPassword, Mode=TwoWay}" />
+                                        <atom:Button Grid.Column="2"
+                                                     ButtonType="Default"
+                                                     Content="{loc:Str Unlock_SecureInput}"
+                                                     IsVisible="{Binding SecureInputAvailable}"
+                                                     Click="OnSecureInputClicked" />
+                                    </Grid>
+                                </StackPanel>
+
+                                <atom:CheckBox IsChecked="{Binding RememberDevice, Mode=TwoWay}"
+                                               IsVisible="{Binding CanRememberDevice}">
+                                    <TextBlock Text="{loc:Str Unlock_RememberDevice}" TextWrapping="Wrap" />
+                                </atom:CheckBox>
+                            </StackPanel>
+
+                            <StackPanel Spacing="14" IsVisible="{Binding IsCreateMode}">
+                                <StackPanel Spacing="6">
+                                    <TextBlock Classes="field" Text="{loc:Str Unlock_SaveLocation}" />
+                                    <Grid ColumnDefinitions="*,8,Auto">
+                                        <atom:LineEdit Grid.Column="0" Text="{Binding NewVaultPath}" />
+                                        <atom:Button Grid.Column="2"
+                                                     ButtonType="Default"
+                                                     Content="{loc:Str Unlock_ChooseLocation}"
+                                                     Click="OnBrowseCreateClicked" />
+                                    </Grid>
+                                </StackPanel>
+
+                                <StackPanel Spacing="6">
+                                    <TextBlock Classes="field" Text="{loc:Str Unlock_MasterPassword}" />
+                                    <atom:LineEdit PasswordChar="●"
+                                                   IsEnableRevealButton="True"
+                                                   Text="{Binding MasterPassword, Mode=TwoWay}" />
+                                    <atom:ProgressBar Value="{Binding MasterPasswordStrengthPercent}"
+                                                      Maximum="100"
+                                                      Height="6"
+                                                      Margin="0,4,0,0" />
+                                    <TextBlock Text="{Binding MasterPasswordStrengthSummary}"
+                                               FontSize="12"
+                                               Opacity="0.7" />
+                                </StackPanel>
+
+                                <StackPanel Spacing="6">
+                                    <TextBlock Classes="field" Text="{loc:Str Unlock_ConfirmMasterPassword}" />
+                                    <atom:LineEdit PasswordChar="●"
+                                                   IsEnableRevealButton="True"
+                                                   Text="{Binding ConfirmPassword, Mode=TwoWay}" />
+                                </StackPanel>
+
+                                <atom:CheckBox IsChecked="{Binding RememberDevice, Mode=TwoWay}"
+                                               IsVisible="{Binding CanRememberDevice}">
+                                    <TextBlock Text="{loc:Str Unlock_RememberDevice}" TextWrapping="Wrap" />
+                                </atom:CheckBox>
+
+                                <TextBlock Text="{loc:Str Unlock_Warning}"
+                                           Foreground="{atom:SharedTokenResource ColorWarning}"
+                                           FontSize="12"
+                                           TextWrapping="Wrap" />
+                            </StackPanel>
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <TextBlock Text="{Binding ErrorMessage}"
+                               Foreground="{atom:SharedTokenResource ColorError}"
+                               TextWrapping="Wrap"
+                               MinHeight="20" />
+                    <TextBlock Text="{loc:Str Unlock_Busy}"
+                               IsVisible="{Binding IsBusy}"
+                               Opacity="0.6" />
+                    <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
+                        <atom:Button ButtonType="Primary"
+                                     Content="{loc:Str Unlock_CreateVault}"
+                                     Command="{Binding CreateCommand}"
+                                     IsVisible="{Binding IsCreateMode}"
+                                     IsDefault="True" />
+                        <atom:Button ButtonType="Primary"
+                                     Content="{loc:Str Unlock_Unlock}"
+                                     Command="{Binding UnlockCommand}"
+                                     IsVisible="{Binding !IsCreateMode}"
+                                     IsDefault="True" />
+                    </StackPanel>
                 </StackPanel>
-
-                <StackPanel Spacing="14" IsVisible="{Binding IsCreateMode}">
-                    <StackPanel Spacing="4">
-                        <TextBlock Text="{loc:Str Unlock_SaveLocation}" FontSize="12" Opacity="0.7" />
-                        <Grid ColumnDefinitions="*,8,Auto">
-                            <TextBox Grid.Column="0" Text="{Binding NewVaultPath}" />
-                            <Button Grid.Column="2" Content="{loc:Str Unlock_ChooseLocation}" Click="OnBrowseCreateClicked" />
-                        </Grid>
-                    </StackPanel>
-
-                    <StackPanel Spacing="4">
-                        <TextBlock Text="{loc:Str Unlock_MasterPassword}" FontSize="12" Opacity="0.7" />
-                        <TextBox PasswordChar="●" Text="{Binding MasterPassword, Mode=TwoWay}" />
-                        <ProgressBar Value="{Binding MasterPasswordStrengthPercent}" Maximum="100" Height="6" />
-                        <TextBlock Text="{Binding MasterPasswordStrengthSummary}" FontSize="12" Opacity="0.7" />
-                    </StackPanel>
-
-                    <StackPanel Spacing="4">
-                        <TextBlock Text="{loc:Str Unlock_ConfirmMasterPassword}" FontSize="12" Opacity="0.7" />
-                        <TextBox PasswordChar="●" Text="{Binding ConfirmPassword, Mode=TwoWay}" />
-                    </StackPanel>
-
-                    <CheckBox Content="{loc:Str Unlock_RememberDevice}"
-                              IsChecked="{Binding RememberDevice, Mode=TwoWay}"
-                              IsVisible="{Binding CanRememberDevice}" />
-
-                    <TextBlock Text="{loc:Str Unlock_Warning}"
-                               Foreground="#FAAD14"
-                               FontSize="12"
-                               TextWrapping="Wrap" />
-                </StackPanel>
-            </StackPanel>
-        </ScrollViewer>
-
-        <StackPanel Grid.Row="2" Margin="36,10,36,28" Spacing="10">
-            <TextBlock Text="{Binding ErrorMessage}"
-                       Foreground="#E5484D"
-                       TextWrapping="Wrap"
-                       MinHeight="20" />
-            <TextBlock Text="{loc:Str Unlock_Busy}" IsVisible="{Binding IsBusy}" Opacity="0.6" />
-            <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
-                <Button Content="{loc:Str Unlock_CreateVault}"
-                        Command="{Binding CreateCommand}"
-                        IsVisible="{Binding IsCreateMode}"
-                        IsDefault="True" />
-                <Button Content="{loc:Str Unlock_Unlock}"
-                        Command="{Binding UnlockCommand}"
-                        IsVisible="{Binding !IsCreateMode}"
-                        IsDefault="True" />
-            </StackPanel>
-        </StackPanel>
+            </Border>
+        </Border>
     </Grid>
 </Window>

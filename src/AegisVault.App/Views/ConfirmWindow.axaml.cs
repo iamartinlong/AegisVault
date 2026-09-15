@@ -15,6 +15,7 @@ public partial class ConfirmWindow : Window
         : this()
     {
         Title = title;
+        TitleBar.Title = title;
         MessageText.Text = message;
     }
 

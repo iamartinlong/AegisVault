@@ -1,0 +1,66 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:atom="https://atomui.net"
+             xmlns:antd="https://atomui.net/icons/antdesign"
+             x:Class="AegisVault.App.Controls.AegisTitleBar"
+             x:Name="Root">
+    <UserControl.Styles>
+        <Style Selector="atom|Button.caption">
+            <Setter Property="Width" Value="46" />
+            <Setter Property="Height" Value="40" />
+            <Setter Property="CornerRadius" Value="0" />
+            <Setter Property="Foreground" Value="{atom:SharedTokenResource ColorTextSecondary}" />
+        </Style>
+        <Style Selector="atom|Button.caption:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AegisHoverBrush}" />
+        </Style>
+        <Style Selector="atom|Button.caption.close:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#E81123" />
+        </Style>
+    </UserControl.Styles>
+
+    <Border Height="40"
+            Background="{DynamicResource AegisSidebarBrush}"
+            PointerPressed="OnStripPressed"
+            DoubleTapped="OnStripDoubleTapped">
+        <Grid ColumnDefinitions="*,Auto">
+            <StackPanel Grid.Column="0"
+                        Orientation="Horizontal"
+                        Spacing="8"
+                        Margin="14,0"
+                        VerticalAlignment="Center">
+                <ContentControl VerticalAlignment="Center"
+                                IsVisible="{Binding ShowIcon, ElementName=Root}"
+                                Content="{antd:AntDesignIconProvider SafetyCertificateFilled}">
+                    <ContentControl.Styles>
+                        <Style Selector="PathIcon">
+                            <Setter Property="Width" Value="15" />
+                            <Setter Property="Height" Value="15" />
+                            <Setter Property="Foreground" Value="{atom:SharedTokenResource ColorPrimary}" />
+                        </Style>
+                    </ContentControl.Styles>
+                </ContentControl>
+                <TextBlock Text="{Binding Title, ElementName=Root}"
+                           FontSize="13"
+                           FontWeight="SemiBold"
+                           VerticalAlignment="Center" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="0">
+                <atom:Button Classes="caption"
+                             ButtonType="Text"
+                             IsVisible="{Binding ShowMinimize, ElementName=Root}"
+                             Icon="{antd:AntDesignIconProvider MinusOutlined}"
+                             Click="OnMinimizeClicked" />
+                <atom:Button Classes="caption"
+                             ButtonType="Text"
+                             IsVisible="{Binding ShowMaximize, ElementName=Root}"
+                             Icon="{antd:AntDesignIconProvider BorderOutlined}"
+                             Click="OnMaximizeClicked" />
+                <atom:Button Classes="caption close"
+                             ButtonType="Text"
+                             Icon="{antd:AntDesignIconProvider CloseOutlined}"
+                             Click="OnCloseClicked" />
+            </StackPanel>
+        </Grid>
+    </Border>
+</UserControl>

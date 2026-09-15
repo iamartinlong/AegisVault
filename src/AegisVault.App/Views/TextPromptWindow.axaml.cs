@@ -22,6 +22,7 @@ public partial class TextPromptWindow : Window
         : this()
     {
         Title = title;
+        TitleBar.Title = title;
         LabelText.Text = label;
         InputBox.Text = initialText;
         _validator = validator;

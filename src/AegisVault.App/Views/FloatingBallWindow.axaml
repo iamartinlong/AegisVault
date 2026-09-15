@@ -1,6 +1,8 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:loc="using:AegisVault.App.Localization"
+        xmlns:atom="https://atomui.net"
+        xmlns:antd="https://atomui.net/icons/antdesign"
         x:Class="AegisVault.App.Views.FloatingBallWindow"
         Width="52" Height="52"
         CanResize="False"
@@ -10,19 +12,40 @@
         TransparencyLevelHint="Transparent"
         Background="Transparent"
         ExtendClientAreaToDecorationsHint="True">
+    <Window.Styles>
+        <Style Selector="Button.ball">
+            <Setter Property="Background" Value="{atom:SharedTokenResource ColorPrimary}" />
+        </Style>
+        <Style Selector="Button.ball:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{atom:SharedTokenResource ColorPrimaryHover}" />
+        </Style>
+        <Style Selector="Button.ball:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="{atom:SharedTokenResource ColorPrimaryActive}" />
+        </Style>
+    </Window.Styles>
+
     <Panel>
         <Button x:Name="BallButton"
+                Classes="ball"
                 Width="44" Height="44"
+                Padding="0"
                 HorizontalAlignment="Center"
                 VerticalAlignment="Center"
                 CornerRadius="22"
-                Background="#2D8CF0"
                 Foreground="White"
-                FontSize="20"
-                Content="🛡"
                 ToolTip.Tip="{loc:Str Ball_Tooltip}"
                 PointerPressed="OnBallPointerPressed"
                 PointerMoved="OnBallPointerMoved"
-                PointerReleased="OnBallPointerReleased" />
+                PointerReleased="OnBallPointerReleased">
+            <ContentControl Content="{antd:AntDesignIconProvider SafetyCertificateFilled}">
+                <ContentControl.Styles>
+                    <Style Selector="PathIcon">
+                        <Setter Property="Width" Value="22" />
+                        <Setter Property="Height" Value="22" />
+                        <Setter Property="Foreground" Value="White" />
+                    </Style>
+                </ContentControl.Styles>
+            </ContentControl>
+        </Button>
     </Panel>
 </Window>

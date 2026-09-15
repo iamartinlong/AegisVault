@@ -3,10 +3,13 @@
         xmlns:vm="using:AegisVault.App.ViewModels"
         xmlns:models="using:AegisVault.Core.Models"
         xmlns:loc="using:AegisVault.App.Localization"
+        xmlns:atom="https://atomui.net"
+        xmlns:antd="https://atomui.net/icons/antdesign"
         x:Class="AegisVault.App.Views.QuickAccessWindow"
         x:DataType="vm:QuickAccessViewModel"
-        Width="520" SizeToContent="Height"
-        MaxHeight="420" MinHeight="120"
+        Title="QuickAccess"
+        Width="540" SizeToContent="Height"
+        MaxHeight="460" MinHeight="140"
         CanResize="False"
         ShowInTaskbar="False"
         Topmost="True"
@@ -15,31 +18,61 @@
         Background="Transparent"
         ExtendClientAreaToDecorationsHint="True"
         WindowStartupLocation="CenterScreen">
-    <Panel Margin="16">
-        <Border CornerRadius="12"
-                BorderThickness="1"
-                BorderBrush="#40808080"
-                Background="{DynamicResource SystemRegionBrush}"
-                Padding="12"
-                BoxShadow="0 8 24 0 #40000000">
-            <Grid RowDefinitions="Auto,*" Margin="4">
-                <TextBox x:Name="SearchBox"
-                         Grid.Row="0"
-                         Text="{Binding SearchText}"
-                         PlaceholderText="{loc:Str QuickAccess_Placeholder}" />
+    <Window.Styles>
+        <Style Selector="ListBox ListBoxItem">
+            <Setter Property="Padding" Value="10,7" />
+            <Setter Property="CornerRadius" Value="8" />
+        </Style>
+        <Style Selector="ListBox ListBoxItem:selected /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AegisSelectedBrush}" />
+        </Style>
+        <Style Selector="ListBox ListBoxItem:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AegisHoverBrush}" />
+        </Style>
+        <Style Selector="atom|Button.row">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Width" Value="30" />
+            <Setter Property="Height" Value="28" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Foreground" Value="{atom:SharedTokenResource ColorTextSecondary}" />
+        </Style>
+    </Window.Styles>
 
-                <Panel Grid.Row="1" Margin="0,8,0,0" MinHeight="60">
+    <Panel Margin="18">
+        <Border CornerRadius="14"
+                BorderThickness="1"
+                BorderBrush="{DynamicResource AegisCardBorderBrush}"
+                Background="{atom:SharedTokenResource ColorBgContainer}"
+                Padding="14"
+                BoxShadow="0 12 32 0 #40000000">
+            <Grid RowDefinitions="Auto,*,Auto">
+                <atom:LineEdit x:Name="SearchBox"
+                               Grid.Row="0"
+                               Text="{Binding SearchText}"
+                               PlaceholderText="{loc:Str QuickAccess_Placeholder}" />
+
+                <Panel Grid.Row="1" Margin="0,10,0,0" MinHeight="60">
                     <ListBox x:Name="ResultsList"
+                             MaxHeight="300"
+                             Background="Transparent"
                              ItemsSource="{Binding FilteredEntries}"
                              SelectedItem="{Binding SelectedEntry}">
                         <ListBox.ItemTemplate>
                             <DataTemplate DataType="models:PasswordEntry">
-                                <Grid ColumnDefinitions="*,Auto" Margin="2,4">
-                                    <StackPanel Grid.Column="0" Spacing="2">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
                                         <StackPanel Orientation="Horizontal" Spacing="6">
-                                            <TextBlock Text="★"
-                                                       Foreground="#FAAD14"
-                                                       IsVisible="{Binding IsFavorite}" />
+                                            <ContentControl VerticalAlignment="Center"
+                                                            IsVisible="{Binding IsFavorite}"
+                                                            Content="{antd:AntDesignIconProvider StarFilled}">
+                                                <ContentControl.Styles>
+                                                    <Style Selector="PathIcon">
+                                                        <Setter Property="Width" Value="12" />
+                                                        <Setter Property="Height" Value="12" />
+                                                        <Setter Property="Foreground" Value="#FAAD14" />
+                                                    </Style>
+                                                </ContentControl.Styles>
+                                            </ContentControl>
                                             <TextBlock Text="{Binding Title}"
                                                        FontWeight="SemiBold"
                                                        TextTrimming="CharacterEllipsis" />
@@ -53,16 +86,22 @@
                                                 Orientation="Horizontal"
                                                 Spacing="2"
                                                 VerticalAlignment="Center">
-                                        <Button Content="👤"
-                                                ToolTip.Tip="{loc:Str Main_CopyUsernameTip}"
-                                                Click="OnCopyUsernameClicked" />
-                                        <Button Content="🔑"
-                                                ToolTip.Tip="{loc:Str Main_CopyPasswordTip}"
-                                                Click="OnCopyPasswordClicked" />
-                                        <Button Content="🔗"
-                                                ToolTip.Tip="{loc:Str QuickAccess_CopyOpenTip}"
-                                                IsVisible="{Binding Url, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                                                Click="OnCopyPasswordAndOpenClicked" />
+                                        <atom:Button Classes="row"
+                                                     ButtonType="Text"
+                                                     Icon="{antd:AntDesignIconProvider UserOutlined}"
+                                                     ToolTip.Tip="{loc:Str Main_CopyUsernameTip}"
+                                                     Click="OnCopyUsernameClicked" />
+                                        <atom:Button Classes="row"
+                                                     ButtonType="Text"
+                                                     Icon="{antd:AntDesignIconProvider KeyOutlined}"
+                                                     ToolTip.Tip="{loc:Str Main_CopyPasswordTip}"
+                                                     Click="OnCopyPasswordClicked" />
+                                        <atom:Button Classes="row"
+                                                     ButtonType="Text"
+                                                     Icon="{antd:AntDesignIconProvider LinkOutlined}"
+                                                     ToolTip.Tip="{loc:Str QuickAccess_CopyOpenTip}"
+                                                     IsVisible="{Binding Url, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                                     Click="OnCopyPasswordAndOpenClicked" />
                                     </StackPanel>
                                 </Grid>
                             </DataTemplate>
@@ -74,6 +113,13 @@
                                Opacity="0.45"
                                IsVisible="{Binding !HasResults}" />
                 </Panel>
+
+                <TextBlock Grid.Row="2"
+                           Text="{loc:Str QuickAccess_Hints}"
+                           FontSize="11"
+                           Opacity="0.45"
+                           Margin="2,10,2,0"
+                           HorizontalAlignment="Center" />
             </Grid>
         </Border>
     </Panel>
