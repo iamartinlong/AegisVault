@@ -25,4 +25,27 @@
     <AvaloniaResource Include="Assets/**" />
   </ItemGroup>
 
+  <!--
+    macOS NativeAOT: Xcode 16+ SDKs ship the componentized Swift compatibility
+    libraries (swift_time, swiftsys_time, swiftunistd, …) only under the SDK's
+    /usr/lib/swift. Without this search path the ILC link step fails with
+    "Could not find or use auto-linked library 'swift_time'".
+    See dotnet/runtime#125858 (AddSwiftLibraryPaths workaround).
+  -->
+  <Target Name="AddMacOsSwiftLibraryPaths"
+          BeforeTargets="LinkNative"
+          Condition="$([MSBuild]::IsOSPlatform('osx')) And '$(PublishAot)' == 'true'">
+    <Exec Command="xcrun --show-sdk-path"
+          ConsoleToMSBuild="true"
+          StandardOutputImportance="Low">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_MacSdkPath" />
+    </Exec>
+    <PropertyGroup>
+      <_MacSdkPath>$([System.String]::Copy('$(_MacSdkPath)').Trim())</_MacSdkPath>
+    </PropertyGroup>
+    <ItemGroup>
+      <LinkerArg Include="-L$(_MacSdkPath)/usr/lib/swift" />
+    </ItemGroup>
+  </Target>
+
 </Project>
