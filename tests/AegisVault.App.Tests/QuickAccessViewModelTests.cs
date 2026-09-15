@@ -1,5 +1,6 @@
 using AegisVault.App.Services;
 using AegisVault.App.ViewModels;
+using AegisVault.App.Views;
 using AegisVault.Core.Models;
 using AegisVault.Core.Services;
 using Xunit;
@@ -137,6 +138,108 @@ public sealed class QuickAccessViewModelTests : IDisposable
         finally
         {
             vault.Dispose();
+        }
+    }
+
+    [Fact]
+    public async Task CopyPasswordAndOpenCopiesLaunchesAndHides()
+    {
+        var (vault, main) = CreateMain(new PasswordEntry
+        {
+            Title = "GitHub",
+            Password = "s3cret",
+            Url = "https://github.com/login",
+        });
+        var fake = new FakeClipboardAccess();
+        using var service = new ClipboardService(fake, () => new UserConfig { ClipboardClearSeconds = 30 });
+        using var __ = main;
+        try
+        {
+            var launcher = new FakeUrlLauncher();
+            var viewModel = new QuickAccessViewModel(main, service, launcher);
+            var hidden = false;
+            viewModel.HideRequested += () => hidden = true;
+
+            await viewModel.CopyPasswordAndOpenCommand.ExecuteAsync(viewModel.FilteredEntries[0]);
+
+            Assert.Equal("s3cret", fake.Text);
+            Assert.Equal(["https://github.com/login"], launcher.Opened);
+            Assert.True(hidden);
+        }
+        finally
+        {
+            vault.Dispose();
+        }
+    }
+
+    [Fact]
+    public async Task CopyPasswordAndOpenIsNoOpWithoutLaunchableUrl()
+    {
+        var (vault, main) = CreateMain(new PasswordEntry
+        {
+            Title = "Email",
+            Password = "s3cret",
+            Url = "not-a-url",
+        });
+        var fake = new FakeClipboardAccess();
+        using var service = new ClipboardService(fake, () => new UserConfig { ClipboardClearSeconds = 30 });
+        using var __ = main;
+        try
+        {
+            var launcher = new FakeUrlLauncher();
+            var viewModel = new QuickAccessViewModel(main, service, launcher);
+            var hidden = false;
+            viewModel.HideRequested += () => hidden = true;
+
+            await viewModel.CopyPasswordAndOpenCommand.ExecuteAsync(viewModel.FilteredEntries[0]);
+            await viewModel.CopyPasswordAndOpenCommand.ExecuteAsync(null);
+
+            Assert.Null(fake.Text);
+            Assert.Empty(launcher.Opened);
+            Assert.False(hidden);
+        }
+        finally
+        {
+            vault.Dispose();
+        }
+    }
+
+    [Fact]
+    public Task QuickAccessWindowCanBeConstructed() => Headless.Run(() =>
+    {
+        var (vault, main) = CreateMain(
+            new PasswordEntry { Title = "GitHub", Username = "alice", Url = "https://github.com" },
+            new PasswordEntry { Title = "Email", Username = "carol" });
+        try
+        {
+            var viewModel = new QuickAccessViewModel(main);
+            var window = new QuickAccessWindow { DataContext = viewModel };
+
+            Assert.NotNull(window);
+        }
+        finally
+        {
+            vault.Dispose();
+            main.Dispose();
+        }
+    });
+
+    private sealed class FakeUrlLauncher : IUrlLauncher
+    {
+        public List<string?> Opened { get; } = [];
+
+        public bool IsSupported(string? url)
+            => url?.StartsWith("https://", StringComparison.OrdinalIgnoreCase) == true;
+
+        public bool TryOpen(string? url)
+        {
+            if (!IsSupported(url))
+            {
+                return false;
+            }
+
+            Opened.Add(url);
+            return true;
         }
     }
 }

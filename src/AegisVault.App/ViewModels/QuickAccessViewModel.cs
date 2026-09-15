@@ -15,6 +15,7 @@ public partial class QuickAccessViewModel : ObservableObject, IDisposable
 {
     private readonly MainViewModel _main;
     private readonly ClipboardService? _clipboard;
+    private readonly IUrlLauncher _urlLauncher;
 
     /// <summary>Raised when the overlay should hide itself.</summary>
     public event Action? HideRequested;
@@ -22,10 +23,11 @@ public partial class QuickAccessViewModel : ObservableObject, IDisposable
     /// <summary>Raised after an entry was activated (jump to main window).</summary>
     public event Action? EntryActivated;
 
-    public QuickAccessViewModel(MainViewModel main, ClipboardService? clipboard = null)
+    public QuickAccessViewModel(MainViewModel main, ClipboardService? clipboard = null, IUrlLauncher? urlLauncher = null)
     {
         _main = main;
         _clipboard = clipboard;
+        _urlLauncher = urlLauncher ?? SystemUrlLauncher.Instance;
         _main.Entries.CollectionChanged += OnEntriesChanged;
         ApplyFilter();
     }
@@ -82,6 +84,29 @@ public partial class QuickAccessViewModel : ObservableObject, IDisposable
         }
 
         await _clipboard.CopyAsync(entry.Username);
+    }
+
+    /// <summary>
+    /// Copies the entry password and opens its URL (Ctrl+Enter in the overlay),
+    /// then hides the overlay so the browser can take focus.
+    /// </summary>
+    [RelayCommand]
+    private async Task CopyPasswordAndOpenAsync(PasswordEntry? entry)
+    {
+        if (entry is null || !_urlLauncher.IsSupported(entry.Url))
+        {
+            return;
+        }
+
+        if (_clipboard is not null && !string.IsNullOrEmpty(entry.Password))
+        {
+            await _clipboard.CopyAsync(entry.Password);
+        }
+
+        if (_urlLauncher.TryOpen(entry.Url))
+        {
+            HideRequested?.Invoke();
+        }
     }
 
     public void MoveSelection(int delta)

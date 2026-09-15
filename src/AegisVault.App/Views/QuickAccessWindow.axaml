@@ -59,6 +59,10 @@
                                         <Button Content="🔑"
                                                 ToolTip.Tip="{loc:Str Main_CopyPasswordTip}"
                                                 Click="OnCopyPasswordClicked" />
+                                        <Button Content="🔗"
+                                                ToolTip.Tip="{loc:Str QuickAccess_CopyOpenTip}"
+                                                IsVisible="{Binding Url, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                                Click="OnCopyPasswordAndOpenClicked" />
                                     </StackPanel>
                                 </Grid>
                             </DataTemplate>

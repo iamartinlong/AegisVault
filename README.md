@@ -17,7 +17,7 @@
 - 🎲 **密码生成器**：长度/字符集/排除易混淆字符/熵强度预估
 - 🔒 **自动锁定**：空闲超时（默认 5 分钟）、最小化、系统锁屏、挂起；锁定即清内存并显示遮罩，一键解锁
 - 🖥️ **桌面集成**：系统托盘（打开/快速访问/设置/锁定/退出）、可选悬浮球、最小化到托盘
-- ⚡ **快速访问**：`Ctrl+Shift+Space` 全局热键呼出浮层（Windows），搜索 + 键盘复制 + 跳转条目
+- ⚡ **快速访问**：`Ctrl+Shift+Space` 全局热键呼出浮层（Windows），搜索 + 键盘复制 + 跳转条目，`Ctrl+Enter` 一键复制密码并打开网址
 - 🩺 **安全健康面板**：弱密码与跨条目复用检测，一键过滤问题条目
 - 📥 **导入**：Bitwarden CSV 与通用格式（自动识别），后台导入
 - 📋 **剪贴板保护**：复制密文后按配置延时自动清除（仅在内容未被替换时，且仅保留哈希指纹），带倒计时提示与"立即清除"
@@ -38,7 +38,7 @@
 | 存储 | SQLite（Microsoft.Data.Sqlite 10.0.12 + SQLitePCLRaw 2.1.12 / SQLite 3.53.3） |
 | 密码学 | libsodium（Sodium.Core，Argon2id）+ BCL AES-256-GCM |
 | 平台安全 | Windows DPAPI / CredUI（macOS Keychain、Linux libsecret 预留接口） |
-| 测试 | xUnit（228 项：Core / Platform / Headless UI） |
+| 测试 | xUnit（244 项：Core / Platform / Headless UI） |
 
 ## 快速开始
 
@@ -51,7 +51,7 @@ dotnet build -c Release
 # 运行（开发）
 dotnet run --project src/AegisVault.App
 
-# 测试（228 项）
+# 测试（244 项）
 dotnet test -c Release
 
 # NativeAOT 单文件发布（示例：Windows x64）

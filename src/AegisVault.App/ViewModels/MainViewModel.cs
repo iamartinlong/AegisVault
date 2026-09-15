@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using System.Diagnostics;
 using AegisVault.App.Localization;
 using AegisVault.App.Services;
 using AegisVault.Core.Models;
@@ -341,23 +340,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
-    private void OpenUrl()
-    {
-        var url = EditUrl.Trim();
-        if (!url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
-            !url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
-        {
-            return;
-        }
-
-        try
-        {
-            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
-        }
-        catch (Exception)
-        {
-        }
-    }
+    private void OpenUrl() => SystemUrlLauncher.Instance.TryOpen(EditUrl);
 
     [RelayCommand]
     private void Lock()

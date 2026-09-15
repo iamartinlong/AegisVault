@@ -34,7 +34,15 @@ public partial class QuickAccessWindow : Window
                 e.Handled = true;
                 break;
             case Key.Enter:
-                viewModel.ActivateCommand.Execute(null);
+                if (e.KeyModifiers.HasFlag(KeyModifiers.Control))
+                {
+                    viewModel.CopyPasswordAndOpenCommand.Execute(viewModel.SelectedEntry);
+                }
+                else
+                {
+                    viewModel.ActivateCommand.Execute(null);
+                }
+
                 e.Handled = true;
                 break;
             case Key.Escape:
@@ -52,6 +60,9 @@ public partial class QuickAccessWindow : Window
 
     private void OnCopyPasswordClicked(object? sender, RoutedEventArgs e)
         => InvokeForEntry(sender, (viewModel, entry) => viewModel.CopyPasswordCommand.Execute(entry));
+
+    private void OnCopyPasswordAndOpenClicked(object? sender, RoutedEventArgs e)
+        => InvokeForEntry(sender, (viewModel, entry) => viewModel.CopyPasswordAndOpenCommand.Execute(entry));
 
     private void InvokeForEntry(object? sender, Action<QuickAccessViewModel, PasswordEntry> action)
     {

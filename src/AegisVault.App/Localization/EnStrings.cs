@@ -183,6 +183,7 @@ internal static class EnStrings
 
         // Quick access / floating ball
         ["Ball_Tooltip"] = "AegisVault quick access (drag to move, click to open)",
+        ["QuickAccess_CopyOpenTip"] = "Copy password and open URL",
         ["QuickAccess_NoResults"] = "No matching entries",
         ["QuickAccess_Placeholder"] = "Search entries — Enter to open, Esc to close…",
 

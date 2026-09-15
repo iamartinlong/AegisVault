@@ -183,6 +183,7 @@ internal static class ZhStrings
 
         // Quick access / floating ball
         ["Ball_Tooltip"] = "AegisVault 快速访问（拖动移动，点击打开）",
+        ["QuickAccess_CopyOpenTip"] = "复制密码并打开网址",
         ["QuickAccess_NoResults"] = "没有匹配的条目",
         ["QuickAccess_Placeholder"] = "搜索条目，Enter 跳转，Esc 关闭…",
 
