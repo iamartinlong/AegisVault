@@ -1,10 +1,11 @@
-<Window xmlns="https://github.com/avaloniaui"
+﻿<Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:loc="using:AegisVault.App.Localization"
         xmlns:atom="https://atomui.net"
         xmlns:antd="https://atomui.net/icons/antdesign"
         x:Class="AegisVault.App.Views.FloatingBallWindow"
-        Width="52" Height="52"
+        Title="AegisVaultBall"
+        Width="64" Height="64"
         CanResize="False"
         ShowInTaskbar="False"
         Topmost="True"
@@ -17,40 +18,115 @@
              both clicking and dragging. -->
         <Style Selector="Border.ball">
             <Setter Property="Background" Value="{atom:SharedTokenResource ColorPrimary}" />
+            <Setter Property="RenderTransformOrigin" Value="50%,50%" />
+            <Setter Property="RenderTransform" Value="scale(1)" />
+            <Setter Property="BoxShadow" Value="0 3 10 0 #33000000" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.18" Easing="CubicEaseOut" />
+                    <BoxShadowsTransition Property="BoxShadow" Duration="0:0:0.18" />
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.18" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Border.ball.breath">
+            <Setter Property="RenderTransform" Value="scale(1.03)" />
         </Style>
         <Style Selector="Border.ball:pointerover">
             <Setter Property="Background" Value="{atom:SharedTokenResource ColorPrimaryHover}" />
+            <Setter Property="RenderTransform" Value="scale(1.08)" />
+            <Setter Property="BoxShadow" Value="0 6 16 0 #40000000" />
         </Style>
         <Style Selector="Border.ball.pressed">
             <Setter Property="Background" Value="{atom:SharedTokenResource ColorPrimaryActive}" />
+            <Setter Property="RenderTransform" Value="scale(0.94)" />
+        </Style>
+        <Style Selector="Border.ball.dragging">
+            <Setter Property="RenderTransform" Value="scale(1.06)" />
+            <Setter Property="BoxShadow" Value="0 8 20 0 #4D000000" />
+        </Style>
+        <Style Selector="Border.ball.bouncing">
+            <Setter Property="RenderTransform" Value="scale(1.14)" />
+        </Style>
+        <Style Selector="Border.ball.entering">
+            <Setter Property="Opacity" Value="0" />
+            <Setter Property="RenderTransform" Value="scale(0.6)" />
+        </Style>
+
+        <!-- Icon follows the ball's hover with a slight pop. -->
+        <Style Selector="Border.ball atom|Button.icon">
+            <Setter Property="RenderTransformOrigin" Value="50%,50%" />
+            <Setter Property="RenderTransform" Value="scale(1)" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.18" Easing="CubicEaseOut" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Border.ball:pointerover atom|Button.icon">
+            <Setter Property="RenderTransform" Value="scale(1.12)" />
+        </Style>
+
+        <!-- Rings live outside the ball's own transforms so the idle pulse cannot
+             fight the hover/press transitions (animations beat transitions).
+             Their Transitions are assigned in code because Avalonia 12 style
+             animations need an explicit animator per property. -->
+        <Style Selector="Ellipse.ring">
+            <Setter Property="RenderTransformOrigin" Value="50%,50%" />
+            <Setter Property="RenderTransform" Value="scale(1)" />
+            <Setter Property="Opacity" Value="0" />
+        </Style>
+
+        <!-- Docking: the window itself sits half off-screen; sliding the cluster
+             in and out is driven from code (the window moves instantly while a
+             compensating transform animates away, so the ball glides smoothly). -->
+        <Style Selector="Panel.ballRoot">
+            <Setter Property="RenderTransformOrigin" Value="50%,50%" />
+            <Setter Property="RenderTransform" Value="translate(0px, 0px)" />
         </Style>
     </Window.Styles>
 
     <Panel>
-        <Border x:Name="BallSurface"
-                Classes="ball"
-                Width="44" Height="44"
-                CornerRadius="22"
-                BoxShadow="0 3 10 0 #33000000"
-                HorizontalAlignment="Center"
-                VerticalAlignment="Center"
-                PointerPressed="OnBallPointerPressed"
-                PointerMoved="OnBallPointerMoved"
-                PointerReleased="OnBallPointerReleased"
-                PointerCaptureLost="OnBallPointerCaptureLost"
-                ToolTip.Tip="{loc:Str Ball_Tooltip}">
-            <!-- Colour must go through a Button: AtomUI icons ignore host/parent
-                 Foreground and PathIcon type selectors (see pitfall P-06). -->
-            <atom:Button ButtonType="Text"
-                         IsHitTestVisible="False"
-                         Focusable="False"
-                         Width="22" Height="22"
-                         MinWidth="0" MinHeight="0"
-                         Padding="0"
-                         HorizontalAlignment="Center"
-                         VerticalAlignment="Center"
-                         Foreground="White"
-                         Icon="{antd:AntDesignIconProvider SafetyCertificateFilled}" />
-        </Border>
+        <Panel Name="BallRoot"
+               Classes="ballRoot"
+               Width="44" Height="44"
+               HorizontalAlignment="Center"
+               VerticalAlignment="Center">
+            <Ellipse Name="PulseRing"
+                     Classes="ring"
+                     Width="44" Height="44"
+                     Stroke="{atom:SharedTokenResource ColorPrimary}"
+                     StrokeThickness="2" />
+            <Ellipse Name="RippleRing"
+                     Classes="ring"
+                     Width="44" Height="44"
+                     Stroke="{atom:SharedTokenResource ColorPrimary}"
+                     StrokeThickness="3" />
+            <Border Name="BallSurface"
+                    Classes="ball entering"
+                    Width="44" Height="44"
+                    CornerRadius="22"
+                    PointerPressed="OnBallPointerPressed"
+                    PointerMoved="OnBallPointerMoved"
+                    PointerReleased="OnBallPointerReleased"
+                    PointerCaptureLost="OnBallPointerCaptureLost"
+                    PointerEntered="OnBallPointerEntered"
+                    PointerExited="OnBallPointerExited"
+                    ToolTip.Tip="{loc:Str Ball_Tooltip}">
+                <!-- Colour must go through a Button: AtomUI icons ignore host/parent
+                     Foreground and PathIcon type selectors (see pitfall P-06). -->
+                <atom:Button Classes="icon"
+                             ButtonType="Text"
+                             IsHitTestVisible="False"
+                             Focusable="False"
+                             Width="22" Height="22"
+                             MinWidth="0" MinHeight="0"
+                             Padding="0"
+                             HorizontalAlignment="Center"
+                             VerticalAlignment="Center"
+                             Foreground="White"
+                             Icon="{antd:AntDesignIconProvider SafetyCertificateFilled}" />
+            </Border>
+        </Panel>
     </Panel>
 </Window>

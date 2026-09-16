@@ -382,12 +382,28 @@ public partial class App : Application
         {
             _floatingBall = new FloatingBallWindow();
             _floatingBall.BallClicked += ToggleQuickAccess;
+            _floatingBall.PlacementChanged += OnBallPlacementChanged;
         }
 
         if (!_floatingBall.IsVisible)
         {
             _floatingBall.Show();
+
+            if (BallPlacement.TryParse(_preferences.BallPosition, out var saved))
+            {
+                _floatingBall.ApplyPlacement(saved, _preferences.BallDockedSide);
+            }
         }
+    }
+
+    private void OnBallPlacementChanged(PixelPoint position, string? dockedSide)
+    {
+        _preferences = _preferences with
+        {
+            BallPosition = BallPlacement.Format(position),
+            BallDockedSide = dockedSide,
+        };
+        _preferencesStore.Save(_preferences);
     }
 
     private void ApplyScreenGuard(Avalonia.Controls.Window window)

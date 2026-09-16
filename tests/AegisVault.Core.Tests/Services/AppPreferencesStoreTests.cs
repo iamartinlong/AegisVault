@@ -46,6 +46,39 @@ public sealed class AppPreferencesStoreTests : IDisposable
     }
 
     [Fact]
+    public void RoundTripsFloatingBallPlacement()
+    {
+        var path = Path.Combine(_directory, "app.json");
+
+        new AppPreferencesStore(path).Save(new AppPreferences
+        {
+            ShowFloatingBall = true,
+            BallPosition = "120,340",
+            BallDockedSide = "left",
+        });
+
+        var loaded = new AppPreferencesStore(path).Load();
+
+        Assert.True(loaded.ShowFloatingBall);
+        Assert.Equal("120,340", loaded.BallPosition);
+        Assert.Equal("left", loaded.BallDockedSide);
+    }
+
+    [Fact]
+    public void LegacyPreferencesWithoutBallFieldsLoadAsUnplaced()
+    {
+        var path = Path.Combine(_directory, "legacy.json");
+        File.WriteAllText(path, """{"Theme":"dark","ShowFloatingBall":true}""");
+
+        var loaded = new AppPreferencesStore(path).Load();
+
+        Assert.Equal("dark", loaded.Theme);
+        Assert.True(loaded.ShowFloatingBall);
+        Assert.Null(loaded.BallPosition);
+        Assert.Null(loaded.BallDockedSide);
+    }
+
+    [Fact]
     public void MissingFileReturnsDefaults()
     {
         var store = new AppPreferencesStore(Path.Combine(_directory, "missing.json"));
@@ -55,6 +88,8 @@ public sealed class AppPreferencesStoreTests : IDisposable
         Assert.Null(loaded.LastVaultPath);
         Assert.Equal("system", loaded.Theme);
         Assert.Equal("system", loaded.Language);
+        Assert.Null(loaded.BallPosition);
+        Assert.Null(loaded.BallDockedSide);
     }
 
     [Fact]

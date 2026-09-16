@@ -1,4 +1,4 @@
-using Avalonia;
+﻿using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Input;
@@ -73,6 +73,56 @@ public sealed class FloatingBallWindowTests
             window.MouseUp(new Point(BallCentre.X + 1, BallCentre.Y + 1), MouseButton.Left);
 
             Assert.Equal(1, raised);
+        }
+        finally
+        {
+            window.Close();
+        }
+    });
+
+    [Fact]
+    public Task PressAndDragToggleTheirVisualClasses() => Headless.Run(() =>
+    {
+        var window = new FloatingBallWindow();
+        try
+        {
+            window.Show();
+            var ball = window.FindControl<Border>("BallSurface");
+            Assert.NotNull(ball);
+
+            window.MouseDown(BallCentre, MouseButton.Left);
+            Assert.Contains("pressed", ball!.Classes);
+
+            window.MouseMove(new Point(BallCentre.X + 40, BallCentre.Y + 24));
+            Assert.Contains("dragging", ball.Classes);
+
+            window.MouseUp(new Point(BallCentre.X + 40, BallCentre.Y + 24), MouseButton.Left);
+            Assert.DoesNotContain("pressed", ball.Classes);
+            Assert.DoesNotContain("dragging", ball.Classes);
+        }
+        finally
+        {
+            window.Close();
+        }
+    });
+
+    [Fact]
+    public Task DockedBallRevealsOnHoverAndMarksItselfDocked() => Headless.Run(() =>
+    {
+        var window = new FloatingBallWindow();
+        try
+        {
+            window.Show();
+            var root = window.FindControl<Panel>("BallRoot");
+            Assert.NotNull(root);
+
+            window.ApplyPlacement(new PixelPoint(0, 300), "left");
+
+            Assert.Contains("dockleft", root!.Classes);
+            Assert.DoesNotContain("revealed", root.Classes);
+
+            window.MouseMove(BallCentre);   // hover the visible half
+            Assert.Contains("revealed", root.Classes);
         }
         finally
         {

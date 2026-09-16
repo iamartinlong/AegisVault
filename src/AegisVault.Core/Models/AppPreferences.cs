@@ -17,4 +17,10 @@ public sealed record AppPreferences
 
     /// <summary>Shows the optional floating quick-access ball (default off).</summary>
     public bool ShowFloatingBall { get; init; }
+
+    /// <summary>Floating ball position in screen pixels ("x,y"); null when never moved.</summary>
+    public string? BallPosition { get; init; }
+
+    /// <summary>"left" | "right" while the ball is docked to a screen edge; otherwise null.</summary>
+    public string? BallDockedSide { get; init; }
 }
