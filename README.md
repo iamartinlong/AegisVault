@@ -12,7 +12,7 @@
 - 🔐 **零知识加密**：主密码仅用于派生密钥，数据以 AES-256-GCM 逐条认证加密，密码库文件不含任何明文
 - 🧮 **现代密钥派生**：Argon2id（64 MiB / 3 轮，盐 16B）派生 KEK；分层密钥体系（KEK 包裹 DEK），改主密码无需全量重加密
 - 🧠 **安全内存**：密钥存放于 libsodium 安全内存（`sodium_malloc` + 锁定 + 只读保护），退出/锁定时强制清零
-- 📝 **条目管理**：标题/用户名/密码/网址/备注/标签/自定义字段，实时搜索、收藏置顶、预览与编辑分离
+- 📝 **条目管理**：标题/用户名/密码/网址/备注/标签/自定义字段，实时搜索、收藏置顶、预览与编辑分离；详情显示创建时间；删除需确认；标题必填、网址自动补全并校验 http/https
 - 🗂️ **分类 + 标签双模型**：分类为单归属（新建/重命名/删除，删除后条目转为未分类），标签可多维度交叉；左栏按 📁 分类 / # 标签 区分展示
 - 🎨 **现代界面（Ink Green 主题）**：AtomUI 组件 + 设计 Token（盾绿主色、中性灰阶、8pt 间距），平面化三栏布局、检查器式详情、浅/深色一键切换（支持跟随系统）
 - ⏱️ **TOTP 验证码**：RFC 6238（SHA-1/256/512），倒计时展示与一键复制
@@ -40,7 +40,7 @@
 | 存储 | SQLite（Microsoft.Data.Sqlite 10.0.12 + SQLitePCLRaw 2.1.12 / SQLite 3.53.3） |
 | 密码学 | libsodium（Sodium.Core，Argon2id）+ BCL AES-256-GCM |
 | 平台安全 | Windows DPAPI / CredUI（macOS Keychain、Linux libsecret 预留接口） |
-| 测试 | xUnit（255 项：Core / Platform / Headless UI） |
+| 测试 | xUnit（274 项：Core / Platform / Headless UI） |
 
 ## 快速开始
 
@@ -53,7 +53,7 @@ dotnet build -c Release
 # 运行（开发）
 dotnet run --project src/AegisVault.App
 
-# 测试（255 项）
+# 测试（274 项）
 dotnet test -c Release
 
 # NativeAOT 单文件发布（示例：Windows x64）

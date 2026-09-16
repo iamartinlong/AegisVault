@@ -59,15 +59,17 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private readonly DispatcherTimer _toastTimer;
     private bool _loadingEditor;
     private PasswordStrengthResult? _editPasswordStrength;
+    private readonly IUrlLauncher _urlLauncher;
     private VaultHealthReport _health = new(0, 0, 0, new HashSet<Guid>(), new HashSet<Guid>(), new HashSet<Guid>());
 
     public event Action? LockRequested;
 
-    public MainViewModel(VaultService vault, ClipboardService? clipboard = null, TimeProvider? timeProvider = null)
+    public MainViewModel(VaultService vault, ClipboardService? clipboard = null, TimeProvider? timeProvider = null, IUrlLauncher? urlLauncher = null)
     {
         _vault = vault;
         _clipboard = clipboard;
         _timeProvider = timeProvider ?? TimeProvider.System;
+        _urlLauncher = urlLauncher ?? SystemUrlLauncher.Instance;
 
         Entries = new ObservableCollection<PasswordEntry>(vault.Entries);
         FilteredEntries = [];
@@ -194,6 +196,18 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     private bool editIsFavorite;
+
+    /// <summary>Inline validation message under the title field (empty when valid).</summary>
+    [ObservableProperty]
+    private string titleError = string.Empty;
+
+    /// <summary>Inline validation message under the URL field (empty when valid).</summary>
+    [ObservableProperty]
+    private string urlError = string.Empty;
+
+    /// <summary>Local-time creation timestamp shown in the detail preview.</summary>
+    [ObservableProperty]
+    private string createdAtDisplay = string.Empty;
 
     [ObservableProperty]
     private string totpCode = string.Empty;
@@ -375,12 +389,29 @@ public partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
+        TitleError = string.Empty;
+        UrlError = string.Empty;
+
+        var title = EditTitle.Trim();
+        if (title.Length == 0)
+        {
+            TitleError = Loc.T("Main_TitleRequired");
+            return;
+        }
+
+        var url = WebUrl.Normalize(EditUrl);
+        if (url is null)
+        {
+            UrlError = Loc.T("Main_UrlInvalid");
+            return;
+        }
+
         var updated = SelectedEntry with
         {
-            Title = EditTitle.Trim(),
+            Title = title,
             Username = EditUsername,
             Password = EditPassword,
-            Url = EditUrl.Trim(),
+            Url = url,
             Notes = EditNotes,
             TotpSecret = EditTotpSecret.Trim(),
             Tags = ParseTags(EditTags),
@@ -500,7 +531,26 @@ public partial class MainViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
-    private void OpenUrl() => SystemUrlLauncher.Instance.TryOpen(EditUrl);
+    private void OpenUrl()
+    {
+        var url = WebUrl.Normalize(EditUrl);
+        if (url is null)
+        {
+            StatusMessage = Loc.T("Main_UrlInvalid");
+            return;
+        }
+
+        if (url.Length == 0)
+        {
+            StatusMessage = Loc.T("Main_StatusUrlEmpty");
+            return;
+        }
+
+        if (!_urlLauncher.TryOpen(url))
+        {
+            StatusMessage = Loc.T("Main_StatusUrlOpenFailed");
+        }
+    }
 
     [RelayCommand]
     private void Lock()
@@ -847,6 +897,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
             EditIsFavorite = entry?.IsFavorite ?? false;
             SelectedCategoryChoice = CategoryChoices.FirstOrDefault(choice => choice.Id == entry?.CategoryId)
                 ?? CategoryChoices.FirstOrDefault();
+            TitleError = string.Empty;
+            UrlError = string.Empty;
+            CreatedAtDisplay = entry is null
+                ? string.Empty
+                : entry.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
             StatusMessage = null;
         }
         finally

@@ -93,17 +93,18 @@ public partial class QuickAccessViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task CopyPasswordAndOpenAsync(PasswordEntry? entry)
     {
-        if (entry is null || !_urlLauncher.IsSupported(entry.Url))
+        var url = entry is null ? null : WebUrl.Normalize(entry.Url);
+        if (url is null || url.Length == 0 || !_urlLauncher.IsSupported(url))
         {
             return;
         }
 
-        if (_clipboard is not null && !string.IsNullOrEmpty(entry.Password))
+        if (_clipboard is not null && !string.IsNullOrEmpty(entry!.Password))
         {
             await _clipboard.CopyAsync(entry.Password);
         }
 
-        if (_urlLauncher.TryOpen(entry.Url))
+        if (_urlLauncher.TryOpen(url))
         {
             HideRequested?.Invoke();
         }

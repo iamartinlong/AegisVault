@@ -205,6 +205,37 @@ public sealed class QuickAccessViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task CopyPasswordAndOpenNormalizesSchemeLessUrl()
+    {
+        var (vault, main) = CreateMain(new PasswordEntry
+        {
+            Title = "GitHub",
+            Password = "s3cret",
+            Url = "github.com",
+        });
+        var fake = new FakeClipboardAccess();
+        using var service = new ClipboardService(fake, () => new UserConfig { ClipboardClearSeconds = 30 });
+        using var __ = main;
+        try
+        {
+            var launcher = new FakeUrlLauncher();
+            var viewModel = new QuickAccessViewModel(main, service, launcher);
+            var hidden = false;
+            viewModel.HideRequested += () => hidden = true;
+
+            await viewModel.CopyPasswordAndOpenCommand.ExecuteAsync(viewModel.FilteredEntries[0]);
+
+            Assert.Equal("s3cret", fake.Text);
+            Assert.Equal(["https://github.com"], launcher.Opened);
+            Assert.True(hidden);
+        }
+        finally
+        {
+            vault.Dispose();
+        }
+    }
+
+    [Fact]
     public Task QuickAccessWindowCanBeConstructed() => Headless.Run(() =>
     {
         var (vault, main) = CreateMain(

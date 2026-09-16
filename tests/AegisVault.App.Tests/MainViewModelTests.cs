@@ -1,3 +1,4 @@
+using AegisVault.App.Localization;
 using AegisVault.App.Services;
 using AegisVault.App.ViewModels;
 using AegisVault.App.Views;
@@ -290,6 +291,100 @@ public sealed class MainViewModelTests : IDisposable
         Assert.Contains("共 0 条", viewModel.FilteredCountText);
     });
 
+    [Fact]
+    public Task SaveRequiresTitle() => Headless.Run(() =>
+    {
+        using var vault = CreateVaultWithEntries();
+        using var viewModel = new MainViewModel(vault);
+
+        viewModel.SelectedEntry = viewModel.FilteredEntries.Single(entry => entry.Title == "GitHub");
+        viewModel.BeginEditCommand.Execute(null);
+        viewModel.EditTitle = "   ";
+        viewModel.SaveEntryCommand.Execute(null);
+
+        Assert.NotEmpty(viewModel.TitleError);
+        Assert.True(viewModel.IsEditing);
+        Assert.Contains(vault.Entries, entry => entry.Title == "GitHub");
+
+        viewModel.EditTitle = "GitHub Work";
+        viewModel.SaveEntryCommand.Execute(null);
+
+        Assert.Empty(viewModel.TitleError);
+        Assert.False(viewModel.IsEditing);
+        Assert.Contains(vault.Entries, entry => entry.Title == "GitHub Work");
+    });
+
+    [Fact]
+    public Task SaveNormalizesAndValidatesUrl() => Headless.Run(() =>
+    {
+        using var vault = CreateVaultWithEntries();
+        using var viewModel = new MainViewModel(vault);
+
+        viewModel.SelectedEntry = viewModel.FilteredEntries.Single(entry => entry.Title == "GitHub");
+        viewModel.BeginEditCommand.Execute(null);
+        viewModel.EditUrl = "example.com";
+        viewModel.SaveEntryCommand.Execute(null);
+
+        Assert.Empty(viewModel.UrlError);
+        Assert.Equal("https://example.com", vault.Entries.Single(entry => entry.Title == "GitHub").Url);
+
+        viewModel.BeginEditCommand.Execute(null);
+        viewModel.EditUrl = "ftp://example.com";
+        viewModel.SaveEntryCommand.Execute(null);
+
+        Assert.NotEmpty(viewModel.UrlError);
+        Assert.True(viewModel.IsEditing);
+        Assert.Equal("https://example.com", vault.Entries.Single(entry => entry.Title == "GitHub").Url);
+
+        viewModel.EditUrl = string.Empty;
+        viewModel.SaveEntryCommand.Execute(null);
+
+        Assert.Empty(viewModel.UrlError);
+        Assert.False(viewModel.IsEditing);
+        Assert.Equal(string.Empty, vault.Entries.Single(entry => entry.Title == "GitHub").Url);
+    });
+
+    [Fact]
+    public Task SelectionShowsCreationTime() => Headless.Run(() =>
+    {
+        using var vault = CreateVaultWithEntries();
+        using var viewModel = new MainViewModel(vault);
+
+        var github = viewModel.FilteredEntries.Single(entry => entry.Title == "GitHub");
+        viewModel.SelectedEntry = github;
+
+        Assert.Equal(github.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm"), viewModel.CreatedAtDisplay);
+
+        viewModel.SelectedEntry = null;
+        Assert.Empty(viewModel.CreatedAtDisplay);
+    });
+
+    [Fact]
+    public Task OpenUrlNormalizesAndReportsFailures() => Headless.Run(() =>
+    {
+        using var vault = CreateVaultWithEntries();
+        var launcher = new RecordingUrlLauncher();
+        using var viewModel = new MainViewModel(vault, urlLauncher: launcher);
+
+        viewModel.SelectedEntry = viewModel.FilteredEntries.Single(entry => entry.Title == "GitHub");
+        viewModel.EditUrl = "github.com";
+        viewModel.OpenUrlCommand.Execute(null);
+        Assert.Equal(["https://github.com"], launcher.Opened);
+
+        viewModel.EditUrl = "javascript:alert(1)";
+        viewModel.OpenUrlCommand.Execute(null);
+        Assert.Equal(Loc.T("Main_UrlInvalid"), viewModel.StatusMessage);
+
+        viewModel.EditUrl = string.Empty;
+        viewModel.OpenUrlCommand.Execute(null);
+        Assert.Equal(Loc.T("Main_StatusUrlEmpty"), viewModel.StatusMessage);
+
+        launcher.Result = false;
+        viewModel.EditUrl = "https://example.com";
+        viewModel.OpenUrlCommand.Execute(null);
+        Assert.Equal(Loc.T("Main_StatusUrlOpenFailed"), viewModel.StatusMessage);
+    });
+
     private VaultService CreateVaultWithEntries()
     {
         var vault = VaultService.CreateNew(_vaultPath, Password, FastOptions);
@@ -302,5 +397,20 @@ public sealed class MainViewModelTests : IDisposable
         });
         vault.AddEntry(new PasswordEntry { Title = "Mail", Username = "me@example.com" });
         return vault;
+    }
+
+    private sealed class RecordingUrlLauncher : IUrlLauncher
+    {
+        public List<string?> Opened { get; } = [];
+
+        public bool Result { get; set; } = true;
+
+        public bool IsSupported(string? url) => !string.IsNullOrEmpty(url);
+
+        public bool TryOpen(string? url)
+        {
+            Opened.Add(url);
+            return Result;
+        }
     }
 }

@@ -574,6 +574,19 @@
                                         </Grid>
                                     </Border>
 
+                                    <Border BorderBrush="{DynamicResource AegisHairlineBrush}"
+                                            BorderThickness="0,0,0,1"
+                                            Padding="0,10"
+                                            IsVisible="{Binding CreatedAtDisplay, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                        <Grid ColumnDefinitions="96,*,Auto">
+                                            <TextBlock Grid.Column="0" Classes="field" Text="{loc:Str Main_CreatedAt}" />
+                                            <SelectableTextBlock Grid.Column="1"
+                                                                 Text="{Binding CreatedAtDisplay}"
+                                                                 TextWrapping="Wrap"
+                                                                 VerticalAlignment="Center" />
+                                        </Grid>
+                                    </Border>
+
                                     <Border BorderBrush="{DynamicResource AegisHairlineBrush}" BorderThickness="0,0,0,1" Padding="0,10">
                                         <Grid ColumnDefinitions="96,*,Auto">
                                             <TextBlock Grid.Column="0" Classes="field" Text="{loc:Str Main_Notes}" />
@@ -604,6 +617,11 @@
                                     <StackPanel Spacing="4">
                                         <TextBlock Classes="field" Text="{loc:Str Main_Title}" />
                                         <atom:LineEdit Text="{Binding EditTitle}" />
+                                        <TextBlock Text="{Binding TitleError}"
+                                                   Foreground="{atom:SharedTokenResource ColorError}"
+                                                   FontSize="12"
+                                                   TextWrapping="Wrap"
+                                                   IsVisible="{Binding TitleError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                                     </StackPanel>
 
                                     <StackPanel Spacing="4">
@@ -636,6 +654,11 @@
                                     <StackPanel Spacing="4">
                                         <TextBlock Classes="field" Text="{loc:Str Main_Url}" />
                                         <atom:LineEdit Text="{Binding EditUrl}" />
+                                        <TextBlock Text="{Binding UrlError}"
+                                                   Foreground="{atom:SharedTokenResource ColorError}"
+                                                   FontSize="12"
+                                                   TextWrapping="Wrap"
+                                                   IsVisible="{Binding UrlError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                                     </StackPanel>
 
                                     <StackPanel Spacing="4">
