@@ -1,7 +1,7 @@
 # AGENTS.md —— AegisVault 开发约定
 
 > 面向在本仓库工作的开发者与 AI 代理：**只放"每次都会用到"的硬规则**。
-> 细节知识库（本地 `docs/`，不随仓库分发）：`开发最佳实践.md`（规则）、`踩坑记录.md`（P-01…P-35 事故复盘）、`数据迁移设计.md`（持久化硬约束）、`交接文档.md`（状态/待办/已知问题）。
+> 细节知识库（本地 `docs/`，不随仓库分发）：`开发最佳实践.md`（规则）、`踩坑记录.md`（P-01…P-37 事故复盘）、`数据迁移设计.md`（持久化硬约束）、`交接文档.md`（状态/待办/已知问题）。
 
 ## 项目速览
 - .NET 10 + Avalonia 12.1 + AtomUI 6.1 的本地优先零知识密码管理器；GPL-3.0
@@ -39,6 +39,7 @@ dotnet test  -c Release --no-build                  # 期望：全部通过
 - `IValueConverter` 返回控件时**每次新建实例**（只缓存创建函数，禁止缓存控件）。
 - 时间与外部副作用一律注入：`TimeProvider`、`IUrlLauncher`、`IClipboardAccess`、`IKeyProtector`。
 - 服务层保持语言中立（Core 返回枚举，App 负责本地化文案）。
+- **含机密的模型必须重写 `ToString()`**（record 自动生成的 dump 会打印 Password/TotpSecret，会经日志或 UIA 树泄露）；列表/详情等会被自动化读取的控件显式设置 `AutomationProperties.Name`（见踩坑 P-36）。
 
 ## 验证方式
 | 改动类型 | 验证 |
@@ -50,7 +51,7 @@ dotnet test  -c Release --no-build                  # 期望：全部通过
 
 ## 开发工具（本机，临时目录）
 - 演示库：`dotnet run --project %TEMP%\opencode\aegis-seed -- <路径>\vault.aegis zh`（含设备密钥/分类，`DisableScreenCapture=false`，否则截图全黑）
-- 截图脚本：`%TEMP%\opencode\capture-*.ps1`（UIA 驱动；点击自动化前须先置顶窗口；**下拉菜单/浮层**用 `AutomationId` 定位 + `SetCursorPos`/`mouse_event` 物理点击，浮层打开后勿再改前台窗口，详见 `docs/踩坑记录.md` P-34）
+- 截图脚本：`%TEMP%\opencode\capture-*.ps1`（UIA 驱动；**交互前先浮动窗口并校验 `GetForegroundWindow` 等于目标窗口**，否则点击/按键会静默失效；**下拉菜单/浮层**用 `AutomationId` 定位 + `SetCursorPos`/`mouse_event` 物理点击，浮层打开后勿再改前台窗口，详见 `docs/踩坑记录.md` P-34/P-37）
 - 反射探针：`%TEMP%\opencode\atomui-probe`（加载目标程序集输出类型/基类/属性/方法；查 API 与源码并列第一优先）
 
 ## 提交习惯
