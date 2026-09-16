@@ -504,16 +504,18 @@
                                     VerticalAlignment="Center"
                                     Spacing="10"
                                     IsVisible="{Binding ShowSelectEntryHint}">
-                            <ContentControl HorizontalAlignment="Center"
-                                            Content="{antd:AntDesignIconProvider FileSearchOutlined}">
-                                <ContentControl.Styles>
-                                    <Style Selector="PathIcon">
-                                        <Setter Property="Width" Value="32" />
-                                        <Setter Property="Height" Value="32" />
-                                        <Setter Property="Opacity" Value="0.35" />
-                                    </Style>
-                                </ContentControl.Styles>
-                            </ContentControl>
+                            <!-- Colour must go through a Button: AtomUI icons ignore host/parent
+                                 Foreground and PathIcon type selectors (see pitfall P-06). -->
+                            <atom:Button ButtonType="Text"
+                                         IsHitTestVisible="False"
+                                         Focusable="False"
+                                         Width="32" Height="32"
+                                         MinWidth="0" MinHeight="0"
+                                         Padding="0"
+                                         HorizontalAlignment="Center"
+                                         Opacity="0.6"
+                                         Foreground="{atom:SharedTokenResource ColorTextTertiary}"
+                                         Icon="{antd:AntDesignIconProvider FileSearchOutlined}" />
                             <TextBlock Text="{loc:Str Main_SelectEntryHint}"
                                        Opacity="0.5"
                                        HorizontalAlignment="Center" />
@@ -846,15 +848,17 @@
                         Padding="36,28"
                         BoxShadow="0 8 24 0 #30000000">
                     <StackPanel Spacing="14" HorizontalAlignment="Center">
-                        <ContentControl HorizontalAlignment="Center"
-                                        Content="{antd:AntDesignIconProvider LockFilled}">
-                            <ContentControl.Styles>
-                                <Style Selector="PathIcon">
-                                    <Setter Property="Width" Value="36" />
-                                    <Setter Property="Height" Value="36" />
-                                </Style>
-                            </ContentControl.Styles>
-                        </ContentControl>
+                        <!-- Colour must go through a Button: AtomUI icons ignore host/parent
+                             Foreground and PathIcon type selectors (see pitfall P-06). -->
+                        <atom:Button ButtonType="Text"
+                                     IsHitTestVisible="False"
+                                     Focusable="False"
+                                     Width="36" Height="36"
+                                     MinWidth="0" MinHeight="0"
+                                     Padding="0"
+                                     HorizontalAlignment="Center"
+                                     Foreground="{atom:SharedTokenResource ColorPrimary}"
+                                     Icon="{antd:AntDesignIconProvider LockFilled}" />
                         <TextBlock Text="{loc:Str Main_Locked}"
                                    FontSize="20"
                                    FontWeight="SemiBold"

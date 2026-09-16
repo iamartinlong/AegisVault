@@ -32,17 +32,18 @@
                                 CornerRadius="14"
                                 HorizontalAlignment="Center"
                                 Background="{atom:SharedTokenResource ColorPrimaryBg}">
-                            <ContentControl HorizontalAlignment="Center"
-                                            VerticalAlignment="Center"
-                                            Content="{antd:AntDesignIconProvider SafetyCertificateFilled}">
-                                <ContentControl.Styles>
-                                    <Style Selector="PathIcon">
-                                        <Setter Property="Width" Value="26" />
-                                        <Setter Property="Height" Value="26" />
-                                        <Setter Property="Foreground" Value="{atom:SharedTokenResource ColorPrimary}" />
-                                    </Style>
-                                </ContentControl.Styles>
-                            </ContentControl>
+                            <!-- Colour must go through a Button: AtomUI icons ignore host/parent
+                                 Foreground and PathIcon type selectors (see pitfall P-06). -->
+                            <atom:Button ButtonType="Text"
+                                         IsHitTestVisible="False"
+                                         Focusable="False"
+                                         Width="26" Height="26"
+                                         MinWidth="0" MinHeight="0"
+                                         Padding="0"
+                                         HorizontalAlignment="Center"
+                                         VerticalAlignment="Center"
+                                         Foreground="{atom:SharedTokenResource ColorPrimary}"
+                                         Icon="{antd:AntDesignIconProvider SafetyCertificateFilled}" />
                         </Border>
                         <TextBlock Text="AegisVault"
                                    FontSize="24"

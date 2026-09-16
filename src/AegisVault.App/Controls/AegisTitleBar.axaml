@@ -29,17 +29,18 @@
                         Spacing="8"
                         Margin="14,0"
                         VerticalAlignment="Center">
-                <ContentControl VerticalAlignment="Center"
-                                IsVisible="{Binding ShowIcon, ElementName=Root}"
-                                Content="{antd:AntDesignIconProvider SafetyCertificateFilled}">
-                    <ContentControl.Styles>
-                        <Style Selector="PathIcon">
-                            <Setter Property="Width" Value="15" />
-                            <Setter Property="Height" Value="15" />
-                            <Setter Property="Foreground" Value="{atom:SharedTokenResource ColorPrimary}" />
-                        </Style>
-                    </ContentControl.Styles>
-                </ContentControl>
+                <!-- Colour must go through a Button: AtomUI icons ignore host/parent
+                     Foreground and PathIcon type selectors (see pitfall P-06). -->
+                <atom:Button ButtonType="Text"
+                             IsHitTestVisible="False"
+                             Focusable="False"
+                             Width="15" Height="15"
+                             MinWidth="0" MinHeight="0"
+                             Padding="0"
+                             VerticalAlignment="Center"
+                             IsVisible="{Binding ShowIcon, ElementName=Root}"
+                             Foreground="{atom:SharedTokenResource ColorPrimary}"
+                             Icon="{antd:AntDesignIconProvider SafetyCertificateFilled}" />
                 <TextBlock Text="{Binding Title, ElementName=Root}"
                            FontSize="13"
                            FontWeight="SemiBold"
