@@ -22,7 +22,7 @@
             <Setter Property="BorderBrush" Value="{DynamicResource AegisHairlineBrush}" />
         </Style>
     </Window.Styles>
-    <Grid RowDefinitions="40,*">
+    <Grid RowDefinitions="40,*,Auto">
         <controls:AegisTitleBar Grid.Row="0"
                                 Title="{loc:Str Generator_Title}"
                                 ShowIcon="True" />
@@ -91,28 +91,35 @@
                             <TextBlock Text="{loc:Str Generator_ExcludeAmbiguous}" TextWrapping="Wrap" />
                         </atom:CheckBox>
                     </Grid>
-
-                    <TextBlock Text="{Binding CopyStatus}"
-                               Foreground="{atom:SharedTokenResource ColorSuccess}"
-                               MinHeight="18" />
-
-                    <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
-                        <atom:Button ButtonType="Default"
-                                     Icon="{antd:AntDesignIconProvider ThunderboltOutlined}"
-                                     Content="{loc:Str Generator_Regenerate}"
-                                     Command="{Binding RegenerateCommand}" />
-                        <atom:Button ButtonType="Default"
-                                     Icon="{antd:AntDesignIconProvider CopyOutlined}"
-                                     Content="{loc:Str Common_Copy}"
-                                     Command="{Binding CopyPasswordCommand}" />
-                        <atom:Button ButtonType="Primary"
-                                     Icon="{antd:AntDesignIconProvider CheckOutlined}"
-                                     Content="{loc:Str Generator_Use}"
-                                     Click="OnUseClicked"
-                                     IsDefault="True" />
-                    </StackPanel>
                 </StackPanel>
             </Border>
+        </Border>
+
+        <Border Grid.Row="2"
+                Background="{atom:SharedTokenResource ColorBgContainer}"
+                BorderBrush="{DynamicResource AegisHairlineBrush}"
+                BorderThickness="0,1,0,0"
+                Padding="24,12">
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Text="{Binding CopyStatus}"
+                           Foreground="{atom:SharedTokenResource ColorSuccess}"
+                           VerticalAlignment="Center" />
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10">
+                    <atom:Button ButtonType="Default"
+                                 Icon="{antd:AntDesignIconProvider ThunderboltOutlined}"
+                                 Content="{loc:Str Generator_Regenerate}"
+                                 Command="{Binding RegenerateCommand}" />
+                    <atom:Button ButtonType="Default"
+                                 Icon="{antd:AntDesignIconProvider CopyOutlined}"
+                                 Content="{loc:Str Common_Copy}"
+                                 Command="{Binding CopyPasswordCommand}" />
+                    <atom:Button ButtonType="Primary"
+                                 Icon="{antd:AntDesignIconProvider CheckOutlined}"
+                                 Content="{loc:Str Generator_Use}"
+                                 Click="OnUseClicked"
+                                 IsDefault="True" />
+                </StackPanel>
+            </Grid>
         </Border>
     </Grid>
 </Window>
