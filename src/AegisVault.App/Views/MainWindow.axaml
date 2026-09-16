@@ -278,10 +278,9 @@
                     BorderThickness="1"
                     BoxShadow="0 2 12 0 #14000000">
             <Grid RowDefinitions="Auto,Auto,*">
-                <!-- Toolbar -->
-                <Border Grid.Row="0"
-                        BorderBrush="{DynamicResource AegisHairlineBrush}"
-                        BorderThickness="0,0,0,1">
+                <!-- Toolbar + chips share one header zone; only the chips row
+                     bottom hairline separates the header from the list. -->
+                <Border Grid.Row="0">
                     <Grid ColumnDefinitions="*,Auto" Margin="20,12">
                         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                             <TextBlock Text="{Binding SelectedCategory.DisplayName}"
