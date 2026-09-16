@@ -30,6 +30,8 @@ dotnet test  -c Release --no-build                  # 期望：全部通过
 7. **文案改动同步 zh/en 两张表**（单测会拦）；语言在启动时解析一次，切换需重启。
 8. **禁止提交**：`docs/`（本地文档）、`*.aegis`（库文件）、`app.json`（个人偏好）、任何临时调试钩子（如截图用的环境变量开关）。
 9. **颜色只用 Token**：AtomUI `{atom:SharedTokenResource ...}`、应用自有 `{DynamicResource AegisXxxBrush}`（浅/深两套）；禁止硬编码品牌色。
+10. **AtomUI 以源码为准，不信官网文档**：文档版本落后于锁定的 6.1.9，控件 API/行为常对不上（实例：`LineEdit.InnerLeftContent` 实为继承 Avalonia `TextBox`；`DropdownButton` 隐藏箭头要 `IsShowOpenIndicator=False`（`IsArrowVisible` 无效）；`TriggerType=Click` 只认 `PointerPressed`）。查证顺序：**① GitHub 源码（对应 tag）→ ② 反射探针 `%TEMP%\opencode\atomui-probe` → ③ 官网文档（仅参考）**。
+    - 取源码（`raw.githubusercontent.com` 本机常不可达，走 API）：先 `https://api.github.com/repos/AtomUI/AtomUI/tags` 拿 tag（如 `v6.1.9`）与 sha，用 `git/trees/<sha>?recursive=1` 搜文件路径，再 `curl -H "Accept: application/vnd.github.raw" "https://api.github.com/repos/AtomUI/AtomUI/contents/<path>?ref=v6.1.9"` 取文件；主题/行为多在 `src/AtomUI.Desktop.Controls/<控件>/` 与 `controlgallery/`（官方用法示例）。
 
 ## 代码约定
 - UI 事件处理走 code-behind 或命令，保持 XAML **编译绑定**（`x:DataType`）。
@@ -48,8 +50,8 @@ dotnet test  -c Release --no-build                  # 期望：全部通过
 
 ## 开发工具（本机，临时目录）
 - 演示库：`dotnet run --project %TEMP%\opencode\aegis-seed -- <路径>\vault.aegis zh`（含设备密钥/分类，`DisableScreenCapture=false`，否则截图全黑）
-- 截图脚本：`%TEMP%\opencode\capture-*.ps1`（UIA 驱动；点击自动化前须先置顶窗口）
-- 反射探针：`%TEMP%\opencode\atomui-probe`（AtomUI 文档与实现常不一致，先探针核实）
+- 截图脚本：`%TEMP%\opencode\capture-*.ps1`（UIA 驱动；点击自动化前须先置顶窗口；**下拉菜单/浮层**用 `AutomationId` 定位 + `SetCursorPos`/`mouse_event` 物理点击，浮层打开后勿再改前台窗口，详见 `docs/踩坑记录.md` P-34）
+- 反射探针：`%TEMP%\opencode\atomui-probe`（加载目标程序集输出类型/基类/属性/方法；查 API 与源码并列第一优先）
 
 ## 提交习惯
 - 小步提交；信息 `feat|fix|style|docs|chore(范围): 描述`
