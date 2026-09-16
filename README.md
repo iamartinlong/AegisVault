@@ -41,7 +41,7 @@
 | 存储 | SQLite（Microsoft.Data.Sqlite 10.0.12 + SQLitePCLRaw 2.1.12 / SQLite 3.53.3） |
 | 密码学 | libsodium（Sodium.Core，Argon2id）+ BCL AES-256-GCM |
 | 平台安全 | Windows DPAPI / CredUI（macOS Keychain、Linux libsecret 预留接口） |
-| 测试 | xUnit（291 项：Core / Platform / Headless UI） |
+| 测试 | xUnit（292 项：Core / Platform / Headless UI） |
 
 ## 快速开始
 
@@ -54,7 +54,7 @@ dotnet build -c Release
 # 运行（开发）
 dotnet run --project src/AegisVault.App
 
-# 测试（291 项）
+# 测试（292 项）
 dotnet test -c Release
 
 # NativeAOT 单文件发布（示例：Windows x64）
@@ -62,6 +62,8 @@ dotnet publish src/AegisVault.App/AegisVault.App.csproj -c Release -r win-x64 -p
 ```
 
 首次使用：启动后在解锁窗口选择"创建新密码库"，设置主密码（至少 8 位，建议更强）。**主密码无法找回**，请务必牢记并做好加密备份。
+
+> 参与开发前请先读 [`AGENTS.md`](AGENTS.md)：构建/测试门禁、硬性约束（数据迁移四件套、AtomUI 图标着色、滚动条留白等）与验证方式。
 
 ## 项目结构
 
@@ -76,6 +78,7 @@ AegisVault/
 │  ├─ AegisVault.Platform.Tests/  # DPAPI 等平台能力
 │  └─ AegisVault.App.Tests/       # ViewModel 与无头 UI 测试
 ├─ .github/workflows/         # CI（三端构建+测试）与 Release（三端 AOT 打包）
+├─ AGENTS.md                  # 开发约定与硬性约束（贡献者/代理必读）
 └─ THIRD-PARTY-NOTICES.md     # 第三方组件与许可证全文
 ```
 
