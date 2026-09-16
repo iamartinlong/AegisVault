@@ -360,7 +360,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     private static List<string> EffectiveUrls(PasswordEntry entry)
     {
-        if (entry.Urls.Count > 0)
+        // Source-generated JSON leaves new collection properties null when the
+        // field is missing from older vault files, so never assume non-null.
+        if (entry.Urls is { Count: > 0 })
         {
             return entry.Urls.Where(url => !string.IsNullOrWhiteSpace(url)).ToList();
         }
@@ -926,7 +928,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         return Contains(entry.Title, query) ||
                Contains(entry.Username, query) ||
                Contains(entry.Url, query) ||
-               entry.Urls.Any(url => Contains(url, query)) ||
+               (entry.Urls?.Any(url => Contains(url, query)) ?? false) ||
                entry.Tags.Any(tag => Contains(tag, query));
     }
 

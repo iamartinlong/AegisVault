@@ -323,6 +323,28 @@ public sealed class VaultServiceTests : IDisposable
         Assert.Equal("https://github.com", entry.Url);
     }
 
+    [Fact]
+    public void NullCollectionFieldsAreRepairedOnLoad()
+    {
+        using (var vault = VaultService.CreateNew(_vaultPath, Password, FastOptions))
+        {
+            vault.AddEntry(TestEntry("Legacy") with
+            {
+                Tags = null!,
+                Urls = null!,
+                CustomFields = null!,
+            });
+        }
+
+        using var reopened = VaultService.Open(_vaultPath);
+        Assert.Equal(VaultUnlockStatus.Success, reopened.Unlock(Password));
+
+        var entry = Assert.Single(reopened.Entries);
+        Assert.Empty(entry.Tags);
+        Assert.Empty(entry.Urls);
+        Assert.Empty(entry.CustomFields);
+    }
+
     private static PasswordEntry TestEntry(string title) => new()
     {
         Title = title,

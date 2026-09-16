@@ -419,6 +419,22 @@ public sealed class MainViewModelTests : IDisposable
     });
 
     [Fact]
+    public Task SelectingEntryWithNullUrlsStillLoadsDetail() => Headless.Run(() =>
+    {
+        using var vault = CreateVaultWithEntries();
+        var github = vault.Entries.Single(entry => entry.Title == "GitHub");
+        vault.UpdateEntry(github with { Url = "https://github.com", Urls = null! });
+
+        using var viewModel = new MainViewModel(vault);
+        viewModel.SelectedEntry = viewModel.FilteredEntries.Single(entry => entry.Title == "GitHub");
+
+        Assert.True(viewModel.HasSelection);
+        Assert.Equal("GitHub", viewModel.EditTitle);
+        Assert.Equal(["https://github.com"], viewModel.UrlItems);
+        Assert.Equal("https://github.com", viewModel.EditUrls);
+    });
+
+    [Fact]
     public Task SelectionShowsCreationTime() => Headless.Run(() =>
     {
         using var vault = CreateVaultWithEntries();

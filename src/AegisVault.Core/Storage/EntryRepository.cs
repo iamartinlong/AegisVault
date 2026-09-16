@@ -38,8 +38,23 @@ internal static class EntryRepository
         var json = AesGcmCipher.Decrypt(dek, nonce, ciphertext, tag, BuildAssociatedData(id, version));
         try
         {
-            return JsonSerializer.Deserialize(json, VaultJsonContext.Default.PasswordEntry)
+            var entry = JsonSerializer.Deserialize(json, VaultJsonContext.Default.PasswordEntry)
                 ?? throw new InvalidDataException("Entry payload is empty.");
+
+            // Source-generated JSON yields null for collection properties that
+            // are missing from older vault files (property initializers are not
+            // applied); normalize them so consumers can rely on non-null lists.
+            if (entry.Tags is null || entry.Urls is null || entry.CustomFields is null)
+            {
+                entry = entry with
+                {
+                    Tags = entry.Tags is null ? [] : entry.Tags,
+                    Urls = entry.Urls is null ? [] : entry.Urls,
+                    CustomFields = entry.CustomFields is null ? [] : entry.CustomFields,
+                };
+            }
+
+            return entry;
         }
         finally
         {
