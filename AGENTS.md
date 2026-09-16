@@ -1,7 +1,7 @@
 # AGENTS.md —— AegisVault 开发约定
 
 > 面向在本仓库工作的开发者与 AI 代理：**只放"每次都会用到"的硬规则**。
-> 细节知识库（本地 `docs/`，不随仓库分发）：`开发最佳实践.md`（规则）、`踩坑记录.md`（P-01…P-37 事故复盘）、`数据迁移设计.md`（持久化硬约束）、`交接文档.md`（状态/待办/已知问题）。
+> 细节知识库（本地 `docs/`，不随仓库分发）：`开发最佳实践.md`（规则）、`踩坑记录.md`（P-01…P-39 事故复盘）、`数据迁移设计.md`（持久化硬约束）、`交接文档.md`（状态/待办/已知问题）。
 
 ## 项目速览
 - .NET 10 + Avalonia 12.1 + AtomUI 6.1 的本地优先零知识密码管理器；GPL-3.0
@@ -40,6 +40,8 @@ dotnet test  -c Release --no-build                  # 期望：全部通过
 - 时间与外部副作用一律注入：`TimeProvider`、`IUrlLauncher`、`IClipboardAccess`、`IKeyProtector`。
 - 服务层保持语言中立（Core 返回枚举，App 负责本地化文案）。
 - **含机密的模型必须重写 `ToString()`**（record 自动生成的 dump 会打印 Password/TotpSecret，会经日志或 UIA 树泄露）；列表/详情等会被自动化读取的控件显式设置 `AutomationProperties.Name`（见踩坑 P-36）。
+- **自己处理指针手势时，表面不要用 `Button`**（它会把 `PointerPressed` 标记为 Handled，XAML 上的处理器收不到）→ 用 `Border`/`Panel` + 自加 class 表达按下态（见踩坑 P-38）。
+- **无边框窗（`WindowDecorations="None"`）不要再开 `ExtendClientAreaToDecorationsHint`**，否则 `TransparencyLevelHint="Transparent"` 失效、窗口四角变白（见踩坑 P-39）。
 
 ## 验证方式
 | 改动类型 | 验证 |

@@ -41,7 +41,7 @@
 | 存储 | SQLite（Microsoft.Data.Sqlite 10.0.12 + SQLitePCLRaw 2.1.12 / SQLite 3.53.3） |
 | 密码学 | libsodium（Sodium.Core，Argon2id）+ BCL AES-256-GCM |
 | 平台安全 | Windows DPAPI / CredUI（macOS Keychain、Linux libsecret 预留接口） |
-| 测试 | xUnit（297 项：Core / Platform / Headless UI） |
+| 测试 | xUnit（300 项：Core / Platform / Headless UI） |
 
 ## 快速开始
 
@@ -54,7 +54,7 @@ dotnet build -c Release
 # 运行（开发）
 dotnet run --project src/AegisVault.App
 
-# 测试（297 项）
+# 测试（300 项）
 dotnet test -c Release
 
 # NativeAOT 单文件发布（示例：Windows x64）
