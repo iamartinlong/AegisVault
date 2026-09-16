@@ -16,95 +16,103 @@
         Background="{atom:SharedTokenResource ColorBgContainer}"
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaTitleBarHeightHint="40">
+    <Window.Styles>
+        <!-- Same section treatment as the Settings window: hairline outline. -->
+        <Style Selector="Border.card">
+            <Setter Property="BorderBrush" Value="{DynamicResource AegisHairlineBrush}" />
+        </Style>
+    </Window.Styles>
     <Grid RowDefinitions="40,*">
         <controls:AegisTitleBar Grid.Row="0"
                                 Title="{loc:Str Generator_Title}"
                                 ShowIcon="True" />
 
         <Border Grid.Row="1" Padding="24">
-            <StackPanel Spacing="14">
-                <Border Background="{DynamicResource AegisHoverBrush}"
-                        CornerRadius="10"
-                        Padding="16,14">
-                    <StackPanel Spacing="10">
-                        <SelectableTextBlock Text="{Binding Password}"
-                                             FontFamily="Consolas, Menlo, monospace"
-                                             FontSize="18"
-                                             TextWrapping="Wrap" />
-                        <atom:ProgressBar Value="{Binding StrengthPercent}"
-                                          Maximum="100"
-                                          Height="6"
-                                          HorizontalAlignment="Stretch" />
+            <Border Classes="card" Padding="18,16">
+                <StackPanel Spacing="14">
+                    <Border Background="{DynamicResource AegisHoverBrush}"
+                            CornerRadius="10"
+                            Padding="16,14">
+                        <StackPanel Spacing="10">
+                            <SelectableTextBlock Text="{Binding Password}"
+                                                 FontFamily="Consolas, Menlo, monospace"
+                                                 FontSize="18"
+                                                 TextWrapping="Wrap" />
+                            <atom:ProgressBar Value="{Binding StrengthPercent}"
+                                              Maximum="100"
+                                              Height="6"
+                                              HorizontalAlignment="Stretch" />
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Text="{Binding StrengthSummary}"
+                                           FontSize="12"
+                                           Opacity="0.75"
+                                           TextTrimming="CharacterEllipsis"
+                                           VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding EntropyText}"
+                                           FontSize="12"
+                                           Opacity="0.55"
+                                           Margin="10,0,0,0"
+                                           VerticalAlignment="Center" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <StackPanel Spacing="4">
                         <Grid ColumnDefinitions="*,Auto">
-                            <TextBlock Text="{Binding StrengthSummary}"
-                                       FontSize="12"
-                                       Opacity="0.75"
-                                       TextTrimming="CharacterEllipsis"
-                                       VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="0" Classes="field" Text="{loc:Str Generator_Length}" />
                             <TextBlock Grid.Column="1"
-                                       Text="{Binding EntropyText}"
+                                       Text="{Binding LengthText}"
                                        FontSize="12"
-                                       Opacity="0.55"
-                                       Margin="10,0,0,0"
-                                       VerticalAlignment="Center" />
+                                       Opacity="0.6" />
                         </Grid>
+                        <atom:Slider Minimum="8"
+                                     Maximum="64"
+                                     TickFrequency="1"
+                                     IsSnapToTickEnabled="True"
+                                     Value="{Binding Length}" />
                     </StackPanel>
-                </Border>
 
-                <StackPanel Spacing="4">
-                    <Grid ColumnDefinitions="*,Auto">
-                        <TextBlock Grid.Column="0" Classes="field" Text="{loc:Str Generator_Length}" />
-                        <TextBlock Grid.Column="1"
-                                   Text="{Binding LengthText}"
-                                   FontSize="12"
-                                   Opacity="0.6" />
+                    <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto">
+                        <atom:CheckBox Grid.Row="0" Grid.Column="0"
+                                       Content="{loc:Str Generator_Lowercase}"
+                                       IsChecked="{Binding IncludeLowercase}" />
+                        <atom:CheckBox Grid.Row="0" Grid.Column="1"
+                                       Content="{loc:Str Generator_Uppercase}"
+                                       IsChecked="{Binding IncludeUppercase}" />
+                        <atom:CheckBox Grid.Row="1" Grid.Column="0"
+                                       Content="{loc:Str Generator_Digits}"
+                                       IsChecked="{Binding IncludeDigits}" />
+                        <atom:CheckBox Grid.Row="1" Grid.Column="1"
+                                       Content="{loc:Str Generator_Symbols}"
+                                       IsChecked="{Binding IncludeSymbols}" />
+                        <atom:CheckBox Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
+                                       IsChecked="{Binding ExcludeAmbiguous}">
+                            <TextBlock Text="{loc:Str Generator_ExcludeAmbiguous}" TextWrapping="Wrap" />
+                        </atom:CheckBox>
                     </Grid>
-                    <atom:Slider Minimum="8"
-                                 Maximum="64"
-                                 TickFrequency="1"
-                                 IsSnapToTickEnabled="True"
-                                 Value="{Binding Length}" />
+
+                    <TextBlock Text="{Binding CopyStatus}"
+                               Foreground="{atom:SharedTokenResource ColorSuccess}"
+                               MinHeight="18" />
+
+                    <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
+                        <atom:Button ButtonType="Default"
+                                     Icon="{antd:AntDesignIconProvider ThunderboltOutlined}"
+                                     Content="{loc:Str Generator_Regenerate}"
+                                     Command="{Binding RegenerateCommand}" />
+                        <atom:Button ButtonType="Default"
+                                     Icon="{antd:AntDesignIconProvider CopyOutlined}"
+                                     Content="{loc:Str Common_Copy}"
+                                     Command="{Binding CopyPasswordCommand}" />
+                        <atom:Button ButtonType="Primary"
+                                     Icon="{antd:AntDesignIconProvider CheckOutlined}"
+                                     Content="{loc:Str Generator_Use}"
+                                     Click="OnUseClicked"
+                                     IsDefault="True" />
+                    </StackPanel>
                 </StackPanel>
-
-                <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto">
-                    <atom:CheckBox Grid.Row="0" Grid.Column="0"
-                                   Content="{loc:Str Generator_Lowercase}"
-                                   IsChecked="{Binding IncludeLowercase}" />
-                    <atom:CheckBox Grid.Row="0" Grid.Column="1"
-                                   Content="{loc:Str Generator_Uppercase}"
-                                   IsChecked="{Binding IncludeUppercase}" />
-                    <atom:CheckBox Grid.Row="1" Grid.Column="0"
-                                   Content="{loc:Str Generator_Digits}"
-                                   IsChecked="{Binding IncludeDigits}" />
-                    <atom:CheckBox Grid.Row="1" Grid.Column="1"
-                                   Content="{loc:Str Generator_Symbols}"
-                                   IsChecked="{Binding IncludeSymbols}" />
-                    <atom:CheckBox Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
-                                   IsChecked="{Binding ExcludeAmbiguous}">
-                        <TextBlock Text="{loc:Str Generator_ExcludeAmbiguous}" TextWrapping="Wrap" />
-                    </atom:CheckBox>
-                </Grid>
-
-                <TextBlock Text="{Binding CopyStatus}"
-                           Foreground="{atom:SharedTokenResource ColorSuccess}"
-                           MinHeight="18" />
-
-                <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
-                    <atom:Button ButtonType="Default"
-                                 Icon="{antd:AntDesignIconProvider ThunderboltOutlined}"
-                                 Content="{loc:Str Generator_Regenerate}"
-                                 Command="{Binding RegenerateCommand}" />
-                    <atom:Button ButtonType="Default"
-                                 Icon="{antd:AntDesignIconProvider CopyOutlined}"
-                                 Content="{loc:Str Common_Copy}"
-                                 Command="{Binding CopyPasswordCommand}" />
-                    <atom:Button ButtonType="Primary"
-                                 Icon="{antd:AntDesignIconProvider CheckOutlined}"
-                                 Content="{loc:Str Generator_Use}"
-                                 Click="OnUseClicked"
-                                 IsDefault="True" />
-                </StackPanel>
-            </StackPanel>
+            </Border>
         </Border>
     </Grid>
 </Window>
