@@ -15,6 +15,9 @@ public sealed record PasswordEntry
 
     public string Url { get; init; } = string.Empty;
 
+    /// <summary>All web addresses for this entry; <see cref="Url"/> mirrors the first one.</summary>
+    public List<string> Urls { get; init; } = [];
+
     public string Notes { get; init; } = string.Empty;
 
     public string TotpSecret { get; init; } = string.Empty;

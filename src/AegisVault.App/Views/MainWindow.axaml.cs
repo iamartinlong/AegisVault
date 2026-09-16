@@ -161,6 +161,14 @@ public partial class MainWindow : Window
     private void OnRowCopyUsernameClicked(object? sender, RoutedEventArgs e)
         => InvokeForRow(sender, viewModel => viewModel.CopyUsernameCommand.Execute(null));
 
+    private void OnOpenUrlClicked(object? sender, RoutedEventArgs e)
+    {
+        if (sender is Button { DataContext: string url } && DataContext is MainViewModel viewModel)
+        {
+            viewModel.OpenUrlCommand.Execute(url);
+        }
+    }
+
     private async void OnDeleteEntryClicked(object? sender, RoutedEventArgs e)
         => await ConfirmDeleteEntryAsync();
 

@@ -75,6 +75,8 @@ internal static class ZhStrings
         ["Main_CreatedAt"] = "创建时间",
         ["Main_TitleRequired"] = "标题不能为空。",
         ["Main_UrlInvalid"] = "网址格式无效，仅支持 http/https。",
+        ["Main_UrlInvalidLine"] = "第 {0} 个网址无效，仅支持 http/https。",
+        ["Main_UrlsHint"] = "每行一个网址，可添加多个。",
         ["Main_StatusUrlEmpty"] = "该条目没有网址。",
         ["Main_StatusUrlOpenFailed"] = "无法打开链接，请检查网址格式。",
         ["Main_DeleteCategoryTooltip"] = "删除分类",

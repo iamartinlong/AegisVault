@@ -75,6 +75,8 @@ internal static class EnStrings
         ["Main_CreatedAt"] = "Created",
         ["Main_TitleRequired"] = "Title is required.",
         ["Main_UrlInvalid"] = "Invalid URL — only http/https links are supported.",
+        ["Main_UrlInvalidLine"] = "URL #{0} is invalid — only http/https links are supported.",
+        ["Main_UrlsHint"] = "One URL per line; multiple URLs are supported.",
         ["Main_StatusUrlEmpty"] = "This entry has no URL.",
         ["Main_StatusUrlOpenFailed"] = "Could not open the link — check the URL.",
         ["Main_DeleteCategoryTooltip"] = "Delete category",

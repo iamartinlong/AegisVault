@@ -183,7 +183,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private string editPassword = string.Empty;
 
     [ObservableProperty]
-    private string editUrl = string.Empty;
+    private string editUrls = string.Empty;
 
     [ObservableProperty]
     private string editNotes = string.Empty;
@@ -342,6 +342,32 @@ public partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(EditPasswordStrengthPercent));
     }
 
+    partial void OnEditTitleChanged(string value)
+    {
+        if (TitleError.Length > 0)
+        {
+            TitleError = string.Empty;
+        }
+    }
+
+    partial void OnEditUrlsChanged(string value)
+    {
+        if (UrlError.Length > 0)
+        {
+            UrlError = string.Empty;
+        }
+    }
+
+    private static List<string> EffectiveUrls(PasswordEntry entry)
+    {
+        if (entry.Urls.Count > 0)
+        {
+            return entry.Urls.Where(url => !string.IsNullOrWhiteSpace(url)).ToList();
+        }
+
+        return string.IsNullOrWhiteSpace(entry.Url) ? [] : [entry.Url];
+    }
+
     [RelayCommand]
     private void AddEntry()
     {
@@ -381,6 +407,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
         IsEditing = false;
     }
 
+    /// <summary>URLs of the selected entry, one preview row each.</summary>
+    public ObservableCollection<string> UrlItems { get; } = [];
+
     [RelayCommand]
     private void SaveEntry()
     {
@@ -389,20 +418,37 @@ public partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        TitleError = string.Empty;
-        UrlError = string.Empty;
-
         var title = EditTitle.Trim();
-        if (title.Length == 0)
+        var urls = new List<string>();
+        string? urlError = null;
+        var ordinal = 0;
+
+        foreach (var line in EditUrls.Replace("\r\n", "\n").Split('\n'))
         {
-            TitleError = Loc.T("Main_TitleRequired");
-            return;
+            var raw = line.Trim();
+            if (raw.Length == 0)
+            {
+                continue;
+            }
+
+            ordinal++;
+            var normalized = WebUrl.Normalize(raw);
+            if (normalized is null)
+            {
+                urlError ??= Loc.Format("Main_UrlInvalidLine", ordinal);
+                continue;
+            }
+
+            if (!urls.Contains(normalized, StringComparer.OrdinalIgnoreCase))
+            {
+                urls.Add(normalized);
+            }
         }
 
-        var url = WebUrl.Normalize(EditUrl);
-        if (url is null)
+        TitleError = title.Length == 0 ? Loc.T("Main_TitleRequired") : string.Empty;
+        UrlError = urlError ?? string.Empty;
+        if (title.Length == 0 || urlError is not null)
         {
-            UrlError = Loc.T("Main_UrlInvalid");
             return;
         }
 
@@ -411,7 +457,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
             Title = title,
             Username = EditUsername,
             Password = EditPassword,
-            Url = url,
+            Url = urls.Count > 0 ? urls[0] : string.Empty,
+            Urls = urls,
             Notes = EditNotes,
             TotpSecret = EditTotpSecret.Trim(),
             Tags = ParseTags(EditTags),
@@ -531,22 +578,22 @@ public partial class MainViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
-    private void OpenUrl()
+    private void OpenUrl(string? url)
     {
-        var url = WebUrl.Normalize(EditUrl);
-        if (url is null)
+        var normalized = WebUrl.Normalize(url);
+        if (normalized is null)
         {
             StatusMessage = Loc.T("Main_UrlInvalid");
             return;
         }
 
-        if (url.Length == 0)
+        if (normalized.Length == 0)
         {
             StatusMessage = Loc.T("Main_StatusUrlEmpty");
             return;
         }
 
-        if (!_urlLauncher.TryOpen(url))
+        if (!_urlLauncher.TryOpen(normalized))
         {
             StatusMessage = Loc.T("Main_StatusUrlOpenFailed");
         }
@@ -879,6 +926,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         return Contains(entry.Title, query) ||
                Contains(entry.Username, query) ||
                Contains(entry.Url, query) ||
+               entry.Urls.Any(url => Contains(url, query)) ||
                entry.Tags.Any(tag => Contains(tag, query));
     }
 
@@ -890,7 +938,14 @@ public partial class MainViewModel : ObservableObject, IDisposable
             EditTitle = entry?.Title ?? string.Empty;
             EditUsername = entry?.Username ?? string.Empty;
             EditPassword = entry?.Password ?? string.Empty;
-            EditUrl = entry?.Url ?? string.Empty;
+            var urls = entry is null ? [] : EffectiveUrls(entry);
+            EditUrls = string.Join("\n", urls);
+            UrlItems.Clear();
+            foreach (var url in urls)
+            {
+                UrlItems.Add(url);
+            }
+
             EditNotes = entry?.Notes ?? string.Empty;
             EditTotpSecret = entry?.TotpSecret ?? string.Empty;
             EditTags = entry is null ? string.Empty : string.Join(", ", entry.Tags);

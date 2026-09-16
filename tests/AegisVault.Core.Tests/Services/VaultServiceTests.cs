@@ -300,6 +300,29 @@ public sealed class VaultServiceTests : IDisposable
         Assert.False(reopened.Entries.Single(entry => entry.Title == "Mail").IsFavorite);
     }
 
+    [Fact]
+    public void MultipleUrlsRoundTrip()
+    {
+        Guid entryId;
+        using (var vault = VaultService.CreateNew(_vaultPath, Password, FastOptions))
+        {
+            var added = vault.AddEntry(TestEntry("GitHub") with
+            {
+                Url = "https://github.com",
+                Urls = ["https://github.com", "https://gist.github.com"],
+            });
+            entryId = added.Id;
+        }
+
+        using var reopened = VaultService.Open(_vaultPath);
+        Assert.Equal(VaultUnlockStatus.Success, reopened.Unlock(Password));
+
+        var entry = Assert.Single(reopened.Entries);
+        Assert.Equal(entryId, entry.Id);
+        Assert.Equal(["https://github.com", "https://gist.github.com"], entry.Urls);
+        Assert.Equal("https://github.com", entry.Url);
+    }
+
     private static PasswordEntry TestEntry(string title) => new()
     {
         Title = title,
@@ -319,6 +342,7 @@ public sealed class VaultServiceTests : IDisposable
         Assert.Equal(expected.Username, actual.Username);
         Assert.Equal(expected.Password, actual.Password);
         Assert.Equal(expected.Url, actual.Url);
+        Assert.Equal(expected.Urls, actual.Urls);
         Assert.Equal(expected.Notes, actual.Notes);
         Assert.Equal(expected.TotpSecret, actual.TotpSecret);
         Assert.Equal(expected.Tags, actual.Tags);

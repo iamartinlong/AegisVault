@@ -322,26 +322,100 @@ public sealed class MainViewModelTests : IDisposable
 
         viewModel.SelectedEntry = viewModel.FilteredEntries.Single(entry => entry.Title == "GitHub");
         viewModel.BeginEditCommand.Execute(null);
-        viewModel.EditUrl = "example.com";
+        viewModel.EditUrls = "example.com";
         viewModel.SaveEntryCommand.Execute(null);
 
         Assert.Empty(viewModel.UrlError);
         Assert.Equal("https://example.com", vault.Entries.Single(entry => entry.Title == "GitHub").Url);
 
         viewModel.BeginEditCommand.Execute(null);
-        viewModel.EditUrl = "ftp://example.com";
+        viewModel.EditUrls = "ftp://example.com";
         viewModel.SaveEntryCommand.Execute(null);
 
         Assert.NotEmpty(viewModel.UrlError);
         Assert.True(viewModel.IsEditing);
         Assert.Equal("https://example.com", vault.Entries.Single(entry => entry.Title == "GitHub").Url);
 
-        viewModel.EditUrl = string.Empty;
+        viewModel.EditUrls = string.Empty;
         viewModel.SaveEntryCommand.Execute(null);
 
         Assert.Empty(viewModel.UrlError);
         Assert.False(viewModel.IsEditing);
         Assert.Equal(string.Empty, vault.Entries.Single(entry => entry.Title == "GitHub").Url);
+    });
+
+    [Fact]
+    public Task SaveReportsTitleAndUrlErrorsTogether() => Headless.Run(() =>
+    {
+        using var vault = CreateVaultWithEntries();
+        using var viewModel = new MainViewModel(vault);
+
+        viewModel.SelectedEntry = viewModel.FilteredEntries.Single(entry => entry.Title == "GitHub");
+        viewModel.BeginEditCommand.Execute(null);
+        viewModel.EditTitle = "   ";
+        viewModel.EditUrls = "ftp://example.com";
+        viewModel.SaveEntryCommand.Execute(null);
+
+        Assert.Equal(Loc.T("Main_TitleRequired"), viewModel.TitleError);
+        Assert.Equal(Loc.Format("Main_UrlInvalidLine", 1), viewModel.UrlError);
+        Assert.True(viewModel.IsEditing);
+
+        viewModel.EditTitle = "GitHub";
+        Assert.Empty(viewModel.TitleError);
+        viewModel.EditUrls = "github.com";
+        Assert.Empty(viewModel.UrlError);
+    });
+
+    [Fact]
+    public Task SaveStoresMultipleUrls() => Headless.Run(() =>
+    {
+        using var vault = CreateVaultWithEntries();
+        using var viewModel = new MainViewModel(vault);
+
+        viewModel.SelectedEntry = viewModel.FilteredEntries.Single(entry => entry.Title == "GitHub");
+        viewModel.BeginEditCommand.Execute(null);
+        viewModel.EditUrls = "github.com\n  https://gist.github.com  \n\ngithub.com";
+        viewModel.SaveEntryCommand.Execute(null);
+
+        var saved = vault.Entries.Single(entry => entry.Title == "GitHub");
+        Assert.Equal(["https://github.com", "https://gist.github.com"], saved.Urls);
+        Assert.Equal("https://github.com", saved.Url);
+        Assert.Equal(["https://github.com", "https://gist.github.com"], viewModel.UrlItems);
+        Assert.Equal("https://github.com\nhttps://gist.github.com", viewModel.EditUrls);
+    });
+
+    [Fact]
+    public Task SaveRejectsInvalidSecondUrl() => Headless.Run(() =>
+    {
+        using var vault = CreateVaultWithEntries();
+        using var viewModel = new MainViewModel(vault);
+
+        viewModel.SelectedEntry = viewModel.FilteredEntries.Single(entry => entry.Title == "GitHub");
+        viewModel.BeginEditCommand.Execute(null);
+        viewModel.EditUrls = "github.com\nnot-a-url";
+        viewModel.SaveEntryCommand.Execute(null);
+
+        Assert.Equal(Loc.Format("Main_UrlInvalidLine", 2), viewModel.UrlError);
+        Assert.True(viewModel.IsEditing);
+        Assert.Empty(vault.Entries.Single(entry => entry.Title == "GitHub").Urls);
+    });
+
+    [Fact]
+    public Task LegacyUrlFillsUrlItemsAndSearchMatchesAllUrls() => Headless.Run(() =>
+    {
+        using var vault = CreateVaultWithEntries();
+        var github = vault.Entries.Single(entry => entry.Title == "GitHub");
+        vault.UpdateEntry(github with { Url = "https://github.com", Urls = ["https://github.com", "https://gist.github.com"] });
+
+        using var viewModel = new MainViewModel(vault);
+        viewModel.SelectedEntry = viewModel.FilteredEntries.Single(entry => entry.Title == "GitHub");
+
+        Assert.Equal(["https://github.com", "https://gist.github.com"], viewModel.UrlItems);
+        Assert.Equal("https://github.com\nhttps://gist.github.com", viewModel.EditUrls);
+
+        viewModel.SearchText = "gist";
+        Assert.Single(viewModel.FilteredEntries);
+        Assert.Equal("GitHub", viewModel.FilteredEntries[0].Title);
     });
 
     [Fact]
@@ -366,22 +440,17 @@ public sealed class MainViewModelTests : IDisposable
         var launcher = new RecordingUrlLauncher();
         using var viewModel = new MainViewModel(vault, urlLauncher: launcher);
 
-        viewModel.SelectedEntry = viewModel.FilteredEntries.Single(entry => entry.Title == "GitHub");
-        viewModel.EditUrl = "github.com";
-        viewModel.OpenUrlCommand.Execute(null);
+        viewModel.OpenUrlCommand.Execute("github.com");
         Assert.Equal(["https://github.com"], launcher.Opened);
 
-        viewModel.EditUrl = "javascript:alert(1)";
-        viewModel.OpenUrlCommand.Execute(null);
+        viewModel.OpenUrlCommand.Execute("javascript:alert(1)");
         Assert.Equal(Loc.T("Main_UrlInvalid"), viewModel.StatusMessage);
 
-        viewModel.EditUrl = string.Empty;
-        viewModel.OpenUrlCommand.Execute(null);
+        viewModel.OpenUrlCommand.Execute(string.Empty);
         Assert.Equal(Loc.T("Main_StatusUrlEmpty"), viewModel.StatusMessage);
 
         launcher.Result = false;
-        viewModel.EditUrl = "https://example.com";
-        viewModel.OpenUrlCommand.Execute(null);
+        viewModel.OpenUrlCommand.Execute("https://example.com");
         Assert.Equal(Loc.T("Main_StatusUrlOpenFailed"), viewModel.StatusMessage);
     });
 

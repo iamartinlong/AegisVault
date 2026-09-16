@@ -434,7 +434,7 @@
 
                     <Border Grid.Column="1" Background="{DynamicResource AegisHairlineBrush}" />
 
-                    <Panel Grid.Column="2" Margin="20,12,12,16">
+                    <Panel Grid.Column="2" Margin="26,16,12,18">
                         <StackPanel HorizontalAlignment="Center"
                                     VerticalAlignment="Center"
                                     Spacing="10"
@@ -455,7 +455,7 @@
                         </StackPanel>
 
                         <ScrollViewer IsVisible="{Binding HasSelection}">
-                            <Grid Margin="0,0,16,4">
+                            <Grid Margin="0,0,16,10">
                                 <!-- Preview -->
                                 <StackPanel IsVisible="{Binding !IsEditing}">
                                     <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,10">
@@ -539,18 +539,28 @@
                                     </Border>
 
                                     <Border BorderBrush="{DynamicResource AegisHairlineBrush}" BorderThickness="0,0,0,1" Padding="0,10">
-                                        <Grid ColumnDefinitions="96,*,Auto">
-                                            <TextBlock Grid.Column="0" Classes="field" Text="{loc:Str Main_Url}" />
-                                            <SelectableTextBlock Grid.Column="1"
-                                                                 Text="{Binding EditUrl}"
-                                                                 TextWrapping="Wrap"
-                                                                 VerticalAlignment="Center" />
-                                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="0">
-                                                <atom:Button ButtonType="Text"
-                                                             Icon="{antd:AntDesignIconProvider LinkOutlined}"
-                                                             ToolTip.Tip="{loc:Str Common_Open}"
-                                                             Command="{Binding OpenUrlCommand}" />
-                                            </StackPanel>
+                                        <Grid ColumnDefinitions="96,*">
+                                            <TextBlock Grid.Column="0"
+                                                       Classes="field"
+                                                       Text="{loc:Str Main_Url}"
+                                                       VerticalAlignment="Top"
+                                                       Margin="0,3,0,0" />
+                                            <ItemsControl Grid.Column="1" ItemsSource="{Binding UrlItems}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Grid ColumnDefinitions="*,Auto">
+                                                            <SelectableTextBlock Text="{Binding}"
+                                                                                 TextWrapping="Wrap"
+                                                                                 VerticalAlignment="Center" />
+                                                            <atom:Button Grid.Column="1"
+                                                                         ButtonType="Text"
+                                                                         Icon="{antd:AntDesignIconProvider LinkOutlined}"
+                                                                         ToolTip.Tip="{loc:Str Common_Open}"
+                                                                         Click="OnOpenUrlClicked" />
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
                                         </Grid>
                                     </Border>
 
@@ -614,8 +624,14 @@
 
                                 <!-- Editor -->
                                 <StackPanel Spacing="12" IsVisible="{Binding IsEditing}">
-                                    <StackPanel Spacing="4">
-                                        <TextBlock Classes="field" Text="{loc:Str Main_Title}" />
+                                    <StackPanel Spacing="6">
+                                        <StackPanel Orientation="Horizontal" Spacing="2">
+                                            <TextBlock Classes="field" Text="{loc:Str Main_Title}" />
+                                            <TextBlock Text="*"
+                                                       FontSize="13"
+                                                       Foreground="{atom:SharedTokenResource ColorPrimary}"
+                                                       VerticalAlignment="Center" />
+                                        </StackPanel>
                                         <atom:LineEdit Text="{Binding EditTitle}" />
                                         <TextBlock Text="{Binding TitleError}"
                                                    Foreground="{atom:SharedTokenResource ColorError}"
@@ -624,12 +640,12 @@
                                                    IsVisible="{Binding TitleError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                                     </StackPanel>
 
-                                    <StackPanel Spacing="4">
+                                    <StackPanel Spacing="6">
                                         <TextBlock Classes="field" Text="{loc:Str Main_Username}" />
                                         <atom:LineEdit Text="{Binding EditUsername}" />
                                     </StackPanel>
 
-                                    <StackPanel Spacing="4">
+                                    <StackPanel Spacing="6">
                                         <TextBlock Classes="field" Text="{loc:Str Main_Password}" />
                                         <Grid ColumnDefinitions="*,8,Auto">
                                             <atom:LineEdit Grid.Column="0"
@@ -651,9 +667,15 @@
                                                    Opacity="0.75" />
                                     </StackPanel>
 
-                                    <StackPanel Spacing="4">
+                                    <StackPanel Spacing="6">
                                         <TextBlock Classes="field" Text="{loc:Str Main_Url}" />
-                                        <atom:LineEdit Text="{Binding EditUrl}" />
+                                        <atom:TextArea AcceptsReturn="True"
+                                                       TextWrapping="Wrap"
+                                                       Height="64"
+                                                       Text="{Binding EditUrls}" />
+                                        <TextBlock Text="{loc:Str Main_UrlsHint}"
+                                                   FontSize="12"
+                                                   Opacity="0.6" />
                                         <TextBlock Text="{Binding UrlError}"
                                                    Foreground="{atom:SharedTokenResource ColorError}"
                                                    FontSize="12"
@@ -661,12 +683,12 @@
                                                    IsVisible="{Binding UrlError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                                     </StackPanel>
 
-                                    <StackPanel Spacing="4">
+                                    <StackPanel Spacing="6">
                                         <TextBlock Classes="field" Text="{loc:Str Main_TotpSecret}" />
                                         <atom:LineEdit Text="{Binding EditTotpSecret}" />
                                     </StackPanel>
 
-                                    <StackPanel Spacing="4">
+                                    <StackPanel Spacing="6">
                                         <TextBlock Classes="field" Text="{loc:Str Main_CategoryField}" />
                                         <atom:ComboBox ItemsSource="{Binding CategoryChoices}"
                                                        SelectedItem="{Binding SelectedCategoryChoice}"
@@ -679,12 +701,12 @@
                                         </atom:ComboBox>
                                     </StackPanel>
 
-                                    <StackPanel Spacing="4">
+                                    <StackPanel Spacing="6">
                                         <TextBlock Classes="field" Text="{loc:Str Main_TagsComma}" />
                                         <atom:LineEdit Text="{Binding EditTags}" />
                                     </StackPanel>
 
-                                    <StackPanel Spacing="4">
+                                    <StackPanel Spacing="6">
                                         <TextBlock Classes="field" Text="{loc:Str Main_Notes}" />
                                         <atom:TextArea AcceptsReturn="True"
                                                        TextWrapping="Wrap"
