@@ -10,36 +10,37 @@
         Topmost="True"
         WindowDecorations="None"
         TransparencyLevelHint="Transparent"
-        Background="Transparent"
-        ExtendClientAreaToDecorationsHint="True">
+        Background="Transparent">
     <Window.Styles>
-        <Style Selector="Button.ball">
+        <!-- The ball is a plain Border: a Button would swallow PointerPressed
+             (its class handler marks the event handled), which used to break
+             both clicking and dragging. -->
+        <Style Selector="Border.ball">
             <Setter Property="Background" Value="{atom:SharedTokenResource ColorPrimary}" />
         </Style>
-        <Style Selector="Button.ball:pointerover /template/ ContentPresenter">
+        <Style Selector="Border.ball:pointerover">
             <Setter Property="Background" Value="{atom:SharedTokenResource ColorPrimaryHover}" />
         </Style>
-        <Style Selector="Button.ball:pressed /template/ ContentPresenter">
+        <Style Selector="Border.ball.pressed">
             <Setter Property="Background" Value="{atom:SharedTokenResource ColorPrimaryActive}" />
         </Style>
     </Window.Styles>
 
     <Panel>
-        <Button x:Name="BallButton"
+        <Border x:Name="BallSurface"
                 Classes="ball"
                 Width="44" Height="44"
-                Padding="0"
+                CornerRadius="22"
+                BoxShadow="0 3 10 0 #33000000"
                 HorizontalAlignment="Center"
                 VerticalAlignment="Center"
-                CornerRadius="22"
-                Foreground="White"
-                ToolTip.Tip="{loc:Str Ball_Tooltip}"
                 PointerPressed="OnBallPointerPressed"
                 PointerMoved="OnBallPointerMoved"
-                PointerReleased="OnBallPointerReleased">
+                PointerReleased="OnBallPointerReleased"
+                PointerCaptureLost="OnBallPointerCaptureLost"
+                ToolTip.Tip="{loc:Str Ball_Tooltip}">
             <!-- Colour must go through a Button: AtomUI icons ignore host/parent
-                 Foreground and PathIcon type selectors (see pitfall P-06). The button
-                 stays hit-test transparent so the ball keeps its drag handlers. -->
+                 Foreground and PathIcon type selectors (see pitfall P-06). -->
             <atom:Button ButtonType="Text"
                          IsHitTestVisible="False"
                          Focusable="False"
@@ -50,6 +51,6 @@
                          VerticalAlignment="Center"
                          Foreground="White"
                          Icon="{antd:AntDesignIconProvider SafetyCertificateFilled}" />
-        </Button>
+        </Border>
     </Panel>
 </Window>

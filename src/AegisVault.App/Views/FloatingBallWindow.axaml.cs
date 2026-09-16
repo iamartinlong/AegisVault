@@ -1,20 +1,24 @@
-using Avalonia;
+﻿using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
-using Avalonia.Interactivity;
 
 namespace AegisVault.App.Views;
 
 /// <summary>
 /// Optional always-on-top floating ball: click opens quick access, drag moves
-/// it around the screen.
+/// it around the screen. Dragging is handled manually (a press that never
+/// leaves the window counts as a click), because the platform move loop gives
+/// no reliable way to tell "clicked" from "dragged".
 /// </summary>
 public partial class FloatingBallWindow : Window
 {
+    private const int DragThreshold = 4;
+
     /// <summary>Raised on a plain click (no drag).</summary>
     public event Action? BallClicked;
 
-    private Point _dragStart;
+    private PixelPoint _pressScreen;
+    private PixelPoint _pressWindow;
     private bool _dragging;
     private bool _moved;
 
@@ -25,14 +29,18 @@ public partial class FloatingBallWindow : Window
 
     private void OnBallPointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
         {
-            _dragging = true;
-            _moved = false;
-            _dragStart = e.GetPosition(this);
-            e.Pointer.Capture(BallButton);
-            e.Handled = true;
+            return;
         }
+
+        _pressScreen = this.PointToScreen(e.GetPosition(this));
+        _pressWindow = Position;
+        _dragging = true;
+        _moved = false;
+        BallSurface.Classes.Add("pressed");
+        e.Pointer.Capture(BallSurface);
+        e.Handled = true;
     }
 
     private void OnBallPointerMoved(object? sender, PointerEventArgs e)
@@ -42,16 +50,16 @@ public partial class FloatingBallWindow : Window
             return;
         }
 
-        var delta = e.GetPosition(this) - _dragStart;
-        if (delta.X * delta.X + delta.Y * delta.Y < 9)
+        var current = this.PointToScreen(e.GetPosition(this));
+        var dx = current.X - _pressScreen.X;
+        var dy = current.Y - _pressScreen.Y;
+        if (Math.Abs(dx) + Math.Abs(dy) < DragThreshold)
         {
             return;
         }
 
         _moved = true;
-        Position = new PixelPoint(
-            (int)Math.Round(Position.X + delta.X),
-            (int)Math.Round(Position.Y + delta.Y));
+        Position = new PixelPoint(_pressWindow.X + dx, _pressWindow.Y + dy);
         e.Handled = true;
     }
 
@@ -63,6 +71,7 @@ public partial class FloatingBallWindow : Window
         }
 
         _dragging = false;
+        BallSurface.Classes.Remove("pressed");
         e.Pointer.Capture(null);
         if (!_moved)
         {
@@ -70,5 +79,11 @@ public partial class FloatingBallWindow : Window
         }
 
         e.Handled = true;
+    }
+
+    private void OnBallPointerCaptureLost(object? sender, PointerCaptureLostEventArgs e)
+    {
+        _dragging = false;
+        BallSurface.Classes.Remove("pressed");
     }
 }
