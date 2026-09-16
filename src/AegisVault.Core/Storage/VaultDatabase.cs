@@ -138,23 +138,63 @@ internal sealed class VaultDatabase : IDisposable
     public void UpsertEntry(Guid id, int version, byte[] nonce, byte[] ciphertext, byte[] tag, DateTimeOffset updatedAt)
     {
         using var command = _connection.CreateCommand();
-        command.CommandText = """
-            INSERT INTO entries (id, nonce, ciphertext, tag, version, updated_at)
-            VALUES ($id, $nonce, $ciphertext, $tag, $version, $updatedAt)
-            ON CONFLICT(id) DO UPDATE SET
-                nonce      = excluded.nonce,
-                ciphertext = excluded.ciphertext,
-                tag        = excluded.tag,
-                version    = excluded.version,
-                updated_at = excluded.updated_at;
-            """;
+        command.CommandText = UpsertEntrySql;
+        AddEntryParameters(command, id, version, nonce, ciphertext, tag, updatedAt);
+        command.ExecuteNonQuery();
+    }
+
+    /// <summary>
+    /// Upserts a batch of entry blobs in a single transaction (used when
+    /// upgrading payloads to the current format after unlocking).
+    /// </summary>
+    public void WriteEntries(IReadOnlyList<EntryRecord> records)
+    {
+        if (records.Count == 0)
+        {
+            return;
+        }
+
+        using var transaction = _connection.BeginTransaction();
+        using var command = _connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = UpsertEntrySql;
+
+        foreach (var record in records)
+        {
+            command.Parameters.Clear();
+            AddEntryParameters(command, record.Id, record.Version, record.Nonce, record.Ciphertext, record.Tag, record.UpdatedAt);
+            command.ExecuteNonQuery();
+        }
+
+        transaction.Commit();
+    }
+
+    private const string UpsertEntrySql = """
+        INSERT INTO entries (id, nonce, ciphertext, tag, version, updated_at)
+        VALUES ($id, $nonce, $ciphertext, $tag, $version, $updatedAt)
+        ON CONFLICT(id) DO UPDATE SET
+            nonce      = excluded.nonce,
+            ciphertext = excluded.ciphertext,
+            tag        = excluded.tag,
+            version    = excluded.version,
+            updated_at = excluded.updated_at;
+        """;
+
+    private static void AddEntryParameters(
+        SqliteCommand command,
+        Guid id,
+        int version,
+        byte[] nonce,
+        byte[] ciphertext,
+        byte[] tag,
+        DateTimeOffset updatedAt)
+    {
         command.Parameters.AddWithValue("$id", id.ToString("D"));
         command.Parameters.AddWithValue("$nonce", nonce);
         command.Parameters.AddWithValue("$ciphertext", ciphertext);
         command.Parameters.AddWithValue("$tag", tag);
         command.Parameters.AddWithValue("$version", version);
         command.Parameters.AddWithValue("$updatedAt", updatedAt.ToString("O", CultureInfo.InvariantCulture));
-        command.ExecuteNonQuery();
     }
 
     public void DeleteEntry(Guid id)

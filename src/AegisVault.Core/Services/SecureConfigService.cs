@@ -84,7 +84,8 @@ public sealed class SecureConfigService
 
         try
         {
-            return JsonSerializer.Deserialize(json, VaultJsonContext.Default.UserConfig) ?? new UserConfig();
+            var config = JsonSerializer.Deserialize(json, VaultJsonContext.Default.UserConfig);
+            return config is null ? new UserConfig() : ModelMigrations.Normalize(config);
         }
         catch (JsonException)
         {

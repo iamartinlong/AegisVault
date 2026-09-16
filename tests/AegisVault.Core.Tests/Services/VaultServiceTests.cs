@@ -1,6 +1,10 @@
+using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
+using AegisVault.Core.Crypto;
 using AegisVault.Core.Models;
 using AegisVault.Core.Services;
+using AegisVault.Core.Storage;
 using Microsoft.Data.Sqlite;
 using Xunit;
 
@@ -298,6 +302,78 @@ public sealed class VaultServiceTests : IDisposable
 
         Assert.True(reopened.Entries.Single(entry => entry.Id == favoriteId).IsFavorite);
         Assert.False(reopened.Entries.Single(entry => entry.Title == "Mail").IsFavorite);
+    }
+
+    [Fact]
+    public void UnlockUpgradesLegacyEntryPayloadsToCurrentVersion()
+    {
+        // Build a vault file the way an older application version would have
+        // written it: header at the current format, entry payload at v1 without
+        // the Urls member.
+        var kdf = FastOptions.Kdf!;
+        var salt = RandomNumberGenerator.GetBytes(kdf.SaltSize);
+        using var kek = KeyDerivationFactory.Create(kdf.Algorithm).DeriveKey(Password, salt, kdf);
+        var dek = RandomNumberGenerator.GetBytes(KeyEnvelope.DekSize);
+        var legacyId = Guid.NewGuid();
+
+        try
+        {
+            var legacyJson = JsonSerializer.SerializeToUtf8Bytes(new
+            {
+                Id = legacyId,
+                Title = "Legacy",
+                Username = "user",
+                Password = "s3cret",
+                Url = "https://legacy.example",
+                Notes = string.Empty,
+                TotpSecret = string.Empty,
+                Tags = new List<string>(),
+                CustomFields = new Dictionary<string, string>(),
+                IsFavorite = false,
+                CreatedAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTimeOffset.UtcNow,
+            });
+
+            using (var database = VaultDatabase.OpenOrCreate(_vaultPath))
+            {
+                var now = DateTimeOffset.UtcNow;
+                database.WriteMeta(new VaultHeader
+                {
+                    FormatVersion = VaultHeader.CurrentFormatVersion,
+                    Kdf = kdf,
+                    Salt = salt,
+                    WrappedDek = KeyEnvelope.Wrap(
+                        kek.ReadOnlySpan,
+                        dek,
+                        VaultHeader.ComputeAssociatedData(VaultHeader.CurrentFormatVersion, kdf, salt)),
+                    CreatedAt = now,
+                    UpdatedAt = now,
+                });
+
+                var (nonce, ciphertext, tag) = AesGcmCipher.Encrypt(
+                    dek,
+                    legacyJson,
+                    EntryRepository.BuildAssociatedData(legacyId, 1));
+                database.UpsertEntry(legacyId, 1, nonce, ciphertext, tag, now);
+            }
+
+            using var vault = VaultService.Open(_vaultPath);
+            Assert.Equal(VaultUnlockStatus.Success, vault.Unlock(Password));
+
+            var entry = Assert.Single(vault.Entries);
+            Assert.Equal("Legacy", entry.Title);
+            Assert.Empty(entry.Urls);
+            Assert.NotNull(entry.Tags);
+
+            using var verify = VaultDatabase.OpenOrCreate(_vaultPath);
+            Assert.All(
+                verify.ReadEntries(),
+                record => Assert.Equal(EntryRepository.EntryFormatVersion, record.Version));
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(dek);
+        }
     }
 
     [Fact]

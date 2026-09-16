@@ -3,6 +3,7 @@ using System.Text.Json;
 using AegisVault.Core.Crypto;
 using AegisVault.Core.Models;
 using AegisVault.Core.Storage;
+using Microsoft.Data.Sqlite;
 
 namespace AegisVault.Core.Services;
 
@@ -458,7 +459,7 @@ public sealed class VaultService : IDisposable
         _database.Dispose();
     }
 
-    private List<PasswordEntry> LoadEntries(SecureBuffer dek)
+    private List<PasswordEntry> LoadEntries(SecureBuffer dek, List<PasswordEntry> outdated)
     {
         var loaded = new List<PasswordEntry>();
         foreach (var record in _database.ReadEntries())
@@ -469,16 +470,59 @@ public sealed class VaultService : IDisposable
                     $"Entry format version {record.Version} is newer than this application supports.");
             }
 
-            loaded.Add(EntryRepository.Decrypt(
+            var entry = EntryRepository.Decrypt(
                 dek.ReadOnlySpan,
                 record.Id,
                 record.Version,
                 record.Nonce,
                 record.Ciphertext,
-                record.Tag));
+                record.Tag);
+
+            loaded.Add(entry);
+
+            if (record.Version < EntryRepository.EntryFormatVersion)
+            {
+                outdated.Add(entry);
+            }
         }
 
         return loaded;
+    }
+
+    /// <summary>
+    /// Re-encrypts entries whose payload was written by an older format so the
+    /// upgrade is persisted (one-time, best effort: a failed rewrite leaves the
+    /// in-memory upgrade intact and is retried on the next unlock).
+    /// </summary>
+    private void PersistOutdatedEntries(List<PasswordEntry> outdated, SecureBuffer dek)
+    {
+        if (outdated.Count == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            var records = new List<EntryRecord>(outdated.Count);
+            foreach (var entry in outdated)
+            {
+                var (nonce, ciphertext, tag) = EntryRepository.Encrypt(dek.ReadOnlySpan, entry);
+                records.Add(new EntryRecord(
+                    entry.Id,
+                    EntryRepository.EntryFormatVersion,
+                    nonce,
+                    ciphertext,
+                    tag,
+                    entry.UpdatedAt));
+            }
+
+            _database.WriteEntries(records);
+        }
+        catch (Exception exception) when (exception is SqliteException or IOException)
+        {
+            // The vault stays usable; the payloads are upgraded in memory and
+            // will be written back on the next unlock or entry save.
+        }
     }
 
     private void Persist(PasswordEntry entry)
@@ -526,7 +570,10 @@ public sealed class VaultService : IDisposable
 
         try
         {
-            return JsonSerializer.Deserialize(json, VaultJsonContext.Default.ListCategory) ?? [];
+            var categories = JsonSerializer.Deserialize(json, VaultJsonContext.Default.ListCategory) ?? [];
+            return categories.Where(category => category is not null)
+                .Select(ModelMigrations.Normalize)
+                .ToList();
         }
         catch (JsonException)
         {
@@ -582,9 +629,10 @@ public sealed class VaultService : IDisposable
     private VaultUnlockStatus EstablishSession(SecureBuffer dek)
     {
         List<PasswordEntry> loaded;
+        List<PasswordEntry> outdated = [];
         try
         {
-            loaded = LoadEntries(dek);
+            loaded = LoadEntries(dek, outdated);
         }
         catch (Exception exception) when (exception is CryptographicException or JsonException or InvalidDataException)
         {
@@ -599,6 +647,9 @@ public sealed class VaultService : IDisposable
 
         _dek?.Dispose();
         _dek = dek;
+
+        // Persist any payload upgrades now that the session key is in place.
+        PersistOutdatedEntries(outdated, dek);
 
         // Categories are decrypted with the session key, so load them only after
         // the DEK is in place.

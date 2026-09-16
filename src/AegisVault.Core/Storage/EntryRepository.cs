@@ -12,14 +12,23 @@ namespace AegisVault.Core.Storage;
 /// </summary>
 internal static class EntryRepository
 {
-    public const int EntryFormatVersion = 1;
+    /// <summary>
+    /// Current entry payload format. History:
+    /// v1 = initial payload (collections could be missing),
+    /// v2 = collections guaranteed non-null and always written.
+    /// </summary>
+    public const int EntryFormatVersion = 2;
 
     public static (byte[] Nonce, byte[] Ciphertext, byte[] Tag) Encrypt(ReadOnlySpan<byte> dek, PasswordEntry entry)
+        => Encrypt(dek, entry, EntryFormatVersion);
+
+    /// <summary>Encrypts with an explicit payload version (migrations/tests).</summary>
+    internal static (byte[] Nonce, byte[] Ciphertext, byte[] Tag) Encrypt(ReadOnlySpan<byte> dek, PasswordEntry entry, int version)
     {
         var json = JsonSerializer.SerializeToUtf8Bytes(entry, VaultJsonContext.Default.PasswordEntry);
         try
         {
-            return AesGcmCipher.Encrypt(dek, json, BuildAssociatedData(entry.Id, EntryFormatVersion));
+            return AesGcmCipher.Encrypt(dek, json, BuildAssociatedData(entry.Id, version));
         }
         finally
         {
@@ -41,20 +50,9 @@ internal static class EntryRepository
             var entry = JsonSerializer.Deserialize(json, VaultJsonContext.Default.PasswordEntry)
                 ?? throw new InvalidDataException("Entry payload is empty.");
 
-            // Source-generated JSON yields null for collection properties that
-            // are missing from older vault files (property initializers are not
-            // applied); normalize them so consumers can rely on non-null lists.
-            if (entry.Tags is null || entry.Urls is null || entry.CustomFields is null)
-            {
-                entry = entry with
-                {
-                    Tags = entry.Tags is null ? [] : entry.Tags,
-                    Urls = entry.Urls is null ? [] : entry.Urls,
-                    CustomFields = entry.CustomFields is null ? [] : entry.CustomFields,
-                };
-            }
-
-            return entry;
+            // Normalize missing members and apply version upgrades so callers
+            // always receive a fully populated model.
+            return ModelMigrations.UpgradeEntry(entry, version);
         }
         finally
         {

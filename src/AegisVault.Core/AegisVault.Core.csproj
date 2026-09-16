@@ -13,4 +13,8 @@
     <PackageReference Include="Sodium.Core" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="AegisVault.Core.Tests" />
+  </ItemGroup>
+
 </Project>

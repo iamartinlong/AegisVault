@@ -10,6 +10,7 @@
 ## 特性
 
 - 🔐 **零知识加密**：主密码仅用于派生密钥，数据以 AES-256-GCM 逐条认证加密，密码库文件不含任何明文
+- 🔄 **版本化数据迁移**：条目/设置负载带版本号并绑定 AAD；旧库解锁时自动归一化并一次性写回升级，旧版应用打开新库会明确报错（设计见 `docs/数据迁移设计.md`）
 - 🧮 **现代密钥派生**：Argon2id（64 MiB / 3 轮，盐 16B）派生 KEK；分层密钥体系（KEK 包裹 DEK），改主密码无需全量重加密
 - 🧠 **安全内存**：密钥存放于 libsodium 安全内存（`sodium_malloc` + 锁定 + 只读保护），退出/锁定时强制清零
 - 📝 **条目管理**：标题/用户名/密码/网址/备注/标签/自定义字段，实时搜索、收藏置顶、预览与编辑分离；详情显示创建时间**与多条网址（逐条可点击打开）**；删除需确认；标题必填、网址自动补全并校验 http/https
@@ -40,7 +41,7 @@
 | 存储 | SQLite（Microsoft.Data.Sqlite 10.0.12 + SQLitePCLRaw 2.1.12 / SQLite 3.53.3） |
 | 密码学 | libsodium（Sodium.Core，Argon2id）+ BCL AES-256-GCM |
 | 平台安全 | Windows DPAPI / CredUI（macOS Keychain、Linux libsecret 预留接口） |
-| 测试 | xUnit（281 项：Core / Platform / Headless UI） |
+| 测试 | xUnit（291 项：Core / Platform / Headless UI） |
 
 ## 快速开始
 
@@ -53,7 +54,7 @@ dotnet build -c Release
 # 运行（开发）
 dotnet run --project src/AegisVault.App
 
-# 测试（281 项）
+# 测试（291 项）
 dotnet test -c Release
 
 # NativeAOT 单文件发布（示例：Windows x64）
