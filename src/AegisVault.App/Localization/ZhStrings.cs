@@ -107,7 +107,7 @@ internal static class ZhStrings
         ["Main_Lock"] = "锁定",
         ["Main_Locked"] = "密码库已锁定",
         ["Main_LockedHint"] = "内容已在内存中清除，输入主密码即可继续。",
-        ["Main_NewEntry"] = "＋ 新建条目",
+        ["Main_NewEntry"] = "新建条目",
         ["Main_NewEntryTitle"] = "新条目",
         ["Main_Notes"] = "备注",
         ["Main_Password"] = "密码",

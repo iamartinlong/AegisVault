@@ -107,7 +107,7 @@ internal static class EnStrings
         ["Main_Lock"] = "Lock",
         ["Main_Locked"] = "Vault locked",
         ["Main_LockedHint"] = "Contents were wiped from memory. Enter your master password to continue.",
-        ["Main_NewEntry"] = "＋ New entry",
+        ["Main_NewEntry"] = "New entry",
         ["Main_NewEntryTitle"] = "New entry",
         ["Main_Notes"] = "Notes",
         ["Main_Password"] = "Password",

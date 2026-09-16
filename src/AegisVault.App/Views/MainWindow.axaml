@@ -381,17 +381,16 @@
                                         </Border>
                                         <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
                                             <StackPanel Orientation="Horizontal" Spacing="6">
-                                                <ContentControl VerticalAlignment="Center"
-                                                                IsVisible="{Binding IsFavorite}"
-                                                                Content="{antd:AntDesignIconProvider StarFilled}">
-                                                    <ContentControl.Styles>
-                                                        <Style Selector="PathIcon">
-                                                            <Setter Property="Width" Value="12" />
-                                                            <Setter Property="Height" Value="12" />
-                                                            <Setter Property="Foreground" Value="#FAAD14" />
-                                                        </Style>
-                                                    </ContentControl.Styles>
-                                                </ContentControl>
+                                                <!-- AtomUI icons inherit Foreground from their host; type selectors never match them. -->
+                                                <!-- Colored via Button.Foreground: AtomUI icons ignore host inheritance and PathIcon styles. -->
+                                                <atom:Button ButtonType="Text"
+                                                             IsVisible="{Binding IsFavorite}"
+                                                             IsHitTestVisible="False"
+                                                             Width="16" Height="16"
+                                                             MinWidth="0" MinHeight="0"
+                                                             Padding="0"
+                                                             Foreground="{atom:SharedTokenResource ColorPrimary}"
+                                                             Icon="{antd:AntDesignIconProvider StarFilled}" />
                                                 <TextBlock Text="{Binding Title}"
                                                            FontSize="14"
                                                            FontWeight="Medium"
@@ -464,11 +463,19 @@
                                                    FontSize="20"
                                                    FontWeight="SemiBold"
                                                    TextWrapping="Wrap" />
-                                        <atom:Button Grid.Column="1"
-                                                     ButtonType="Text"
-                                                     Icon="{antd:AntDesignIconProvider StarOutlined}"
-                                                     ToolTip.Tip="{loc:Str Main_FavoriteToggle}"
-                                                     Command="{Binding ToggleFavoriteCommand}" />
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="0">
+                                            <atom:Button ButtonType="Text"
+                                                         IsVisible="{Binding EditIsFavorite}"
+                                                         Foreground="{atom:SharedTokenResource ColorPrimary}"
+                                                         Icon="{antd:AntDesignIconProvider StarFilled}"
+                                                         ToolTip.Tip="{loc:Str Main_FavoriteToggle}"
+                                                         Command="{Binding ToggleFavoriteCommand}" />
+                                            <atom:Button ButtonType="Text"
+                                                         IsVisible="{Binding !EditIsFavorite}"
+                                                         Icon="{antd:AntDesignIconProvider StarOutlined}"
+                                                         ToolTip.Tip="{loc:Str Main_FavoriteToggle}"
+                                                         Command="{Binding ToggleFavoriteCommand}" />
+                                        </StackPanel>
                                     </Grid>
 
                                     <Border BorderBrush="{DynamicResource AegisHairlineBrush}" BorderThickness="0,0,0,1" Padding="0,10">
