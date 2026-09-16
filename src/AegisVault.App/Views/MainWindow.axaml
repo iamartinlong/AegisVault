@@ -365,7 +365,8 @@
                                                  IsArrowVisible="False"
                                                  IsShowOpenIndicator="False"
                                                  Icon="{antd:AntDesignIconProvider SortAscendingOutlined}"
-                                                 ToolTip.Tip="{loc:Str Main_Sort}">
+                                                 ToolTip.Tip="{loc:Str Main_Sort}"
+                                                 Click="OnSortButtonClicked">
                                 <atom:DropdownButton.DropdownFlyout>
                                     <atom:MenuFlyout Opened="OnSortFlyoutOpened">
                                         <atom:MenuItem x:Name="SortByNameItem"

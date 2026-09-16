@@ -280,6 +280,18 @@ public partial class MainWindow : Window
         }
     }
 
+    private void OnSortButtonClicked(object? sender, RoutedEventArgs e)
+    {
+        // Pointer presses open the flyout through FlyoutStateHelper; this path
+        // only ends up here for keyboard activation (Space/Enter), which keeps
+        // sorting reachable without a mouse.
+        var flyout = SortButton.DropdownFlyout;
+        if (flyout is not null && !flyout.IsOpen)
+        {
+            flyout.ShowAt(SortButton);
+        }
+    }
+
     private void OnSortFlyoutOpened(object? sender, EventArgs e)
     {
         if (DataContext is not MainViewModel viewModel)
