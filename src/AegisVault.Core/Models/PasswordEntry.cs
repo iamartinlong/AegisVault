@@ -34,4 +34,10 @@ public sealed record PasswordEntry
     public DateTimeOffset CreatedAt { get; init; } = DateTimeOffset.UtcNow;
 
     public DateTimeOffset UpdatedAt { get; init; } = DateTimeOffset.UtcNow;
+
+    /// <summary>
+    /// Redacts secrets: the compiler-generated record dump (which the UI automation
+    /// tree picks up as the list item name) would otherwise expose the password.
+    /// </summary>
+    public override string ToString() => $"PasswordEntry({Title})";
 }

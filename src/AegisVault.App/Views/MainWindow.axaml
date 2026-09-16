@@ -396,7 +396,10 @@
                                  SelectedItem="{Binding SelectedEntry}">
                             <ListBox.ItemTemplate>
                                 <DataTemplate DataType="models:PasswordEntry">
-                                    <Grid ColumnDefinitions="Auto,*,Auto">
+                                    <!-- Keep only the title in the automation tree; the default name
+                                         would be the entry record dump (with password). -->
+                                    <Grid ColumnDefinitions="Auto,*,Auto"
+                                          AutomationProperties.Name="{Binding Title}">
                                         <Border Grid.Column="0"
                                                 Width="36" Height="36"
                                                 CornerRadius="10"

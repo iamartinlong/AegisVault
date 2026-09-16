@@ -24,6 +24,25 @@ public sealed class ModelMigrationsTests
     }
 
     [Fact]
+    public void EntryToStringDoesNotLeakSecrets()
+    {
+        var entry = new PasswordEntry
+        {
+            Title = "GitHub",
+            Username = "octocat",
+            Password = "s3cret-value",
+            TotpSecret = "JBSWY3DPEHPK3PXP",
+        };
+
+        var text = entry.ToString();
+
+        Assert.Contains("GitHub", text);
+        Assert.DoesNotContain("s3cret-value", text);
+        Assert.DoesNotContain("JBSWY3DPEHPK3PXP", text);
+        Assert.DoesNotContain("octocat", text);
+    }
+
+    [Fact]
     public void UpgradeFromV1FillsEveryCollectionAndKeepsData()
     {
         var legacy = JsonSerializer.Deserialize(
