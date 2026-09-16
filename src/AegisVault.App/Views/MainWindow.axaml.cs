@@ -144,7 +144,7 @@ public partial class MainWindow : Window
         }
         else if (!ctrl && e.Key == Key.Delete && !focusedIsTextBox)
         {
-            viewModel.DeleteEntryCommand.Execute(null);
+            _ = ConfirmDeleteEntryAsync();
             e.Handled = true;
         }
         else if (e.Key == Key.Escape && viewModel.IsEditing)
@@ -160,6 +160,31 @@ public partial class MainWindow : Window
 
     private void OnRowCopyUsernameClicked(object? sender, RoutedEventArgs e)
         => InvokeForRow(sender, viewModel => viewModel.CopyUsernameCommand.Execute(null));
+
+    private async void OnDeleteEntryClicked(object? sender, RoutedEventArgs e)
+        => await ConfirmDeleteEntryAsync();
+
+    private async Task ConfirmDeleteEntryAsync()
+    {
+        if (DataContext is not MainViewModel viewModel || viewModel.SelectedEntry is not { } entry)
+        {
+            return;
+        }
+
+        try
+        {
+            var dialog = new ConfirmWindow(
+                Loc.T("Main_DeleteEntryTitle"),
+                Loc.Format("Main_DeleteEntryMessage", entry.Title));
+            if (await dialog.ShowDialog<bool>(this))
+            {
+                viewModel.DeleteEntryCommand.Execute(null);
+            }
+        }
+        catch (Exception)
+        {
+        }
+    }
 
     private void OnSettingsClicked(object? sender, RoutedEventArgs e) => _openSettings?.Invoke();
 

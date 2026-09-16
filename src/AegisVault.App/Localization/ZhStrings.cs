@@ -70,6 +70,8 @@ internal static class ZhStrings
         ["Main_CategoryMissing"] = "分类已不存在。",
         ["Main_DeleteCategoryMessage"] = "删除分类“{0}”？该分类下的条目将变为未分类。",
         ["Main_DeleteCategoryTitle"] = "删除分类",
+        ["Main_DeleteEntryMessage"] = "删除条目“{0}”？此操作无法撤销。",
+        ["Main_DeleteEntryTitle"] = "删除条目",
         ["Main_DeleteCategoryTooltip"] = "删除分类",
         ["Main_NewCategory"] = "＋ 新建分类",
         ["Main_NewCategoryTitle"] = "新建分类",

@@ -70,6 +70,8 @@ internal static class EnStrings
         ["Main_CategoryMissing"] = "The category no longer exists.",
         ["Main_DeleteCategoryMessage"] = "Delete category “{0}”? Its entries will become uncategorized.",
         ["Main_DeleteCategoryTitle"] = "Delete category",
+        ["Main_DeleteEntryMessage"] = "Delete entry “{0}”? This cannot be undone.",
+        ["Main_DeleteEntryTitle"] = "Delete entry",
         ["Main_DeleteCategoryTooltip"] = "Delete category",
         ["Main_NewCategory"] = "＋ New category",
         ["Main_NewCategoryTitle"] = "New category",

@@ -595,7 +595,7 @@
                                         <atom:Button ButtonType="Default"
                                                      Icon="{antd:AntDesignIconProvider DeleteOutlined}"
                                                      Content="{loc:Str Common_Delete}"
-                                                     Command="{Binding DeleteEntryCommand}" />
+                                                     Click="OnDeleteEntryClicked" />
                                     </StackPanel>
                                 </StackPanel>
 
