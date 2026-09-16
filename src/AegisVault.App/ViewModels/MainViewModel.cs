@@ -245,6 +245,15 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     public bool HasFilteredEntries => FilteredEntries.Count > 0;
 
+    /// <summary>True when the vault itself has no entries (welcome hero shows).</summary>
+    public bool IsVaultEmpty => Entries.Count == 0;
+
+    /// <summary>True when the vault has entries but none match the current view/search.</summary>
+    public bool ShowListEmptyHint => Entries.Count > 0 && FilteredEntries.Count == 0;
+
+    /// <summary>The "select an entry" placeholder is only meaningful for a non-empty vault.</summary>
+    public bool ShowSelectEntryHint => !HasSelection && !IsVaultEmpty;
+
     public bool HasTotp => !string.IsNullOrWhiteSpace(EditTotpSecret);
 
     public bool IsTotpValid => TotpCode.Length is 6 or 8 && TotpCode.All(char.IsDigit);
@@ -319,6 +328,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         IsPasswordRevealed = false;
         LoadEditor(value);
         OnPropertyChanged(nameof(HasSelection));
+        OnPropertyChanged(nameof(ShowSelectEntryHint));
     }
 
     partial void OnEditTotpSecretChanged(string value)
@@ -881,6 +891,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
         OnPropertyChanged(nameof(HasFilteredEntries));
         OnPropertyChanged(nameof(FilteredCountText));
+        OnPropertyChanged(nameof(IsVaultEmpty));
+        OnPropertyChanged(nameof(ShowListEmptyHint));
+        OnPropertyChanged(nameof(ShowSelectEntryHint));
     }
 
     private bool MatchesCategory(PasswordEntry entry)

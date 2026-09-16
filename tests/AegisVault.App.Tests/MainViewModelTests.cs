@@ -60,6 +60,43 @@ public sealed class MainViewModelTests : IDisposable
     });
 
     [Fact]
+    public Task EmptyVaultShowsWelcomeHeroInsteadOfHints() => Headless.Run(() =>
+    {
+        var vault = VaultService.CreateNew(_vaultPath, Password, FastOptions);
+        using var viewModel = new MainViewModel(vault);
+
+        Assert.True(viewModel.IsVaultEmpty);
+        Assert.False(viewModel.ShowListEmptyHint);
+        Assert.False(viewModel.ShowSelectEntryHint);
+
+        viewModel.AddEntryCommand.Execute(null);
+
+        Assert.False(viewModel.IsVaultEmpty);
+        Assert.False(viewModel.ShowSelectEntryHint);
+
+        viewModel.SelectedEntry = null;
+        Assert.True(viewModel.ShowSelectEntryHint);
+    });
+
+    [Fact]
+    public Task ListEmptyHintOnlyShowsForNonEmptyVaults() => Headless.Run(() =>
+    {
+        using var vault = CreateVaultWithEntries();
+        using var viewModel = new MainViewModel(vault);
+
+        Assert.False(viewModel.ShowListEmptyHint);
+
+        viewModel.SearchText = "no-such-entry";
+
+        Assert.True(viewModel.ShowListEmptyHint);
+        Assert.Empty(viewModel.FilteredEntries);
+
+        viewModel.SearchText = string.Empty;
+
+        Assert.False(viewModel.ShowListEmptyHint);
+    });
+
+    [Fact]
     public Task SelectingEntryPopulatesEditorAndSaves() => Headless.Run(() =>
     {
         using var vault = CreateVaultWithEntries();

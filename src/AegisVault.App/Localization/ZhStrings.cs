@@ -94,6 +94,7 @@ internal static class ZhStrings
         ["Main_CopyTotpTip"] = "复制验证码",
         ["Main_CopyUsernameTip"] = "复制用户名",
         ["Main_EmptyList"] = "没有可显示的条目",
+        ["Main_EmptyVaultHint"] = "还没有条目。创建第一条记录开始使用——数据仅保存在本机并加密。",
         ["Main_EntryCountFormat"] = "共 {0} 条",
         ["Main_Favorite"] = "收藏",
         ["Main_FavoriteToggle"] = "收藏 / 取消",

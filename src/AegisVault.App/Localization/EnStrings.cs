@@ -94,6 +94,7 @@ internal static class EnStrings
         ["Main_CopyTotpTip"] = "Copy code",
         ["Main_CopyUsernameTip"] = "Copy username",
         ["Main_EmptyList"] = "No entries to display",
+        ["Main_EmptyVaultHint"] = "No entries yet. Create your first item to get started - everything stays encrypted on this device.",
         ["Main_EntryCountFormat"] = "{0} items",
         ["Main_Favorite"] = "Favorite",
         ["Main_FavoriteToggle"] = "Favorite / Unfavorite",

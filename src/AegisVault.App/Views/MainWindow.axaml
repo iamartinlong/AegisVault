@@ -295,6 +295,7 @@
                         </StackPanel>
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                             <atom:LineEdit x:Name="SearchBox"
+                                           AutomationProperties.AutomationId="SearchBox"
                                            Width="290"
                                            PlaceholderText="{loc:Str Main_SearchPlaceholder}"
                                            Text="{Binding SearchText}">
@@ -389,6 +390,7 @@
                 <Grid Grid.Row="2" ColumnDefinitions="360,1,*">
                     <Panel Grid.Column="0" Margin="8,8,4,8">
                         <ListBox Classes="entries"
+                                 AutomationProperties.AutomationId="EntriesList"
                                  Background="Transparent"
                                  ItemsSource="{Binding FilteredEntries}"
                                  SelectedItem="{Binding SelectedEntry}">
@@ -456,16 +458,49 @@
                                    HorizontalAlignment="Center"
                                    VerticalAlignment="Center"
                                    Opacity="0.45"
-                                   IsVisible="{Binding !HasFilteredEntries}" />
+                                   IsVisible="{Binding ShowListEmptyHint}" />
                     </Panel>
 
                     <Border Grid.Column="1" Background="{DynamicResource AegisHairlineBrush}" />
 
                     <Panel Grid.Column="2" Margin="26,16,12,18">
+                        <!-- Empty vault: welcome hero with the first-run CTA. -->
+                        <StackPanel HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Spacing="12"
+                                    MaxWidth="380"
+                                    IsVisible="{Binding IsVaultEmpty}">
+                            <atom:Button ButtonType="Text"
+                                         IsHitTestVisible="False"
+                                         Focusable="False"
+                                         Width="44" Height="44"
+                                         MinWidth="0" MinHeight="0"
+                                         Padding="0"
+                                         HorizontalAlignment="Center"
+                                         Foreground="{atom:SharedTokenResource ColorPrimary}"
+                                         Icon="{antd:AntDesignIconProvider SafetyCertificateOutlined}" />
+                            <TextBlock Text="{loc:Str Main_WelcomeTitle}"
+                                       FontSize="18"
+                                       FontWeight="SemiBold"
+                                       HorizontalAlignment="Center" />
+                            <TextBlock Text="{loc:Str Main_EmptyVaultHint}"
+                                       FontSize="13"
+                                       Opacity="0.55"
+                                       TextAlignment="Center"
+                                       TextWrapping="Wrap"
+                                       HorizontalAlignment="Center" />
+                            <atom:Button ButtonType="Primary"
+                                         HorizontalAlignment="Center"
+                                         Margin="0,4,0,0"
+                                         Icon="{antd:AntDesignIconProvider PlusOutlined}"
+                                         Content="{loc:Str Main_NewEntry}"
+                                         Command="{Binding AddEntryCommand}" />
+                        </StackPanel>
+
                         <StackPanel HorizontalAlignment="Center"
                                     VerticalAlignment="Center"
                                     Spacing="10"
-                                    IsVisible="{Binding !HasSelection}">
+                                    IsVisible="{Binding ShowSelectEntryHint}">
                             <ContentControl HorizontalAlignment="Center"
                                             Content="{antd:AntDesignIconProvider FileSearchOutlined}">
                                 <ContentControl.Styles>
