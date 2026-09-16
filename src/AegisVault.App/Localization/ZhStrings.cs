@@ -113,6 +113,7 @@ internal static class ZhStrings
         ["Main_Password"] = "密码",
         ["Main_SearchPlaceholder"] = "搜索标题、用户名、网址、标签",
         ["Main_SectionViews"] = "智能视图",
+        ["Main_Sort"] = "排序",
         ["Main_SortName"] = "名称",
         ["Main_SortRecent"] = "最近更新",
         ["Main_ToggleTheme"] = "切换浅色 / 深色",

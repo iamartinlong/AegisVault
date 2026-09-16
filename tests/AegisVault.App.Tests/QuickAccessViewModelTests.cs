@@ -3,6 +3,7 @@ using AegisVault.App.ViewModels;
 using AegisVault.App.Views;
 using AegisVault.Core.Models;
 using AegisVault.Core.Services;
+using Avalonia.Controls;
 using Xunit;
 
 namespace AegisVault.App.Tests;
@@ -247,6 +248,9 @@ public sealed class QuickAccessViewModelTests : IDisposable
             var window = new QuickAccessWindow { DataContext = viewModel };
 
             Assert.NotNull(window);
+            var search = window.FindControl<AtomUI.Desktop.Controls.LineEdit>("SearchBox");
+            Assert.NotNull(search);
+            Assert.NotNull(search!.InnerLeftContent);
         }
         finally
         {

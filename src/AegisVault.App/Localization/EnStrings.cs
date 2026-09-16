@@ -113,6 +113,7 @@ internal static class EnStrings
         ["Main_Password"] = "Password",
         ["Main_SearchPlaceholder"] = "Search title, username, URL, tags",
         ["Main_SectionViews"] = "Smart views",
+        ["Main_Sort"] = "Sort",
         ["Main_SortName"] = "Name",
         ["Main_SortRecent"] = "Last updated",
         ["Main_ToggleTheme"] = "Toggle light / dark",

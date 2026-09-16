@@ -298,7 +298,20 @@
                             <atom:LineEdit x:Name="SearchBox"
                                            Width="290"
                                            PlaceholderText="{loc:Str Main_SearchPlaceholder}"
-                                           Text="{Binding SearchText}" />
+                                           Text="{Binding SearchText}">
+                                <!-- Prefix icon: AtomUI icons ignore host inheritance (P-06), so the
+                                     colour is forwarded through a non-interactive button's Foreground. -->
+                                <atom:LineEdit.InnerLeftContent>
+                                    <atom:Button ButtonType="Text"
+                                                 IsHitTestVisible="False"
+                                                 Focusable="False"
+                                                 Width="16" Height="16"
+                                                 MinWidth="0" MinHeight="0"
+                                                 Padding="0"
+                                                 Foreground="{atom:SharedTokenResource ColorTextTertiary}"
+                                                 Icon="{antd:AntDesignIconProvider SearchOutlined}" />
+                                </atom:LineEdit.InnerLeftContent>
+                            </atom:LineEdit>
                             <atom:Button ButtonType="Default"
                                          Icon="{antd:AntDesignIconProvider ExperimentOutlined}"
                                          Content="{loc:Str Main_Generator}"
@@ -345,14 +358,29 @@
                                    HorizontalAlignment="Center"
                                    VerticalAlignment="Center" />
                         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6">
-                            <Button Classes="chip"
-                                    Classes.active="{Binding IsSortByName}"
-                                    Content="{loc:Str Main_SortName}"
-                                    Command="{Binding SortByNameCommand}" />
-                            <Button Classes="chip"
-                                    Classes.active="{Binding IsSortByRecent}"
-                                    Content="{loc:Str Main_SortRecent}"
-                                    Command="{Binding SortByRecentCommand}" />
+                            <atom:DropdownButton Name="SortButton"
+                                                 AutomationProperties.AutomationId="SortButton"
+                                                 ButtonType="Text"
+                                                 TriggerType="Click"
+                                                 IsArrowVisible="False"
+                                                 IsShowOpenIndicator="False"
+                                                 Icon="{antd:AntDesignIconProvider SortAscendingOutlined}"
+                                                 ToolTip.Tip="{loc:Str Main_Sort}">
+                                <atom:DropdownButton.DropdownFlyout>
+                                    <atom:MenuFlyout Opened="OnSortFlyoutOpened">
+                                        <atom:MenuItem x:Name="SortByNameItem"
+                                                       Header="{loc:Str Main_SortName}"
+                                                       ToggleType="Radio"
+                                                       GroupName="SortMode"
+                                                       Click="OnSortByNameClicked" />
+                                        <atom:MenuItem x:Name="SortByRecentItem"
+                                                       Header="{loc:Str Main_SortRecent}"
+                                                       ToggleType="Radio"
+                                                       GroupName="SortMode"
+                                                       Click="OnSortByRecentClicked" />
+                                    </atom:MenuFlyout>
+                                </atom:DropdownButton.DropdownFlyout>
+                            </atom:DropdownButton>
                         </StackPanel>
                     </Grid>
                 </Border>

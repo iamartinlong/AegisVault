@@ -280,6 +280,25 @@ public partial class MainWindow : Window
         }
     }
 
+    private void OnSortFlyoutOpened(object? sender, EventArgs e)
+    {
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        // The flyout lives outside the normal binding scope, so the radio
+        // state is synced explicitly whenever the menu opens.
+        SortByNameItem.IsChecked = viewModel.IsSortByName;
+        SortByRecentItem.IsChecked = viewModel.IsSortByRecent;
+    }
+
+    private void OnSortByNameClicked(object? sender, RoutedEventArgs e)
+        => (DataContext as MainViewModel)?.SortByNameCommand.Execute(null);
+
+    private void OnSortByRecentClicked(object? sender, RoutedEventArgs e)
+        => (DataContext as MainViewModel)?.SortByRecentCommand.Execute(null);
+
     private void InvokeForRow(object? sender, Action<MainViewModel> action)
     {
         if (sender is Button { DataContext: PasswordEntry entry } && DataContext is MainViewModel viewModel)
