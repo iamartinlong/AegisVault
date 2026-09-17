@@ -22,6 +22,18 @@ public sealed record PasswordEntry
 
     public string TotpSecret { get; init; } = string.Empty;
 
+    /// <summary>Optional contact phone number (payload v3, shown in clear).</summary>
+    public string Phone { get; init; } = string.Empty;
+
+    /// <summary>Optional application id / client id (payload v3, shown in clear).</summary>
+    public string AppId { get; init; } = string.Empty;
+
+    /// <summary>Optional client secret (payload v3, masked by the UI).</summary>
+    public string Secret { get; init; } = string.Empty;
+
+    /// <summary>Optional API key (payload v3, masked by the UI).</summary>
+    public string ApiKey { get; init; } = string.Empty;
+
     public List<string> Tags { get; init; } = [];
 
     /// <summary>Single-assignment category; null means "uncategorized".</summary>

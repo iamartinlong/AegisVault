@@ -174,6 +174,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private bool isPasswordRevealed;
 
     [ObservableProperty]
+    private bool isSecretRevealed;
+
+    [ObservableProperty]
+    private bool isApiKeyRevealed;
+
+    [ObservableProperty]
     private string editTitle = string.Empty;
 
     [ObservableProperty]
@@ -190,6 +196,18 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     private string editTotpSecret = string.Empty;
+
+    [ObservableProperty]
+    private string editPhone = string.Empty;
+
+    [ObservableProperty]
+    private string editAppId = string.Empty;
+
+    [ObservableProperty]
+    private string editSecret = string.Empty;
+
+    [ObservableProperty]
+    private string editApiKey = string.Empty;
 
     [ObservableProperty]
     private string editTags = string.Empty;
@@ -261,6 +279,16 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public string PasswordPreview => IsPasswordRevealed
         ? EditPassword
         : new string('●', Math.Clamp(EditPassword.Length, 6, 14));
+
+    /// <summary>Masked preview of the client secret; revealed on demand only.</summary>
+    public string SecretPreview => IsSecretRevealed ? EditSecret : MaskValue(EditSecret);
+
+    /// <summary>Masked preview of the API key; revealed on demand only.</summary>
+    public string ApiKeyPreview => IsApiKeyRevealed ? EditApiKey : MaskValue(EditApiKey);
+
+    /// <summary>Shared masking helper so no field can forget to hide its value.</summary>
+    public static string MaskValue(string? value)
+        => new('●', Math.Clamp(value?.Length ?? 0, 6, 14));
 
     public string EditPasswordStrengthSummary => _editPasswordStrength is null
         ? string.Empty
@@ -340,6 +368,14 @@ public partial class MainViewModel : ObservableObject, IDisposable
     partial void OnTotpCodeChanged(string value) => OnPropertyChanged(nameof(IsTotpValid));
 
     partial void OnIsPasswordRevealedChanged(bool value) => OnPropertyChanged(nameof(PasswordPreview));
+
+    partial void OnIsSecretRevealedChanged(bool value) => OnPropertyChanged(nameof(SecretPreview));
+
+    partial void OnIsApiKeyRevealedChanged(bool value) => OnPropertyChanged(nameof(ApiKeyPreview));
+
+    partial void OnEditSecretChanged(string value) => OnPropertyChanged(nameof(SecretPreview));
+
+    partial void OnEditApiKeyChanged(string value) => OnPropertyChanged(nameof(ApiKeyPreview));
 
     partial void OnEditPasswordChanged(string value)
     {
@@ -473,6 +509,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
             Urls = urls,
             Notes = EditNotes,
             TotpSecret = EditTotpSecret.Trim(),
+            Phone = EditPhone.Trim(),
+            AppId = EditAppId.Trim(),
+            Secret = EditSecret.Trim(),
+            ApiKey = EditApiKey.Trim(),
             Tags = ParseTags(EditTags),
             IsFavorite = EditIsFavorite,
             CategoryId = SelectedCategoryChoice?.Id,
@@ -541,6 +581,25 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     [RelayCommand]
     private void TogglePasswordReveal() => IsPasswordRevealed = !IsPasswordRevealed;
+
+    [RelayCommand]
+    private void ToggleSecretReveal() => IsSecretRevealed = !IsSecretRevealed;
+
+    [RelayCommand]
+    private void ToggleApiKeyReveal() => IsApiKeyRevealed = !IsApiKeyRevealed;
+
+    /// <summary>Copies an explicit value (used by the extra credential rows).</summary>
+    [RelayCommand]
+    private async Task CopyValueAsync(string? value)
+    {
+        if (_clipboard is null || string.IsNullOrWhiteSpace(value))
+        {
+            return;
+        }
+
+        await _clipboard.CopyAsync(value.Trim());
+        StatusMessage = Loc.T("Main_StatusFieldCopied");
+    }
 
     [RelayCommand]
     private void ShowSecurity()
@@ -938,8 +997,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
             return true;
         }
 
+        // Secrets (Password/Secret/ApiKey) never participate in search so they
+        // cannot leak into the quick-access list or the results header.
         return Contains(entry.Title, query) ||
                Contains(entry.Username, query) ||
+               Contains(entry.Phone, query) ||
+               Contains(entry.AppId, query) ||
                Contains(entry.Url, query) ||
                (entry.Urls?.Any(url => Contains(url, query)) ?? false) ||
                entry.Tags.Any(tag => Contains(tag, query));
@@ -963,6 +1026,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
             EditNotes = entry?.Notes ?? string.Empty;
             EditTotpSecret = entry?.TotpSecret ?? string.Empty;
+            EditPhone = entry?.Phone ?? string.Empty;
+            EditAppId = entry?.AppId ?? string.Empty;
+            EditSecret = entry?.Secret ?? string.Empty;
+            EditApiKey = entry?.ApiKey ?? string.Empty;
             EditTags = entry is null ? string.Empty : string.Join(", ", entry.Tags);
             EditIsFavorite = entry?.IsFavorite ?? false;
             SelectedCategoryChoice = CategoryChoices.FirstOrDefault(choice => choice.Id == entry?.CategoryId)
@@ -980,7 +1047,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
         }
 
         IsPasswordRevealed = false;
+        IsSecretRevealed = false;
+        IsApiKeyRevealed = false;
         OnPropertyChanged(nameof(PasswordPreview));
+        OnPropertyChanged(nameof(SecretPreview));
+        OnPropertyChanged(nameof(ApiKeyPreview));
         UpdateTotp();
     }
 

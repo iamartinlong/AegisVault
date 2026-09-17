@@ -36,6 +36,8 @@ internal static class ModelMigrations
 
         // v1 -> v2: collection members (Tags/Urls/CustomFields) may be missing
         // from the payload; v2 guarantees non-null collections.
+        // v2 -> v3: added scalar credential fields (Phone/AppId/Secret/ApiKey);
+        // older payloads simply lack them and normalize to empty strings.
         return Normalize(entry);
     }
 
@@ -48,6 +50,10 @@ internal static class ModelMigrations
         Url = entry.Url ?? string.Empty,
         Notes = entry.Notes ?? string.Empty,
         TotpSecret = entry.TotpSecret ?? string.Empty,
+        Phone = entry.Phone ?? string.Empty,
+        AppId = entry.AppId ?? string.Empty,
+        Secret = entry.Secret ?? string.Empty,
+        ApiKey = entry.ApiKey ?? string.Empty,
         Tags = entry.Tags is null ? [] : entry.Tags,
         Urls = entry.Urls is null ? [] : entry.Urls,
         CustomFields = entry.CustomFields is null ? [] : entry.CustomFields,

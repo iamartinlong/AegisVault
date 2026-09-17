@@ -639,6 +639,96 @@
                                         </Grid>
                                     </Border>
 
+                                    <Border BorderBrush="{DynamicResource AegisHairlineBrush}"
+                                            BorderThickness="0,0,0,1"
+                                            Padding="0,10"
+                                            IsVisible="{Binding EditPhone, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                        <Grid ColumnDefinitions="96,*,Auto">
+                                            <TextBlock Grid.Column="0" Classes="field" Text="{loc:Str Main_Phone}" />
+                                            <SelectableTextBlock Grid.Column="1"
+                                                                 Text="{Binding EditPhone}"
+                                                                 TextWrapping="Wrap"
+                                                                 VerticalAlignment="Center" />
+                                            <atom:Button Grid.Column="2"
+                                                         ButtonType="Text"
+                                                         Icon="{antd:AntDesignIconProvider CopyOutlined}"
+                                                         ToolTip.Tip="{loc:Str Common_Copy}"
+                                                         Command="{Binding CopyValueCommand}"
+                                                         CommandParameter="{Binding EditPhone}" />
+                                        </Grid>
+                                    </Border>
+
+                                    <Border BorderBrush="{DynamicResource AegisHairlineBrush}"
+                                            BorderThickness="0,0,0,1"
+                                            Padding="0,10"
+                                            IsVisible="{Binding EditAppId, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                        <Grid ColumnDefinitions="96,*,Auto">
+                                            <TextBlock Grid.Column="0" Classes="field" Text="{loc:Str Main_AppId}" />
+                                            <SelectableTextBlock Grid.Column="1"
+                                                                 Text="{Binding EditAppId}"
+                                                                 TextWrapping="Wrap"
+                                                                 VerticalAlignment="Center" />
+                                            <atom:Button Grid.Column="2"
+                                                         ButtonType="Text"
+                                                         Icon="{antd:AntDesignIconProvider CopyOutlined}"
+                                                         ToolTip.Tip="{loc:Str Common_Copy}"
+                                                         Command="{Binding CopyValueCommand}"
+                                                         CommandParameter="{Binding EditAppId}" />
+                                        </Grid>
+                                    </Border>
+
+                                    <Border BorderBrush="{DynamicResource AegisHairlineBrush}"
+                                            BorderThickness="0,0,0,1"
+                                            Padding="0,10"
+                                            IsVisible="{Binding EditSecret, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                        <Grid ColumnDefinitions="96,*,Auto">
+                                            <TextBlock Grid.Column="0" Classes="field" Text="{loc:Str Main_Secret}" />
+                                            <SelectableTextBlock Grid.Column="1"
+                                                                 Text="{Binding SecretPreview}"
+                                                                 FontFamily="Consolas, Menlo, monospace"
+                                                                 TextWrapping="Wrap"
+                                                                 VerticalAlignment="Center" />
+                                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="0">
+                                                <atom:Button ButtonType="Text"
+                                                             AutomationProperties.AutomationId="RevealSecret"
+                                                             Icon="{antd:AntDesignIconProvider EyeOutlined}"
+                                                             ToolTip.Tip="{loc:Str Common_Reveal}"
+                                                             Command="{Binding ToggleSecretRevealCommand}" />
+                                                <atom:Button ButtonType="Text"
+                                                             Icon="{antd:AntDesignIconProvider CopyOutlined}"
+                                                             ToolTip.Tip="{loc:Str Common_Copy}"
+                                                             Command="{Binding CopyValueCommand}"
+                                                             CommandParameter="{Binding EditSecret}" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+
+                                    <Border BorderBrush="{DynamicResource AegisHairlineBrush}"
+                                            BorderThickness="0,0,0,1"
+                                            Padding="0,10"
+                                            IsVisible="{Binding EditApiKey, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                        <Grid ColumnDefinitions="96,*,Auto">
+                                            <TextBlock Grid.Column="0" Classes="field" Text="{loc:Str Main_ApiKey}" />
+                                            <SelectableTextBlock Grid.Column="1"
+                                                                 Text="{Binding ApiKeyPreview}"
+                                                                 FontFamily="Consolas, Menlo, monospace"
+                                                                 TextWrapping="Wrap"
+                                                                 VerticalAlignment="Center" />
+                                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="0">
+                                                <atom:Button ButtonType="Text"
+                                                             AutomationProperties.AutomationId="RevealApiKey"
+                                                             Icon="{antd:AntDesignIconProvider EyeOutlined}"
+                                                             ToolTip.Tip="{loc:Str Common_Reveal}"
+                                                             Command="{Binding ToggleApiKeyRevealCommand}" />
+                                                <atom:Button ButtonType="Text"
+                                                             Icon="{antd:AntDesignIconProvider CopyOutlined}"
+                                                             ToolTip.Tip="{loc:Str Common_Copy}"
+                                                             Command="{Binding CopyValueCommand}"
+                                                             CommandParameter="{Binding EditApiKey}" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+
                                     <Border BorderBrush="{DynamicResource AegisHairlineBrush}" BorderThickness="0,0,0,1" Padding="0,10">
                                         <Grid ColumnDefinitions="96,*,Auto">
                                             <TextBlock Grid.Column="0" Classes="field" Text="{loc:Str Main_CategoryField}" />
@@ -779,6 +869,32 @@
                                     <StackPanel Spacing="6">
                                         <TextBlock Classes="field" Text="{loc:Str Main_TagsComma}" />
                                         <atom:LineEdit Text="{Binding EditTags}" />
+                                    </StackPanel>
+
+                                    <TextBlock Classes="section" Text="{loc:Str Main_SectionExtraFields}" />
+
+                                    <StackPanel Spacing="6">
+                                        <TextBlock Classes="field" Text="{loc:Str Main_Phone}" />
+                                        <atom:LineEdit Text="{Binding EditPhone}" />
+                                    </StackPanel>
+
+                                    <StackPanel Spacing="6">
+                                        <TextBlock Classes="field" Text="{loc:Str Main_AppId}" />
+                                        <atom:LineEdit Text="{Binding EditAppId}" />
+                                    </StackPanel>
+
+                                    <StackPanel Spacing="6">
+                                        <TextBlock Classes="field" Text="{loc:Str Main_Secret}" />
+                                        <atom:LineEdit PasswordChar="●"
+                                                       IsEnableRevealButton="True"
+                                                       Text="{Binding EditSecret, Mode=TwoWay}" />
+                                    </StackPanel>
+
+                                    <StackPanel Spacing="6">
+                                        <TextBlock Classes="field" Text="{loc:Str Main_ApiKey}" />
+                                        <atom:LineEdit PasswordChar="●"
+                                                       IsEnableRevealButton="True"
+                                                       Text="{Binding EditApiKey, Mode=TwoWay}" />
                                     </StackPanel>
 
                                     <StackPanel Spacing="6">

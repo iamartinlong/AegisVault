@@ -97,6 +97,77 @@ public sealed class MainViewModelTests : IDisposable
     });
 
     [Fact]
+    public Task SavesExtraCredentialFields() => Headless.Run(() =>
+    {
+        using var vault = CreateVaultWithEntries();
+        using var viewModel = new MainViewModel(vault);
+
+        viewModel.SelectedEntry = viewModel.FilteredEntries.Single(entry => entry.Title == "GitHub");
+        viewModel.EditPhone = "13800000000";
+        viewModel.EditAppId = "cli_123";
+        viewModel.EditSecret = "shh-value";
+        viewModel.EditApiKey = "key-value";
+        viewModel.SaveEntryCommand.Execute(null);
+
+        var saved = vault.Entries.Single(entry => entry.Title == "GitHub");
+        Assert.Equal("13800000000", saved.Phone);
+        Assert.Equal("cli_123", saved.AppId);
+        Assert.Equal("shh-value", saved.Secret);
+        Assert.Equal("key-value", saved.ApiKey);
+    });
+
+    [Fact]
+    public Task SearchMatchesPhoneAndAppIdButNeverSecrets() => Headless.Run(() =>
+    {
+        using var vault = CreateVaultWithEntries();
+        using var viewModel = new MainViewModel(vault);
+
+        viewModel.SelectedEntry = viewModel.FilteredEntries.Single(entry => entry.Title == "GitHub");
+        viewModel.EditPhone = "13800000000";
+        viewModel.EditAppId = "cli_123";
+        viewModel.EditSecret = "super-secret-value";
+        viewModel.EditApiKey = "api-key-value";
+        viewModel.SaveEntryCommand.Execute(null);
+
+        viewModel.SearchText = "13800000000";
+        Assert.Single(viewModel.FilteredEntries);
+
+        viewModel.SearchText = "cli_123";
+        Assert.Single(viewModel.FilteredEntries);
+
+        viewModel.SearchText = "super-secret-value";
+        Assert.Empty(viewModel.FilteredEntries);
+
+        viewModel.SearchText = "api-key-value";
+        Assert.Empty(viewModel.FilteredEntries);
+    });
+
+    [Fact]
+    public Task SecretAndApiKeyPreviewsStayMaskedUntilRevealed() => Headless.Run(() =>
+    {
+        using var vault = CreateVaultWithEntries();
+        using var viewModel = new MainViewModel(vault);
+
+        viewModel.SelectedEntry = viewModel.FilteredEntries.Single(entry => entry.Title == "GitHub");
+        viewModel.EditSecret = "shh-value";
+        viewModel.EditApiKey = "key-value";
+
+        Assert.DoesNotContain("shh", viewModel.SecretPreview);
+        Assert.DoesNotContain("key", viewModel.ApiKeyPreview);
+
+        viewModel.ToggleSecretRevealCommand.Execute(null);
+        viewModel.ToggleApiKeyRevealCommand.Execute(null);
+
+        Assert.Equal("shh-value", viewModel.SecretPreview);
+        Assert.Equal("key-value", viewModel.ApiKeyPreview);
+
+        viewModel.SelectedEntry = null;
+
+        Assert.All(viewModel.SecretPreview, character => Assert.Equal('●', character));
+        Assert.All(viewModel.ApiKeyPreview, character => Assert.Equal('●', character));
+    });
+
+    [Fact]
     public Task SelectingEntryPopulatesEditorAndSaves() => Headless.Run(() =>
     {
         using var vault = CreateVaultWithEntries();

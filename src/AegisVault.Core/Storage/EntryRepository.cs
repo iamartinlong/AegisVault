@@ -17,7 +17,7 @@ internal static class EntryRepository
     /// v1 = initial payload (collections could be missing),
     /// v2 = collections guaranteed non-null and always written.
     /// </summary>
-    public const int EntryFormatVersion = 2;
+    public const int EntryFormatVersion = 3;
 
     public static (byte[] Nonce, byte[] Ciphertext, byte[] Tag) Encrypt(ReadOnlySpan<byte> dek, PasswordEntry entry)
         => Encrypt(dek, entry, EntryFormatVersion);

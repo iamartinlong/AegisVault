@@ -32,6 +32,10 @@ public sealed class ModelMigrationsTests
             Username = "octocat",
             Password = "s3cret-value",
             TotpSecret = "JBSWY3DPEHPK3PXP",
+            Phone = "13800000000",
+            AppId = "cli_app",
+            Secret = "client-secret-value",
+            ApiKey = "api-key-value",
         };
 
         var text = entry.ToString();
@@ -40,6 +44,10 @@ public sealed class ModelMigrationsTests
         Assert.DoesNotContain("s3cret-value", text);
         Assert.DoesNotContain("JBSWY3DPEHPK3PXP", text);
         Assert.DoesNotContain("octocat", text);
+        Assert.DoesNotContain("13800000000", text);
+        Assert.DoesNotContain("cli_app", text);
+        Assert.DoesNotContain("client-secret-value", text);
+        Assert.DoesNotContain("api-key-value", text);
     }
 
     [Fact]
@@ -87,6 +95,49 @@ public sealed class ModelMigrationsTests
                     $"PasswordEntry.{property.Name} is null after upgrade; extend ModelMigrations.Normalize.");
             }
         }
+    }
+
+    [Fact]
+    public void UpgradeFromV2LeavesNewCredentialFieldsEmpty()
+    {
+        // Payloads written before v3 have no Phone/AppId/Secret/ApiKey keys.
+        var legacy = JsonSerializer.Deserialize(
+            """{"Title":"Legacy","Username":"u","Password":"p","Urls":["https://example.com"],"CustomFields":{"K":"V"}}""",
+            VaultJsonContext.Default.PasswordEntry)!;
+
+        var upgraded = ModelMigrations.UpgradeEntry(legacy, 2);
+
+        Assert.Equal("u", upgraded.Username);
+        Assert.Equal("p", upgraded.Password);
+        Assert.Equal(["https://example.com"], upgraded.Urls);
+        Assert.Equal("V", upgraded.CustomFields["K"]);
+        Assert.Equal(string.Empty, upgraded.Phone);
+        Assert.Equal(string.Empty, upgraded.AppId);
+        Assert.Equal(string.Empty, upgraded.Secret);
+        Assert.Equal(string.Empty, upgraded.ApiKey);
+    }
+
+    [Fact]
+    public void RoundTripsCredentialFieldsThroughJson()
+    {
+        var entry = new PasswordEntry
+        {
+            Title = "API",
+            Phone = "13800000000",
+            AppId = "cli_123",
+            Secret = "shh",
+            ApiKey = "key-1",
+        };
+
+        var json = JsonSerializer.Serialize(entry, VaultJsonContext.Default.PasswordEntry);
+        var loaded = ModelMigrations.UpgradeEntry(
+            JsonSerializer.Deserialize(json, VaultJsonContext.Default.PasswordEntry)!,
+            EntryRepository.EntryFormatVersion);
+
+        Assert.Equal("13800000000", loaded.Phone);
+        Assert.Equal("cli_123", loaded.AppId);
+        Assert.Equal("shh", loaded.Secret);
+        Assert.Equal("key-1", loaded.ApiKey);
     }
 
     [Fact]
