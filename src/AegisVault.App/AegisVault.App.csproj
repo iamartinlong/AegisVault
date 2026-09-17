@@ -29,10 +29,11 @@
 
   <!--
     macOS NativeAOT: Xcode 16+ SDKs ship the componentized Swift compatibility
-    libraries (swift_time, swiftsys_time, swiftunistd, …) only under the SDK's
-    /usr/lib/swift. Without this search path the ILC link step fails with
-    "Could not find or use auto-linked library 'swift_time'".
-    See dotnet/runtime#125858 (AddSwiftLibraryPaths workaround).
+    libraries (swift_time, swiftsys_time, swiftunistd, …); the ILC link step
+    fails with "Could not find or use auto-linked library 'swift_time'" unless
+    the search paths below are handed to the linker. Both are added because the
+    SDK only carries stubs while the real dylibs live in the Xcode toolchain
+    (dotnet/runtime#125858; keep the SDK path for older layouts).
   -->
   <Target Name="AddMacOsSwiftLibraryPaths"
           BeforeTargets="LinkNative"
@@ -42,12 +43,24 @@
           StandardOutputImportance="Low">
       <Output TaskParameter="ConsoleOutput" PropertyName="_MacSdkPath" />
     </Exec>
+    <Exec Command="xcode-select -p"
+          ConsoleToMSBuild="true"
+          StandardOutputImportance="Low">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_MacXcodePath" />
+    </Exec>
     <PropertyGroup>
       <_MacSdkPath>$([System.String]::Copy('$(_MacSdkPath)').Trim())</_MacSdkPath>
+      <_MacXcodePath>$([System.String]::Copy('$(_MacXcodePath)').Trim())</_MacXcodePath>
+      <_MacToolchainSwiftPath>$(_MacXcodePath)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/macosx</_MacToolchainSwiftPath>
     </PropertyGroup>
     <ItemGroup>
-      <LinkerArg Include="-L$(_MacSdkPath)/usr/lib/swift" />
+      <LinkerArg Include="-L$(_MacSdkPath)/usr/lib/swift"
+                 Condition="Exists('$(_MacSdkPath)/usr/lib/swift')" />
+      <LinkerArg Include="-L$(_MacToolchainSwiftPath)"
+                 Condition="Exists('$(_MacToolchainSwiftPath)')" />
     </ItemGroup>
+    <Warning Text="AddMacOsSwiftLibraryPaths: no Swift library search path found (sdk='$(_MacSdkPath)', toolchain='$(_MacToolchainSwiftPath)')"
+             Condition="!Exists('$(_MacSdkPath)/usr/lib/swift') And !Exists('$(_MacToolchainSwiftPath)')" />
   </Target>
 
 </Project>

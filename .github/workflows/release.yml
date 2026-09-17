@@ -23,7 +23,10 @@ jobs:
             experimental: false
           - os: macos-14
             rid: osx-arm64
-            experimental: false
+            # Xcode 16 SDK link failure (missing swift_time; dotnet/runtime#125858)
+            # is still being chased, so a macOS-ARM failure must not block the
+            # other artifacts. Flip back to false once the link step is green.
+            experimental: true
           - os: macos-13
             rid: osx-x64
             experimental: true
@@ -87,7 +90,9 @@ jobs:
   release:
     name: release
     needs: publish
-    if: startsWith(github.ref, 'refs/tags/')
+    # Placed after every publish job, but a platform-specific failure (see the
+    # experimental flags above) must not stop the release for the others.
+    if: always() && startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-22.04
     steps:
       - name: Download artifacts
