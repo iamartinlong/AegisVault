@@ -19,14 +19,20 @@
             <TextBlock x:Name="LabelText" Classes="field" />
             <atom:LineEdit x:Name="InputBox" />
 
-            <!-- Optional colour row (category editor only). -->
+            <!-- Optional colour row (category editor only): the eight presets are
+                 tiled for one-click picking, while a custom colour is mixed in an
+                 inline picker — the AtomUI dropdown popup is window-clipped. -->
             <StackPanel x:Name="ColorSection" Spacing="8" IsVisible="False">
                 <TextBlock Classes="field" Text="{loc:Str Main_CategoryColor}" />
-                <atom:ColorPicker x:Name="ColorPickerBox"
-                                  AutomationProperties.AutomationId="CategoryColorPicker"
-                                  IsAlphaEnabled="False"
-                                  IsPaletteGroupEnabled="True"
-                                  HorizontalAlignment="Left" />
+                <StackPanel x:Name="ColorSwatchRow" Orientation="Horizontal" Spacing="6" />
+                <atom:ColorPickerView x:Name="CustomPicker"
+                                      AutomationProperties.AutomationId="CategoryColorPicker"
+                                      IsPaletteGroupEnabled="False"
+                                      IsAlphaEnabled="False"
+                                      IsFormatEnabled="False"
+                                      IsClearEnabled="False"
+                                      Margin="0,4,0,0"
+                                      IsVisible="False" />
             </StackPanel>
 
             <TextBlock x:Name="ErrorBlock"

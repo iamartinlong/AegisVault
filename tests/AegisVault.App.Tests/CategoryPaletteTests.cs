@@ -1,5 +1,6 @@
 using Avalonia.Media;
 using Avalonia.Styling;
+using AegisVault.App.Localization;
 using AegisVault.App.Services;
 using Xunit;
 
@@ -63,14 +64,21 @@ public sealed class CategoryPaletteTests
     }
 
     [Fact]
-    public void PickerGroupsExposeTheEightPresets()
+    public void PresetsAreAddressableByStoredKeyAndLocalisedName()
     {
-        var groups = CategoryPalette.BuildPickerGroups();
+        var nameKeys = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var entry in CategoryPalette.Entries)
+        {
+            Assert.Same(entry, CategoryPalette.FindPreset(entry.Key));
 
-        var group = Assert.Single(groups);
-        Assert.True(group.IsOpen);
-        Assert.Equal(
-            CategoryPalette.Entries.Select(entry => entry.Light),
-            group.Colors);
+            var nameKey = CategoryPalette.NameKey(entry.Key);
+            Assert.True(nameKeys.Add(nameKey), $"duplicate name key for {entry.Key}");
+            Assert.NotEqual(nameKey, Loc.Get(Loc.Chinese, nameKey));
+            Assert.NotEqual(nameKey, Loc.Get(Loc.English, nameKey));
+        }
+
+        Assert.Null(CategoryPalette.FindPreset(null));
+        Assert.Null(CategoryPalette.FindPreset("not-a-key"));
+        Assert.Null(CategoryPalette.FindPreset("#123456"));
     }
 }

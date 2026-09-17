@@ -4,6 +4,7 @@ using AtomUI.Theme.Algorithms;
 using AtomUI.Theme.Configuration;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Media;
 using Avalonia.Platform;
 using Avalonia.Styling;
 
@@ -58,6 +59,20 @@ public static class AppTheme
         ("FontSize", "14"),
         ("ControlHeight", "32"),
     ];
+
+    /// <summary>Resolves a configured token (e.g. <c>ColorPrimary</c>) for code-behind use.</summary>
+    public static Color TokenColor(string key, ThemeVariant variant)
+    {
+        foreach (var (candidate, value) in variant == ThemeVariant.Dark ? DarkTokens : LightTokens)
+        {
+            if (candidate == key && Color.TryParse(value, out var color))
+            {
+                return color;
+            }
+        }
+
+        return Colors.Gray;
+    }
 
     public static ThemeConfig BuildConfig(bool dark)
     {

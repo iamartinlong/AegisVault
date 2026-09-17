@@ -164,11 +164,12 @@
                                 <ListBox.ItemTemplate>
                                     <DataTemplate DataType="vm:CategoryItem">
                                         <Grid ColumnDefinitions="Auto,*,Auto,Auto">
-                                            <!-- Categories render as a colour dot (palette key or custom hex;
-                                                 unset colours fall back to a name-derived slot). -->
+                                            <!-- Categories render as a small colour dot (palette key or custom hex;
+                                                 unset colours fall back to a name-derived slot). The dot sits at the
+                                                 centre of the 16px icon column so all sidebar rows align. -->
                                             <Ellipse Grid.Column="0"
-                                                     Width="10" Height="10"
-                                                     Margin="3,0,10,0"
+                                                     Width="8" Height="8"
+                                                     Margin="4,0,12,0"
                                                      VerticalAlignment="Center"
                                                      Fill="{Binding Converter={StaticResource CategoryDotConverter}}" />
                                             <TextBlock Grid.Column="1"
@@ -181,10 +182,12 @@
                                                         Spacing="0"
                                                         VerticalAlignment="Center">
                                                 <atom:Button ButtonType="Text"
+                                                             AutomationProperties.AutomationId="EditCategoryButton"
                                                              Icon="{antd:AntDesignIconProvider EditOutlined}"
                                                              ToolTip.Tip="{loc:Str Main_RenameCategoryTooltip}"
                                                              Click="OnRenameCategoryClicked" />
                                                 <atom:Button ButtonType="Text"
+                                                             AutomationProperties.AutomationId="DeleteCategoryButton"
                                                              Icon="{antd:AntDesignIconProvider DeleteOutlined}"
                                                              ToolTip.Tip="{loc:Str Main_DeleteCategoryTooltip}"
                                                              Click="OnDeleteCategoryClicked" />

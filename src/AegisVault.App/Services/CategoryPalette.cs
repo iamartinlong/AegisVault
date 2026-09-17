@@ -1,7 +1,6 @@
 using Avalonia;
 using Avalonia.Media;
 using Avalonia.Styling;
-using AtomUI.Desktop.Controls;
 using AegisVault.Core.Models;
 
 namespace AegisVault.App.Services;
@@ -29,12 +28,33 @@ public static class CategoryPalette
         new("magenta", Color.Parse("#C24F97"), Color.Parse("#E08BC0")),
     ];
 
-    /// <summary>Palette shown inside the colour picker ("分类颜色" group), expanded by default.</summary>
-    public static List<ColorPickerPalette> BuildPickerGroups()
-        => [new ColorPickerPalette(
-            Localization.Loc.T("Main_CategoryColorPalette"),
-            true,
-            [.. Entries.Select(entry => entry.Light)])];
+    /// <summary>Finds a preset by its stored key (null when the key is unknown).</summary>
+    public static Entry? FindPreset(string? key)
+    {
+        foreach (var entry in Entries)
+        {
+            if (entry.Key == key)
+            {
+                return entry;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>Localisation key for a preset's display name (tooltips and automation).</summary>
+    public static string NameKey(string key) => key switch
+    {
+        "red" => "Main_ColorRed",
+        "orange" => "Main_ColorOrange",
+        "gold" => "Main_ColorGold",
+        "green" => "Main_ColorGreen",
+        "cyan" => "Main_ColorCyan",
+        "blue" => "Main_ColorBlue",
+        "purple" => "Main_ColorPurple",
+        "magenta" => "Main_ColorMagenta",
+        _ => "Main_CategoryColor",
+    };
 
     /// <summary>Resolves a stored colour (key/hex/empty) to a render colour.</summary>
     public static Color Resolve(string? stored, string categoryName, ThemeVariant variant)
@@ -76,12 +96,9 @@ public static class CategoryPalette
 
     private static Entry ResolveEntry(string normalized, string categoryName)
     {
-        foreach (var entry in Entries)
+        if (FindPreset(normalized) is { } preset)
         {
-            if (entry.Key == normalized)
-            {
-                return entry;
-            }
+            return preset;
         }
 
         if (CategoryColors.IsHex(normalized) &&
