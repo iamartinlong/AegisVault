@@ -7,6 +7,22 @@
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4)
 ![Avalonia](https://img.shields.io/badge/Avalonia-12.1-8A2BE2)
 
+## 界面预览
+
+| 主界面（浅色 · 中文） | 主界面（深色 · English） |
+|---|---|
+| <img src="assets/screenshots/main-light-zh.png" width="480" alt="主界面 浅色 中文"> | <img src="assets/screenshots/main-dark-en.png" width="480" alt="main window dark english"> |
+
+| 解锁 / 创建密码库 | 快速访问浮层（`Ctrl+Shift+Space`） |
+|---|---|
+| <img src="assets/screenshots/unlock-light-zh.png" width="300" alt="解锁窗口"> | <img src="assets/screenshots/quickaccess-light-zh.png" width="480" alt="快速访问浮层"> |
+
+| 密码生成器 | 新建分类：8 预设色板 + 内嵌取色器 |
+|---|---|
+| <img src="assets/screenshots/generator-light-zh.png" width="420" alt="密码生成器"> | <img src="assets/screenshots/category-colors-light-zh.png" width="380" alt="分类颜色"> |
+
+<sub>截图为演示数据（非真实凭据）；窗口按 100% 缩放采集，浅色/深色主题与中/英界面均受支持。</sub>
+
 ## 特性
 
 - 🔐 **零知识加密**：主密码仅用于派生密钥，数据以 AES-256-GCM 逐条认证加密，密码库文件不含任何明文
@@ -78,6 +94,7 @@ AegisVault/
 │  ├─ AegisVault.Platform.Tests/  # DPAPI 等平台能力
 │  └─ AegisVault.App.Tests/       # ViewModel 与无头 UI 测试
 ├─ .github/workflows/         # CI（三端构建+测试）与 Release（三端 AOT 打包）
+├─ assets/screenshots/        # README 界面截图（浅/深、中/英）
 ├─ AGENTS.md                  # 开发约定与硬性约束（贡献者/代理必读）
 └─ THIRD-PARTY-NOTICES.md     # 第三方组件与许可证全文
 ```
