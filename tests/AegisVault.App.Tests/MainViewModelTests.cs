@@ -75,7 +75,64 @@ public sealed class MainViewModelTests : IDisposable
         Assert.False(viewModel.ShowSelectEntryHint);
 
         viewModel.SelectedEntry = null;
+        Assert.False(viewModel.ShowSelectEntryHint);
+        Assert.True(viewModel.ShowStartupGuide);
+
+        viewModel.StartupGuideDismissed = true;
         Assert.True(viewModel.ShowSelectEntryHint);
+        Assert.False(viewModel.ShowStartupGuide);
+    });
+
+    [Fact]
+    public Task StartupGuideDismissalIsReportedOnce() => Headless.Run(() =>
+    {
+        using var vault = CreateVaultWithEntries();
+        using var viewModel = new MainViewModel(vault);
+
+        var dismissals = 0;
+        viewModel.AttachStartupGuideCallback(() => dismissals++);
+
+        Assert.True(viewModel.ShowStartupGuide);
+
+        viewModel.DismissStartupGuideCommand.Execute(null);
+
+        Assert.True(viewModel.StartupGuideDismissed);
+        Assert.False(viewModel.ShowStartupGuide);
+        Assert.True(viewModel.ShowSelectEntryHint);
+        Assert.Equal(1, dismissals);
+    });
+
+    [Fact]
+    public Task StartupGuideYieldsToEntrySelection() => Headless.Run(() =>
+    {
+        using var vault = CreateVaultWithEntries();
+        using var viewModel = new MainViewModel(vault);
+
+        viewModel.SelectedEntry = viewModel.FilteredEntries[0];
+        Assert.False(viewModel.ShowStartupGuide);
+
+        viewModel.SelectedEntry = null;
+        Assert.True(viewModel.ShowStartupGuide);
+
+        viewModel.StartupGuideDismissed = true;
+        Assert.False(viewModel.ShowStartupGuide);
+    });
+
+    [Fact]
+    public Task HeroImportAddsEntriesAndReloads() => Headless.RunAsync<object?>(async () =>
+    {
+        using var vault = CreateVaultWithEntries();
+        using var viewModel = new MainViewModel(vault);
+
+        var csv = Path.Combine(_directory, "import.csv");
+        File.WriteAllText(csv, "name,username,password,url\nImported,user,pw,https://example.com\n");
+
+        var result = await viewModel.ImportCsvFromAsync(csv);
+
+        Assert.Equal(1, result.Imported);
+        Assert.Equal(3, viewModel.Entries.Count);
+        Assert.Contains(viewModel.FilteredEntries, entry => entry.Title == "Imported");
+        return null;
     });
 
     [Fact]

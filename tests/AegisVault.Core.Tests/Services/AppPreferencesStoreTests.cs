@@ -126,4 +126,57 @@ public sealed class AppPreferencesStoreTests : IDisposable
         Assert.DoesNotContain("password", content, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("dek", content, StringComparison.OrdinalIgnoreCase);
     }
+
+    [Fact]
+    public void RecentVaultsRoundTripInOrder()
+    {
+        var path = Path.Combine(_directory, "app.json");
+
+        new AppPreferencesStore(path).Save(new AppPreferences
+        {
+            RecentVaultPaths = [@"C:\a\work.aegis", @"C:\b\personal.aegis"],
+        });
+
+        var loaded = new AppPreferencesStore(path).Load();
+
+        Assert.Equal([@"C:\a\work.aegis", @"C:\b\personal.aegis"], loaded.RecentVaultPaths);
+    }
+
+    [Fact]
+    public void LegacyPreferencesWithoutRecentVaultsLoadAsEmptyList()
+    {
+        var path = Path.Combine(_directory, "legacy.json");
+        File.WriteAllText(path, """{"Theme":"dark","LastVaultPath":"C:\\v\\vault.aegis"}""");
+
+        var loaded = new AppPreferencesStore(path).Load();
+
+        Assert.Equal("dark", loaded.Theme);
+        Assert.Equal(@"C:\v\vault.aegis", loaded.LastVaultPath);
+        Assert.NotNull(loaded.RecentVaultPaths);
+        Assert.Empty(loaded.RecentVaultPaths!);
+    }
+
+    [Fact]
+    public void RecentVaultsAreNormalisedOnLoad()
+    {
+        var path = Path.Combine(_directory, "app.json");
+        File.WriteAllText(path, """
+            {"RecentVaultPaths":["  C:\\a\\work.aegis  ","","c:\\A\\WORK.aegis","C:\\b\\x.aegis","C:\\c\\y.aegis","C:\\d\\z.aegis"]}
+            """);
+
+        var loaded = new AppPreferencesStore(path).Load();
+
+        Assert.Equal([@"C:\a\work.aegis", @"C:\b\x.aegis", @"C:\c\y.aegis"], loaded.RecentVaultPaths);
+    }
+
+    [Fact]
+    public void StartupGuideDismissalRoundTrips()
+    {
+        var path = Path.Combine(_directory, "app.json");
+
+        new AppPreferencesStore(path).Save(new AppPreferences { StartupGuideDismissed = true });
+
+        Assert.True(new AppPreferencesStore(path).Load().StartupGuideDismissed);
+        Assert.False(new AppPreferencesStore(Path.Combine(_directory, "other.json")).Load().StartupGuideDismissed);
+    }
 }

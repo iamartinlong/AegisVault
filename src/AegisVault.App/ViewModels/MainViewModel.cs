@@ -63,6 +63,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private readonly IUrlLauncher _urlLauncher;
     private Action<string>? _applyTheme;
     private Action<string>? _applyLanguage;
+    private Action? _dismissStartupGuide;
     private VaultHealthReport _health = new(0, 0, 0, new HashSet<Guid>(), new HashSet<Guid>(), new HashSet<Guid>());
 
     public event Action? LockRequested;
@@ -276,7 +277,33 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public bool ShowListEmptyHint => Entries.Count > 0 && FilteredEntries.Count == 0;
 
     /// <summary>The "select an entry" placeholder is only meaningful for a non-empty vault.</summary>
-    public bool ShowSelectEntryHint => !HasSelection && !IsVaultEmpty;
+    public bool ShowSelectEntryHint => !HasSelection && !IsVaultEmpty && !ShowStartupGuide;
+
+    /// <summary>
+    /// One-time guide for a freshly created/opened vault: hidden once dismissed
+    /// (the shell persists that in the preferences).
+    /// </summary>
+    [ObservableProperty]
+    private bool startupGuideDismissed;
+
+    public bool ShowStartupGuide => !StartupGuideDismissed && !IsVaultEmpty && !HasSelection;
+
+    /// <summary>Persists the dismissal; wired by the shell.</summary>
+    public void AttachStartupGuideCallback(Action? guideDismissed) => _dismissStartupGuide = guideDismissed;
+
+    [RelayCommand]
+    private void DismissStartupGuide()
+    {
+        StartupGuideDismissed = true;
+        _dismissStartupGuide?.Invoke();
+    }
+
+    /// <summary>
+    /// Imports a CSV / Bitwarden export (same flow as the settings page) and
+    /// reloads the entry list so the hero shortcut shows the result.
+    /// </summary>
+    public Task<ImportResult> ImportCsvFromAsync(string path)
+        => CsvImportFlow.RunAsync(_vault, path, message => StatusMessage = message, ReloadFromVault);
 
     public bool HasTotp => !string.IsNullOrWhiteSpace(EditTotpSecret);
 
@@ -362,6 +389,13 @@ public partial class MainViewModel : ObservableObject, IDisposable
         IsPasswordRevealed = false;
         LoadEditor(value);
         OnPropertyChanged(nameof(HasSelection));
+        OnPropertyChanged(nameof(ShowSelectEntryHint));
+        OnPropertyChanged(nameof(ShowStartupGuide));
+    }
+
+    partial void OnStartupGuideDismissedChanged(bool value)
+    {
+        OnPropertyChanged(nameof(ShowStartupGuide));
         OnPropertyChanged(nameof(ShowSelectEntryHint));
     }
 
@@ -972,6 +1006,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(IsVaultEmpty));
         OnPropertyChanged(nameof(ShowListEmptyHint));
         OnPropertyChanged(nameof(ShowSelectEntryHint));
+        OnPropertyChanged(nameof(ShowStartupGuide));
     }
 
     private bool MatchesCategory(PasswordEntry entry)

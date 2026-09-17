@@ -9,6 +9,16 @@ public sealed record AppPreferences
     /// <summary>Last successfully opened vault path (filled at startup).</summary>
     public string? LastVaultPath { get; init; }
 
+    /// <summary>
+    /// Recently opened/created vault paths, newest first (max three). Plaintext
+    /// like the rest of this file; missing values are normalised to an empty
+    /// list by the store.
+    /// </summary>
+    public IReadOnlyList<string>? RecentVaultPaths { get; init; }
+
+    /// <summary>True once the one-time first-run guide has been dismissed.</summary>
+    public bool StartupGuideDismissed { get; init; }
+
     /// <summary>"system" | "light" | "dark".</summary>
     public string Theme { get; init; } = "system";
 

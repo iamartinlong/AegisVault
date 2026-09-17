@@ -13,9 +13,9 @@
 |---|---|
 | <img src="assets/screenshots/main-light-zh.png" width="480" alt="主界面 浅色 中文"> | <img src="assets/screenshots/main-dark-en.png" width="480" alt="main window dark english"> |
 
-| 解锁 / 创建密码库 | 快速访问浮层（`Ctrl+Shift+Space`） |
+| 首次启动：创建密码库 | 快速访问浮层（`Ctrl+Shift+Space`） |
 |---|---|
-| <img src="assets/screenshots/unlock-light-zh.png" width="300" alt="解锁窗口"> | <img src="assets/screenshots/quickaccess-light-zh.png" width="480" alt="快速访问浮层"> |
+| <img src="assets/screenshots/unlock-light-zh.png" width="300" alt="首次启动创建密码库"> | <img src="assets/screenshots/quickaccess-light-zh.png" width="480" alt="快速访问浮层"> |
 
 | 密码生成器 | 新建分类：8 预设色板 + 内嵌取色器 |
 |---|---|

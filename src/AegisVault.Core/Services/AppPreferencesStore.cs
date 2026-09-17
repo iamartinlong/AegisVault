@@ -37,8 +37,12 @@ public sealed class AppPreferencesStore
             }
 
             var json = File.ReadAllText(_filePath);
-            return JsonSerializer.Deserialize(json, AppPreferencesJsonContext.Default.AppPreferences)
+            var preferences = JsonSerializer.Deserialize(json, AppPreferencesJsonContext.Default.AppPreferences)
                 ?? new AppPreferences();
+
+            // Source-generated JSON leaves missing collections null (and older
+            // files predate the field): normalise at the load boundary.
+            return preferences with { RecentVaultPaths = RecentVaults.Normalize(preferences.RecentVaultPaths) };
         }
         catch (Exception exception) when (exception is IOException or JsonException or UnauthorizedAccessException or NotSupportedException)
         {

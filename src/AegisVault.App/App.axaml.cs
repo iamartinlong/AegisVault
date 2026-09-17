@@ -248,6 +248,12 @@ public partial class App : Application
         viewModel.ThemePreference = _preferences.Theme;
         viewModel.LanguagePreference = _preferences.Language;
         viewModel.AttachAppearanceCallbacks(ApplyTheme, ApplyLanguage);
+        viewModel.StartupGuideDismissed = _preferences.StartupGuideDismissed;
+        viewModel.AttachStartupGuideCallback(() =>
+        {
+            _preferences = _preferences with { StartupGuideDismissed = true };
+            SavePreferences();
+        });
         var window = _mainWindow;
 
         if (window is null)
@@ -274,7 +280,11 @@ public partial class App : Application
         _clipboard = clipboard;
         _sessionWatcher = sessionWatcher;
 
-        _preferences = _preferences with { LastVaultPath = vault.VaultPath };
+        _preferences = _preferences with
+        {
+            LastVaultPath = vault.VaultPath,
+            RecentVaultPaths = RecentVaults.Add(_preferences.RecentVaultPaths, vault.VaultPath),
+        };
         SavePreferences();
 
         window.Attach(viewModel, clipboard, autoLock, ShowSettings);

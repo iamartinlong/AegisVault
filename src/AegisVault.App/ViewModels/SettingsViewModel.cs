@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
 using AegisVault.App.Localization;
+using AegisVault.App.Services;
 using AegisVault.Core.Models;
 using AegisVault.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -273,23 +274,8 @@ public partial class SettingsViewModel : ObservableObject
     }
 
     /// <summary>Imports entries from a CSV file (Bitwarden or generic layout).</summary>
-    public async Task<ImportResult> ImportCsvFromAsync(string path)
-    {
-        try
-        {
-            // Parsing + vault writes run off the UI thread; the completion
-            // message and reload marshalled back by the callers.
-            var (imported, skipped) = await Task.Run(() => VaultCsvImporter.Import(_vault, File.ReadAllText(path)));
-            StatusMessage = Loc.Format("Settings_StatusImportDone", imported, skipped);
-            _imported?.Invoke();
-            return new ImportResult(imported, skipped);
-        }
-        catch (Exception)
-        {
-            StatusMessage = Loc.T("Settings_StatusImportFailed");
-            return new ImportResult(0, 0);
-        }
-    }
+    public Task<ImportResult> ImportCsvFromAsync(string path)
+        => CsvImportFlow.RunAsync(_vault, path, message => StatusMessage = message, _imported);
 
     [RelayCommand]
     private void OpenDataFolder()

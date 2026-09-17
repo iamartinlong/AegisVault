@@ -15,6 +15,8 @@
         SizeToContent="Height"
         CanResize="False"
         WindowStartupLocation="CenterScreen"
+        DragDrop.AllowDrop="True"
+        DragDrop.Drop="OnVaultFileDropped"
         Background="{atom:SharedTokenResource ColorBgContainer}"
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaTitleBarHeightHint="40">
@@ -63,9 +65,31 @@
                         <atom:SegmentedItem Content="{loc:Str Unlock_TabCreate}" />
                     </atom:Segmented>
 
-                    <ScrollViewer MaxHeight="400" VerticalScrollBarVisibility="Auto">
-                        <StackPanel Spacing="14">
+                    <ScrollViewer MinHeight="440"
+                                  MaxHeight="440"
+                                  VerticalScrollBarVisibility="Auto">
+                        <StackPanel Margin="0,0,16,0" Spacing="14">
                             <StackPanel Spacing="14" IsVisible="{Binding !IsCreateMode}">
+                                <!-- Recent vaults: one row per remembered vault that still exists. -->
+                                <StackPanel Spacing="6" IsVisible="{Binding HasRecentVaultItems}">
+                                    <TextBlock Classes="field" Text="{loc:Str Unlock_RecentVaults}" />
+                                    <ItemsControl ItemsSource="{Binding RecentVaultItems}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:RecentVaultItem">
+                                                <atom:Button ButtonType="Link"
+                                                             HorizontalAlignment="Left"
+                                                             HorizontalContentAlignment="Left"
+                                                             Padding="0"
+                                                             Margin="0,0,0,2"
+                                                             Content="{Binding FileName}"
+                                                             ToolTip.Tip="{Binding}"
+                                                             Command="{Binding $parent[ItemsControl].((vm:UnlockViewModel)DataContext).SelectRecentVaultCommand}"
+                                                             CommandParameter="{Binding}" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+
                                 <StackPanel Spacing="6">
                                     <TextBlock Classes="field" Text="{loc:Str Unlock_VaultFile}" />
                                     <Grid ColumnDefinitions="*,8,Auto">
@@ -80,7 +104,8 @@
                                 <StackPanel Spacing="6">
                                     <TextBlock Classes="field" Text="{loc:Str Unlock_MasterPassword}" />
                                     <Grid ColumnDefinitions="*,8,Auto">
-                                        <atom:LineEdit Grid.Column="0"
+                                        <atom:LineEdit x:Name="OpenPasswordBox"
+                                                       Grid.Column="0"
                                                        PasswordChar="●"
                                                        IsEnableRevealButton="True"
                                                        Text="{Binding MasterPassword, Mode=TwoWay}" />
@@ -99,6 +124,23 @@
                             </StackPanel>
 
                             <StackPanel Spacing="14" IsVisible="{Binding IsCreateMode}">
+                                <!-- First run (no known vault): welcome block. -->
+                                <Border IsVisible="{Binding IsFirstRun}"
+                                        CornerRadius="10"
+                                        Padding="14,12"
+                                        Background="{atom:SharedTokenResource ColorPrimaryBg}">
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Text="{loc:Str Unlock_FirstRunTitle}"
+                                                   FontWeight="SemiBold"
+                                                   FontSize="13"
+                                                   Foreground="{atom:SharedTokenResource ColorPrimary}" />
+                                        <TextBlock Text="{loc:Str Unlock_FirstRunHint}"
+                                                   FontSize="12"
+                                                   Opacity="0.75"
+                                                   TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </Border>
+
                                 <StackPanel Spacing="6">
                                     <TextBlock Classes="field" Text="{loc:Str Unlock_SaveLocation}" />
                                     <Grid ColumnDefinitions="*,8,Auto">
@@ -108,13 +150,22 @@
                                                      Content="{loc:Str Unlock_ChooseLocation}"
                                                      Click="OnBrowseCreateClicked" />
                                     </Grid>
+                                    <TextBlock Text="{Binding NewVaultPathHint}"
+                                               FontSize="12"
+                                               Opacity="0.6"
+                                               TextWrapping="Wrap" />
                                 </StackPanel>
 
                                 <StackPanel Spacing="6">
                                     <TextBlock Classes="field" Text="{loc:Str Unlock_MasterPassword}" />
-                                    <atom:LineEdit PasswordChar="●"
+                                    <atom:LineEdit x:Name="CreatePasswordBox"
+                                                   PasswordChar="●"
                                                    IsEnableRevealButton="True"
                                                    Text="{Binding MasterPassword, Mode=TwoWay}" />
+                                    <TextBlock Text="{loc:Str Unlock_PasswordHint}"
+                                               FontSize="12"
+                                               Opacity="0.6"
+                                               TextWrapping="Wrap" />
                                     <atom:ProgressBar Value="{Binding MasterPasswordStrengthPercent}"
                                                       Maximum="100"
                                                       Height="6"
@@ -136,10 +187,24 @@
                                     <TextBlock Text="{loc:Str Unlock_RememberDevice}" TextWrapping="Wrap" />
                                 </atom:CheckBox>
 
-                                <TextBlock Text="{loc:Str Unlock_Warning}"
-                                           Foreground="{atom:SharedTokenResource ColorWarning}"
-                                           FontSize="12"
-                                           TextWrapping="Wrap" />
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <!-- Colour must go through a Button: AtomUI icons ignore host/parent
+                                         Foreground and PathIcon type selectors (see pitfall P-06). -->
+                                    <atom:Button ButtonType="Text"
+                                                 IsHitTestVisible="False"
+                                                 Focusable="False"
+                                                 Width="16" Height="16"
+                                                 MinWidth="0" MinHeight="0"
+                                                 Padding="0"
+                                                 VerticalAlignment="Top"
+                                                 Margin="0,1,0,0"
+                                                 Foreground="{atom:SharedTokenResource ColorWarning}"
+                                                 Icon="{antd:AntDesignIconProvider WarningOutlined}" />
+                                    <TextBlock Text="{loc:Str Unlock_Warning}"
+                                               Foreground="{atom:SharedTokenResource ColorWarning}"
+                                               FontSize="12"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
                             </StackPanel>
                         </StackPanel>
                     </ScrollViewer>
@@ -148,7 +213,7 @@
                                Foreground="{atom:SharedTokenResource ColorError}"
                                TextWrapping="Wrap"
                                MinHeight="20" />
-                    <TextBlock Text="{loc:Str Unlock_Busy}"
+                    <TextBlock Text="{Binding BusyText}"
                                IsVisible="{Binding IsBusy}"
                                Opacity="0.6" />
                     <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">

@@ -557,13 +557,104 @@
                                        TextAlignment="Center"
                                        TextWrapping="Wrap"
                                        HorizontalAlignment="Center" />
-                            <atom:Button ButtonType="Primary"
-                                         HorizontalAlignment="Center"
-                                         Margin="0,4,0,0"
-                                         Icon="{antd:AntDesignIconProvider PlusOutlined}"
-                                         Content="{loc:Str Main_NewEntry}"
-                                         Command="{Binding AddEntryCommand}" />
+                            <StackPanel Orientation="Horizontal"
+                                        Spacing="10"
+                                        HorizontalAlignment="Center"
+                                        Margin="0,4,0,0">
+                                <atom:Button ButtonType="Primary"
+                                             Icon="{antd:AntDesignIconProvider PlusOutlined}"
+                                             Content="{loc:Str Main_NewEntry}"
+                                             Command="{Binding AddEntryCommand}" />
+                                <atom:Button ButtonType="Default"
+                                             Icon="{antd:AntDesignIconProvider ImportOutlined}"
+                                             Content="{loc:Str Main_ImportData}"
+                                             AutomationProperties.AutomationId="ImportDataButton"
+                                             Click="OnImportDataClicked" />
+                            </StackPanel>
+                            <TextBlock Text="{loc:Str Main_ShortcutHint}"
+                                       FontSize="12"
+                                       Opacity="0.45"
+                                       HorizontalAlignment="Center"
+                                       TextAlignment="Center"
+                                       TextWrapping="Wrap"
+                                       Margin="0,4,0,0" />
                         </StackPanel>
+
+                        <!-- One-time guide for a fresh vault (dismissal is persisted). -->
+                        <Border IsVisible="{Binding ShowStartupGuide}"
+                                MaxWidth="400"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                CornerRadius="12"
+                                Padding="20,18"
+                                Background="{atom:SharedTokenResource ColorBgContainer}"
+                                BorderBrush="{DynamicResource AegisHairlineBrush}"
+                                BorderThickness="1">
+                            <StackPanel Spacing="12">
+                                <TextBlock Text="{loc:Str Main_GuideTitle}"
+                                           FontSize="15"
+                                           FontWeight="SemiBold" />
+
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <!-- Colour must go through a Button: AtomUI icons ignore host/parent
+                                         Foreground and PathIcon type selectors (see pitfall P-06). -->
+                                    <atom:Button ButtonType="Text"
+                                                 IsHitTestVisible="False"
+                                                 Focusable="False"
+                                                 Width="16" Height="16"
+                                                 MinWidth="0" MinHeight="0"
+                                                 Padding="0"
+                                                 VerticalAlignment="Top"
+                                                 Margin="0,2,0,0"
+                                                 Foreground="{atom:SharedTokenResource ColorPrimary}"
+                                                 Icon="{antd:AntDesignIconProvider PlusOutlined}" />
+                                    <TextBlock Text="{loc:Str Main_GuideStepNew}"
+                                               FontSize="13"
+                                               TextWrapping="Wrap"
+                                               MaxWidth="320" />
+                                </StackPanel>
+
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <atom:Button ButtonType="Text"
+                                                 IsHitTestVisible="False"
+                                                 Focusable="False"
+                                                 Width="16" Height="16"
+                                                 MinWidth="0" MinHeight="0"
+                                                 Padding="0"
+                                                 VerticalAlignment="Top"
+                                                 Margin="0,2,0,0"
+                                                 Foreground="{atom:SharedTokenResource ColorPrimary}"
+                                                 Icon="{antd:AntDesignIconProvider ImportOutlined}" />
+                                    <TextBlock Text="{loc:Str Main_GuideStepImport}"
+                                               FontSize="13"
+                                               TextWrapping="Wrap"
+                                               MaxWidth="320" />
+                                </StackPanel>
+
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <atom:Button ButtonType="Text"
+                                                 IsHitTestVisible="False"
+                                                 Focusable="False"
+                                                 Width="16" Height="16"
+                                                 MinWidth="0" MinHeight="0"
+                                                 Padding="0"
+                                                 VerticalAlignment="Top"
+                                                 Margin="0,2,0,0"
+                                                 Foreground="{atom:SharedTokenResource ColorPrimary}"
+                                                 Icon="{antd:AntDesignIconProvider ThunderboltOutlined}" />
+                                    <TextBlock Text="{loc:Str Main_GuideStepQuickAccess}"
+                                               FontSize="13"
+                                               TextWrapping="Wrap"
+                                               MaxWidth="320" />
+                                </StackPanel>
+
+                                <atom:Button ButtonType="Primary"
+                                             Content="{loc:Str Main_GuideDismiss}"
+                                             Command="{Binding DismissStartupGuideCommand}"
+                                             AutomationProperties.AutomationId="DismissGuideButton"
+                                             HorizontalAlignment="Right" />
+                            </StackPanel>
+                        </Border>
 
                         <StackPanel HorizontalAlignment="Center"
                                     VerticalAlignment="Center"

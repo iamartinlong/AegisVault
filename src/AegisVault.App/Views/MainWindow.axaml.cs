@@ -6,6 +6,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Platform.Storage;
 
 namespace AegisVault.App.Views;
 
@@ -192,6 +193,34 @@ public partial class MainWindow : Window
     }
 
     private void OnSettingsClicked(object? sender, RoutedEventArgs e) => _openSettings?.Invoke();
+
+    /// <summary>Hero shortcut: pick a CSV export and import it (shared flow).</summary>
+    private async void OnImportDataClicked(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        try
+        {
+            var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = Loc.T("Settings_ImportPickTitle"),
+                AllowMultiple = false,
+                FileTypeFilter = [new FilePickerFileType(Loc.T("Settings_CsvFileType")) { Patterns = ["*.csv"] }],
+            });
+
+            if (files.Count > 0)
+            {
+                await viewModel.ImportCsvFromAsync(files[0].Path.LocalPath);
+            }
+        }
+        catch (Exception)
+        {
+            // The picker is best effort; the settings page stays available.
+        }
+    }
 
     private void OnRowCopyPasswordClicked(object? sender, RoutedEventArgs e)
         => InvokeForRow(sender, viewModel => viewModel.CopyPasswordCommand.Execute(null));
