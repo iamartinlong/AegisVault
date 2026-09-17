@@ -32,6 +32,8 @@ dotnet test  -c Release --no-build                  # 期望：全部通过
 9. **颜色只用 Token**：AtomUI `{atom:SharedTokenResource ...}`、应用自有 `{DynamicResource AegisXxxBrush}`（浅/深两套）；禁止硬编码品牌色。
 10. **AtomUI 以源码为准，不信官网文档**：文档版本落后于锁定的 6.1.9，控件 API/行为常对不上（实例：`LineEdit.InnerLeftContent` 实为继承 Avalonia `TextBox`；`DropdownButton` 隐藏箭头要 `IsShowOpenIndicator=False`（`IsArrowVisible` 无效）；`TriggerType=Click` 只认 `PointerPressed`）。查证顺序：**① GitHub 源码（对应 tag）→ ② 反射探针 `%TEMP%\opencode\atomui-probe` → ③ 官网文档（仅参考）**。
     - 取源码（`raw.githubusercontent.com` 本机常不可达，走 API）：先 `https://api.github.com/repos/AtomUI/AtomUI/tags` 拿 tag（如 `v6.1.9`）与 sha，用 `git/trees/<sha>?recursive=1` 搜文件路径，再 `curl -H "Accept: application/vnd.github.raw" "https://api.github.com/repos/AtomUI/AtomUI/contents/<path>?ref=v6.1.9"` 取文件；主题/行为多在 `src/AtomUI.Desktop.Controls/<控件>/` 与 `controlgallery/`（官方用法示例）。
+    - **下拉式控件的面板默认是"窗口内浮层"**（模板里 `ShouldUseOverlayLayer` 绑定 `ShouldUseOverlayPopup`，默认 `true`）→ 小对话框里必被裁剪；优先找**同包内嵌控件**替代（如取色用 `ColorPickerView` 而非 `ColorPicker`）。代码里取主题色用 `AppTheme.TokenColor(key, variant)`（`Application.TryFindResource` 取不到 AtomUI shared token）。
+    - 折叠控件在 `SizeToContent` 窗口里"运行期显示"时，必须对控件本身 `InvalidateMeasure()`，否则沿用 0 测量缓存、窗口不增高（见踩坑 P-41）。
 
 ## 代码约定
 - UI 事件处理走 code-behind 或命令，保持 XAML **编译绑定**（`x:DataType`）。
