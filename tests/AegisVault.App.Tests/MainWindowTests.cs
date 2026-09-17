@@ -1,7 +1,9 @@
 using System.Linq;
 using AegisVault.App.Views;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.VisualTree;
 using Xunit;
 using AtomUIMenuItem = AtomUI.Desktop.Controls.MenuItem;
 
@@ -98,6 +100,59 @@ public sealed class MainWindowTests
 
         var items = ReadRadioItems(language, "LanguageMode");
         Assert.Equal(3, items.Count);
+    });
+
+    [Fact]
+    public Task FilteringKeepsTheSelectionWhenTheEntryStillMatches() => Headless.Run(() =>
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "aegis-ui-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            using var vault = Core.Services.VaultService.CreateNew(
+                Path.Combine(directory, "vault.aegis"),
+                "master password"u8.ToArray(),
+                new Core.Services.VaultOptions
+                {
+                    Kdf = new Core.Models.KdfParameters
+                    {
+                        Algorithm = Core.Models.KdfParameters.AlgorithmArgon2id,
+                        Iterations = 3,
+                        MemoryBytes = 8L * 1024 * 1024,
+                    },
+                });
+            vault.AddEntry(new Core.Models.PasswordEntry { Title = "GitHub", Username = "octocat" });
+            vault.AddEntry(new Core.Models.PasswordEntry { Title = "Mail", Username = "me@example.com" });
+
+            using var viewModel = new ViewModels.MainViewModel(vault);
+            var window = new MainWindow { DataContext = viewModel };
+            window.Show();
+
+            var list = window.GetVisualDescendants().OfType<ListBox>().First(candidate =>
+                (candidate.GetValue(AutomationProperties.AutomationIdProperty) as string) == "EntriesList");
+            list.SelectedIndex = 0;
+            var selected = viewModel.SelectedEntry;
+            Assert.NotNull(selected);
+
+            // The filter repopulates the bound collection; the selection must
+            // survive as long as the entry still matches.
+            viewModel.SearchText = selected!.Title;
+
+            Assert.Same(selected, viewModel.SelectedEntry);
+            Assert.Equal(0, list.SelectedIndex);
+
+            window.Close();
+        }
+        finally
+        {
+            try
+            {
+                Directory.Delete(directory, recursive: true);
+            }
+            catch (IOException)
+            {
+            }
+        }
     });
 
     private static List<AtomUIMenuItem> ReadRadioItems(

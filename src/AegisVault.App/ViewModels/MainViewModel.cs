@@ -1036,6 +1036,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
+        // Clearing the bound collection makes the ListBox drop its selection
+        // and write null back, so remember it first and restore it when it still
+        // matches the new filter.
+        var previousSelection = SelectedEntry;
+
         FilteredEntries.Clear();
         var matches = Entries.Where(entry => MatchesCategory(entry) && MatchesSearch(entry));
         var ordered = SortMode == EntrySortMode.RecentlyUpdated
@@ -1047,7 +1052,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
             FilteredEntries.Add(entry);
         }
 
-        if (SelectedEntry is not null && !FilteredEntries.Contains(SelectedEntry))
+        if (previousSelection is not null && FilteredEntries.Contains(previousSelection))
+        {
+            SelectedEntry = previousSelection;
+        }
+        else if (SelectedEntry is not null && !FilteredEntries.Contains(SelectedEntry))
         {
             SelectedEntry = null;
         }
