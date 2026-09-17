@@ -38,6 +38,7 @@ internal static class ModelMigrations
         // from the payload; v2 guarantees non-null collections.
         // v2 -> v3: added scalar credential fields (Phone/AppId/Secret/ApiKey);
         // older payloads simply lack them and normalize to empty strings.
+        // v3 -> v4: added the scalar Email field; same story.
         return Normalize(entry);
     }
 
@@ -51,6 +52,7 @@ internal static class ModelMigrations
         Notes = entry.Notes ?? string.Empty,
         TotpSecret = entry.TotpSecret ?? string.Empty,
         Phone = entry.Phone ?? string.Empty,
+        Email = entry.Email ?? string.Empty,
         AppId = entry.AppId ?? string.Empty,
         Secret = entry.Secret ?? string.Empty,
         ApiKey = entry.ApiKey ?? string.Empty,

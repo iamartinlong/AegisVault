@@ -113,6 +113,7 @@ internal static class ZhStrings
         ["Main_Notes"] = "备注",
         ["Main_Password"] = "密码",
         ["Main_Phone"] = "手机号",
+        ["Main_Email"] = "邮箱",
         ["Main_AppId"] = "AppID",
         ["Main_Secret"] = "Secret",
         ["Main_ApiKey"] = "API Key",

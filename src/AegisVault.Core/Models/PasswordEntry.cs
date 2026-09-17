@@ -25,6 +25,9 @@ public sealed record PasswordEntry
     /// <summary>Optional contact phone number (payload v3, shown in clear).</summary>
     public string Phone { get; init; } = string.Empty;
 
+    /// <summary>Optional e-mail address (payload v4, shown in clear).</summary>
+    public string Email { get; init; } = string.Empty;
+
     /// <summary>Optional application id / client id (payload v3, shown in clear).</summary>
     public string AppId { get; init; } = string.Empty;
 

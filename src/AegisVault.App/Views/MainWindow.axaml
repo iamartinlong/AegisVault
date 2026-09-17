@@ -661,6 +661,25 @@
                                     <Border BorderBrush="{DynamicResource AegisHairlineBrush}"
                                             BorderThickness="0,0,0,1"
                                             Padding="0,10"
+                                            IsVisible="{Binding EditEmail, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                        <Grid ColumnDefinitions="96,*,Auto">
+                                            <TextBlock Grid.Column="0" Classes="field" Text="{loc:Str Main_Email}" />
+                                            <SelectableTextBlock Grid.Column="1"
+                                                                 Text="{Binding EditEmail}"
+                                                                 TextWrapping="Wrap"
+                                                                 VerticalAlignment="Center" />
+                                            <atom:Button Grid.Column="2"
+                                                         ButtonType="Text"
+                                                         Icon="{antd:AntDesignIconProvider CopyOutlined}"
+                                                         ToolTip.Tip="{loc:Str Common_Copy}"
+                                                         Command="{Binding CopyValueCommand}"
+                                                         CommandParameter="{Binding EditEmail}" />
+                                        </Grid>
+                                    </Border>
+
+                                    <Border BorderBrush="{DynamicResource AegisHairlineBrush}"
+                                            BorderThickness="0,0,0,1"
+                                            Padding="0,10"
                                             IsVisible="{Binding EditAppId, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
                                         <Grid ColumnDefinitions="96,*,Auto">
                                             <TextBlock Grid.Column="0" Classes="field" Text="{loc:Str Main_AppId}" />
@@ -876,6 +895,11 @@
                                     <StackPanel Spacing="6">
                                         <TextBlock Classes="field" Text="{loc:Str Main_Phone}" />
                                         <atom:LineEdit Text="{Binding EditPhone}" />
+                                    </StackPanel>
+
+                                    <StackPanel Spacing="6">
+                                        <TextBlock Classes="field" Text="{loc:Str Main_Email}" />
+                                        <atom:LineEdit Text="{Binding EditEmail}" />
                                     </StackPanel>
 
                                     <StackPanel Spacing="6">

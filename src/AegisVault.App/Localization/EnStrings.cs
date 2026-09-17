@@ -113,6 +113,7 @@ internal static class EnStrings
         ["Main_Notes"] = "Notes",
         ["Main_Password"] = "Password",
         ["Main_Phone"] = "Phone",
+        ["Main_Email"] = "Email",
         ["Main_AppId"] = "App ID",
         ["Main_Secret"] = "Secret",
         ["Main_ApiKey"] = "API Key",

@@ -201,6 +201,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private string editPhone = string.Empty;
 
     [ObservableProperty]
+    private string editEmail = string.Empty;
+
+    [ObservableProperty]
     private string editAppId = string.Empty;
 
     [ObservableProperty]
@@ -510,6 +513,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
             Notes = EditNotes,
             TotpSecret = EditTotpSecret.Trim(),
             Phone = EditPhone.Trim(),
+            Email = EditEmail.Trim(),
             AppId = EditAppId.Trim(),
             Secret = EditSecret.Trim(),
             ApiKey = EditApiKey.Trim(),
@@ -1002,6 +1006,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         return Contains(entry.Title, query) ||
                Contains(entry.Username, query) ||
                Contains(entry.Phone, query) ||
+               Contains(entry.Email, query) ||
                Contains(entry.AppId, query) ||
                Contains(entry.Url, query) ||
                (entry.Urls?.Any(url => Contains(url, query)) ?? false) ||
@@ -1027,6 +1032,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
             EditNotes = entry?.Notes ?? string.Empty;
             EditTotpSecret = entry?.TotpSecret ?? string.Empty;
             EditPhone = entry?.Phone ?? string.Empty;
+            EditEmail = entry?.Email ?? string.Empty;
             EditAppId = entry?.AppId ?? string.Empty;
             EditSecret = entry?.Secret ?? string.Empty;
             EditApiKey = entry?.ApiKey ?? string.Empty;

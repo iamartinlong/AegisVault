@@ -89,11 +89,50 @@ public sealed class EntryRepositoryTests
 
         Assert.Equal("LegacyV2", decrypted.Title);
         Assert.Equal(string.Empty, decrypted.Phone);
+        Assert.Equal(string.Empty, decrypted.Email);
         Assert.Equal(string.Empty, decrypted.AppId);
         Assert.Equal(string.Empty, decrypted.Secret);
         Assert.Equal(string.Empty, decrypted.ApiKey);
         Assert.NotNull(decrypted.Urls);
         Assert.NotNull(decrypted.CustomFields);
+    }
+
+    [Fact]
+    public void LegacyV3PayloadLeavesEmailEmpty()
+    {
+        var dek = RandomNumberGenerator.GetBytes(KeyEnvelope.DekSize);
+        var entry = new PasswordEntry { Title = "LegacyV3", Phone = "13800000000" };
+
+        // v3 payload as written before Email existed.
+        var legacyJson = JsonSerializer.SerializeToUtf8Bytes(new
+        {
+            entry.Id,
+            entry.Title,
+            entry.Username,
+            entry.Password,
+            entry.Url,
+            entry.Urls,
+            entry.Notes,
+            entry.TotpSecret,
+            Phone = entry.Phone,
+            entry.AppId,
+            entry.Secret,
+            entry.ApiKey,
+            entry.Tags,
+            entry.CustomFields,
+            entry.IsFavorite,
+            entry.CreatedAt,
+            entry.UpdatedAt,
+        });
+        var (nonce, ciphertext, tag) = AesGcmCipher.Encrypt(
+            dek,
+            legacyJson,
+            EntryRepository.BuildAssociatedData(entry.Id, 3));
+
+        var decrypted = EntryRepository.Decrypt(dek, entry.Id, 3, nonce, ciphertext, tag);
+
+        Assert.Equal("13800000000", decrypted.Phone);
+        Assert.Equal(string.Empty, decrypted.Email);
     }
 
     [Fact]
@@ -104,6 +143,7 @@ public sealed class EntryRepositoryTests
         {
             Title = "Service",
             Phone = "13800000000",
+            Email = "ops@example.com",
             AppId = "cli_abc",
             Secret = "s3cret-value",
             ApiKey = "key_123",
@@ -119,6 +159,7 @@ public sealed class EntryRepositoryTests
             tag);
 
         Assert.Equal("13800000000", decrypted.Phone);
+        Assert.Equal("ops@example.com", decrypted.Email);
         Assert.Equal("cli_abc", decrypted.AppId);
         Assert.Equal("s3cret-value", decrypted.Secret);
         Assert.Equal("key_123", decrypted.ApiKey);

@@ -104,6 +104,7 @@ public sealed class MainViewModelTests : IDisposable
 
         viewModel.SelectedEntry = viewModel.FilteredEntries.Single(entry => entry.Title == "GitHub");
         viewModel.EditPhone = "13800000000";
+        viewModel.EditEmail = "dev-work@example.com";
         viewModel.EditAppId = "cli_123";
         viewModel.EditSecret = "shh-value";
         viewModel.EditApiKey = "key-value";
@@ -111,6 +112,7 @@ public sealed class MainViewModelTests : IDisposable
 
         var saved = vault.Entries.Single(entry => entry.Title == "GitHub");
         Assert.Equal("13800000000", saved.Phone);
+        Assert.Equal("dev-work@example.com", saved.Email);
         Assert.Equal("cli_123", saved.AppId);
         Assert.Equal("shh-value", saved.Secret);
         Assert.Equal("key-value", saved.ApiKey);
@@ -124,12 +126,16 @@ public sealed class MainViewModelTests : IDisposable
 
         viewModel.SelectedEntry = viewModel.FilteredEntries.Single(entry => entry.Title == "GitHub");
         viewModel.EditPhone = "13800000000";
+        viewModel.EditEmail = "dev-work@example.com";
         viewModel.EditAppId = "cli_123";
         viewModel.EditSecret = "super-secret-value";
         viewModel.EditApiKey = "api-key-value";
         viewModel.SaveEntryCommand.Execute(null);
 
         viewModel.SearchText = "13800000000";
+        Assert.Single(viewModel.FilteredEntries);
+
+        viewModel.SearchText = "dev-work@example.com";
         Assert.Single(viewModel.FilteredEntries);
 
         viewModel.SearchText = "cli_123";

@@ -33,6 +33,7 @@ public sealed class ModelMigrationsTests
             Password = "s3cret-value",
             TotpSecret = "JBSWY3DPEHPK3PXP",
             Phone = "13800000000",
+            Email = "ops@example.com",
             AppId = "cli_app",
             Secret = "client-secret-value",
             ApiKey = "api-key-value",
@@ -45,6 +46,7 @@ public sealed class ModelMigrationsTests
         Assert.DoesNotContain("JBSWY3DPEHPK3PXP", text);
         Assert.DoesNotContain("octocat", text);
         Assert.DoesNotContain("13800000000", text);
+        Assert.DoesNotContain("ops@example.com", text);
         Assert.DoesNotContain("cli_app", text);
         Assert.DoesNotContain("client-secret-value", text);
         Assert.DoesNotContain("api-key-value", text);
@@ -112,6 +114,7 @@ public sealed class ModelMigrationsTests
         Assert.Equal(["https://example.com"], upgraded.Urls);
         Assert.Equal("V", upgraded.CustomFields["K"]);
         Assert.Equal(string.Empty, upgraded.Phone);
+        Assert.Equal(string.Empty, upgraded.Email);
         Assert.Equal(string.Empty, upgraded.AppId);
         Assert.Equal(string.Empty, upgraded.Secret);
         Assert.Equal(string.Empty, upgraded.ApiKey);
@@ -124,6 +127,7 @@ public sealed class ModelMigrationsTests
         {
             Title = "API",
             Phone = "13800000000",
+            Email = "ops@example.com",
             AppId = "cli_123",
             Secret = "shh",
             ApiKey = "key-1",
@@ -135,6 +139,7 @@ public sealed class ModelMigrationsTests
             EntryRepository.EntryFormatVersion);
 
         Assert.Equal("13800000000", loaded.Phone);
+        Assert.Equal("ops@example.com", loaded.Email);
         Assert.Equal("cli_123", loaded.AppId);
         Assert.Equal("shh", loaded.Secret);
         Assert.Equal("key-1", loaded.ApiKey);
