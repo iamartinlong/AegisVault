@@ -74,7 +74,7 @@ public partial class App : Application
 
             InitializeTray();
             InitializeHotKey();
-            ShowUnlock(desktop);
+            _ = ShowUnlockAsync(desktop);
         }
 
         base.OnFrameworkInitializationCompleted();
@@ -117,7 +117,7 @@ public partial class App : Application
         return item;
     }
 
-    private void ShowUnlock(IClassicDesktopStyleApplicationLifetime desktop)
+    private async Task ShowUnlockAsync(IClassicDesktopStyleApplicationLifetime desktop)
     {
         var viewModel = new UnlockViewModel
         {
@@ -125,25 +125,48 @@ public partial class App : Application
             SecureInputAvailable = OperatingSystem.IsWindows(),
         };
         viewModel.ApplyPreferences(_preferences);
-        var window = new UnlockWindow { DataContext = viewModel };
 
+        // Try the remembered device key before anything is shown: on success
+        // the vault goes straight to the main window and the unlock window is
+        // never created (creating it first made it flash before the main one).
+        if (viewModel.CanRememberDevice)
+        {
+            var vault = await viewModel.TryDeviceUnlockAsync();
+            if (vault is not null)
+            {
+                ShowMain(desktop, unlockWindow: null, vault);
+                return;
+            }
+
+            // The lifetime shows (or skips) its main window before this
+            // continuation runs, so an explicit Show() is required here.
+            CreateUnlockWindow(desktop, viewModel, showImmediately: true);
+            return;
+        }
+
+        CreateUnlockWindow(desktop, viewModel, showImmediately: _initialWindowAssigned);
+    }
+
+    private void CreateUnlockWindow(
+        IClassicDesktopStyleApplicationLifetime desktop,
+        UnlockViewModel viewModel,
+        bool showImmediately)
+    {
+        var window = new UnlockWindow { DataContext = viewModel };
         viewModel.VaultOpened += vault => ShowMain(desktop, window, vault);
 
         desktop.MainWindow = window;
-        if (_initialWindowAssigned)
+        _initialWindowAssigned = true;
+        if (showImmediately)
         {
             window.Show();
         }
-
-        _initialWindowAssigned = true;
-
-        if (viewModel.CanRememberDevice)
-        {
-            _ = viewModel.TryDeviceUnlockAsync();
-        }
     }
 
-    private void ShowMain(IClassicDesktopStyleApplicationLifetime desktop, UnlockWindow unlockWindow, VaultService vault)
+    private void ShowMain(
+        IClassicDesktopStyleApplicationLifetime desktop,
+        UnlockWindow? unlockWindow,
+        VaultService vault)
     {
         var config = new SecureConfigService(vault);
         _configService = config;
@@ -194,7 +217,7 @@ public partial class App : Application
         window.Show();
         window.WindowState = WindowState.Normal;
         window.Activate();
-        unlockWindow.Close();
+        unlockWindow?.Close();
 
         ApplyScreenGuard(window);
         UpdateFloatingBall();
@@ -215,7 +238,7 @@ public partial class App : Application
             CleanupSession();
             if (_desktop is { } desktop)
             {
-                ShowUnlock(desktop);
+                _ = ShowUnlockAsync(desktop);
             }
             return;
         }

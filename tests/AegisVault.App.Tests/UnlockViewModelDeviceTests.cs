@@ -66,7 +66,7 @@ public sealed class UnlockViewModelDeviceTests : IDisposable
     });
 
     [Fact]
-    public Task DeviceKeyAutoUnlockRaisesVaultOpened() => Headless.RunAsync<object?>(async () =>
+    public Task DeviceKeyAutoUnlockReturnsUnlockedVault() => Headless.RunAsync<object?>(async () =>
     {
         var protector = new FakeKeyProtector();
 
@@ -82,20 +82,23 @@ public sealed class UnlockViewModelDeviceTests : IDisposable
             DeviceKeyProtector = protector,
         };
 
-        VaultService? opened = null;
-        model.VaultOpened += vault => opened = vault;
+        var raised = false;
+        model.VaultOpened += _ => raised = true;
 
-        await model.TryDeviceUnlockAsync();
+        var opened = await model.TryDeviceUnlockAsync();
 
         Assert.NotNull(opened);
         Assert.True(opened!.IsUnlocked);
         Assert.Single(opened.Entries);
+        // The caller decides which window to show: the unlock window must not
+        // be revealed through the VaultOpened event anymore.
+        Assert.False(raised);
         opened.Dispose();
         return null;
     });
 
     [Fact]
-    public Task DeviceKeyAutoUnlockDoesNothingWithoutKey() => Headless.RunAsync<object?>(async () =>
+    public Task DeviceKeyAutoUnlockReturnsNullWithoutKey() => Headless.RunAsync<object?>(async () =>
     {
         using (VaultService.CreateNew(_vaultPath, Password, FastOptions))
         {
@@ -110,9 +113,48 @@ public sealed class UnlockViewModelDeviceTests : IDisposable
         var raised = false;
         model.VaultOpened += _ => raised = true;
 
-        await model.TryDeviceUnlockAsync();
+        var opened = await model.TryDeviceUnlockAsync();
 
+        Assert.Null(opened);
         Assert.False(raised);
+        return null;
+    });
+
+    [Fact]
+    public Task DeviceKeyAutoUnlockReturnsNullWhenVaultMissing() => Headless.RunAsync<object?>(async () =>
+    {
+        var model = new UnlockViewModel
+        {
+            VaultPath = _vaultPath,
+            DeviceKeyProtector = new FakeKeyProtector(),
+        };
+
+        var opened = await model.TryDeviceUnlockAsync();
+
+        Assert.Null(opened);
+        return null;
+    });
+
+    [Fact]
+    public Task DeviceKeyAutoUnlockReturnsNullWhenProtectorUnavailable() => Headless.RunAsync<object?>(async () =>
+    {
+        var protector = new FakeKeyProtector();
+
+        using (var vault = VaultService.CreateNew(_vaultPath, Password, FastOptions))
+        {
+            vault.RememberDevice(protector);
+        }
+
+        protector.IsAvailable = false;
+        var model = new UnlockViewModel
+        {
+            VaultPath = _vaultPath,
+            DeviceKeyProtector = protector,
+        };
+
+        var opened = await model.TryDeviceUnlockAsync();
+
+        Assert.Null(opened);
         return null;
     });
 }

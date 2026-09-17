@@ -98,19 +98,22 @@ public partial class UnlockViewModel : ObservableObject
 
     /// <summary>
     /// Attempts a password-less unlock using the remembered device key.
-    /// Raises <see cref="VaultOpened"/> on success; otherwise does nothing.
+    /// Returns the unlocked vault, or <c>null</c> when the device key is
+    /// unavailable, the vault is missing, or the stored key no longer matches.
+    /// Does not raise <see cref="VaultOpened"/>: the caller decides which
+    /// window to show (the unlock window must never appear when this succeeds).
     /// </summary>
-    public async Task TryDeviceUnlockAsync()
+    public async Task<VaultService?> TryDeviceUnlockAsync()
     {
         if (DeviceKeyProtector is not { IsAvailable: true } protector)
         {
-            return;
+            return null;
         }
 
         var path = VaultPath.Trim();
         if (string.IsNullOrEmpty(path) || !File.Exists(path))
         {
-            return;
+            return null;
         }
 
         VaultService? vault = null;
@@ -136,10 +139,7 @@ public partial class UnlockViewModel : ObservableObject
             }
         });
 
-        if (unlocked)
-        {
-            VaultOpened?.Invoke(vault!);
-        }
+        return unlocked ? vault : null;
     }
 
     [RelayCommand]
