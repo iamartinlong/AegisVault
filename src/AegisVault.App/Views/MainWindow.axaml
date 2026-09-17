@@ -323,6 +323,7 @@
                                 <atom:Button ButtonType="Text"
                                              Icon="{antd:AntDesignIconProvider SettingOutlined}"
                                              ToolTip.Tip="{loc:Str Main_Settings}"
+                                             AutomationProperties.AutomationId="SettingsButton"
                                              Click="OnSettingsClicked" />
                                 <atom:Button ButtonType="Text"
                                              Icon="{antd:AntDesignIconProvider LockOutlined}"

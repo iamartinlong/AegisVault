@@ -25,6 +25,9 @@ public partial class App : Application
     /// <summary>Shortest time the splash stays up, so it never just flickers.</summary>
     private const int MinimumSplashMilliseconds = 500;
 
+    /// <summary>Command line switch written into the auto-start entry.</summary>
+    private const string TrayArgument = "--tray";
+
     /// <summary>
     /// Short yield after showing the splash so the compositor picks the window
     /// up before the (blocking) AtomUI initialisation starts. The first frame
@@ -49,7 +52,10 @@ public partial class App : Application
     private FloatingBallWindow? _floatingBall;
     private HotKeyService? _hotKey;
     private readonly IAppRestarter _restarter = ProcessAppRestarter.Instance;
+    private readonly IStartupRegistration _startupRegistration = new WindowsStartupRegistration();
     private bool _unlockDialogOpen;
+    private bool _startMinimizedOnLaunch;
+    private bool _startMinimizedConsumed;
 
     public override void Initialize()
     {
@@ -65,6 +71,8 @@ public partial class App : Application
             _desktop = desktop;
             Loc.ApplyPreference(_preferences.Language);
             ApplyThemeVariant(_preferences.Theme);
+            _startMinimizedOnLaunch = StartMinimizedRequested();
+            ReconcileAutoStartEntry();
 
             if (PlatformSettings is { } platformSettings)
             {
@@ -291,9 +299,21 @@ public partial class App : Application
         viewModel.LockRequested += LockVault;
         autoLock.LockTriggered += _ => LockVault();
 
-        window.Show();
-        window.WindowState = WindowState.Normal;
-        window.Activate();
+        // Tray mode (auto-start / StartMinimized): the window exists and stays
+        // open, but is not shown; the tray icon and hotkey bring it back.
+        if (_startMinimizedOnLaunch && !_startMinimizedConsumed)
+        {
+            _startMinimizedConsumed = true;
+            window.Show();
+            window.Hide();
+        }
+        else
+        {
+            window.Show();
+            window.WindowState = WindowState.Normal;
+            window.Activate();
+        }
+
         unlockWindow?.Close();
 
         ApplyScreenGuard(window);
@@ -542,6 +562,38 @@ public partial class App : Application
     private static IKeyProtector? CreateKeyProtector()
         => OperatingSystem.IsWindows() ? new DpapiKeyProtector() : null;
 
+    private static string ExecutablePath => Environment.ProcessPath ?? string.Empty;
+
+    /// <summary>True when this launch should go straight to the tray.</summary>
+    private bool StartMinimizedRequested()
+        => _preferences.StartMinimized ||
+           Environment.GetCommandLineArgs().Skip(1)
+               .Any(argument => string.Equals(argument, TrayArgument, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// Re-creates the auto-start entry when the preference says it is on but the
+    /// registry no longer points at this executable (update, reinstall, move).
+    /// </summary>
+    private void ReconcileAutoStartEntry()
+    {
+        if (!_preferences.AutoStart || !_startupRegistration.IsSupported)
+        {
+            return;
+        }
+
+        try
+        {
+            if (!_startupRegistration.IsEnabled(ExecutablePath))
+            {
+                _startupRegistration.TrySetEnabled(true, ExecutablePath, TrayArgument);
+            }
+        }
+        catch (Exception)
+        {
+            // Auto-start is best effort; the settings page reports failures.
+        }
+    }
+
     private void SavePreferences()
     {
         try
@@ -592,6 +644,27 @@ public partial class App : Application
             applyLanguage: language =>
             {
                 _preferences = _preferences with { Language = language };
+                SavePreferences();
+            },
+            startupSupported: _startupRegistration.IsSupported,
+            // The registry is the source of truth: the preference can point at a
+            // moved/removed executable after an update or reinstall.
+            autoStart: _startupRegistration.IsEnabled(ExecutablePath),
+            startMinimized: _preferences.StartMinimized,
+            applyAutoStart: enabled =>
+            {
+                if (!_startupRegistration.TrySetEnabled(enabled, ExecutablePath, TrayArgument))
+                {
+                    return false;
+                }
+
+                _preferences = _preferences with { AutoStart = enabled };
+                SavePreferences();
+                return true;
+            },
+            applyStartMinimized: minimized =>
+            {
+                _preferences = _preferences with { StartMinimized = minimized };
                 SavePreferences();
             });
         var window = new SettingsWindow { DataContext = viewModel };

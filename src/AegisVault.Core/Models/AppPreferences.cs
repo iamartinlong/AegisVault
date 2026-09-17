@@ -28,6 +28,12 @@ public sealed record AppPreferences
     /// <summary>Shows the optional floating quick-access ball (default off).</summary>
     public bool ShowFloatingBall { get; init; }
 
+    /// <summary>Starts with the OS session (Windows Run key; default off).</summary>
+    public bool AutoStart { get; init; }
+
+    /// <summary>Starts hidden in the tray instead of showing the main window.</summary>
+    public bool StartMinimized { get; init; }
+
     /// <summary>Floating ball position in screen pixels ("x,y"); null when never moved.</summary>
     public string? BallPosition { get; init; }
 

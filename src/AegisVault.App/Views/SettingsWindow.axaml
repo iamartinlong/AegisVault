@@ -138,6 +138,18 @@
                     </StackPanel>
                 </Border>
 
+                <Border Classes="card" Padding="18,16" IsVisible="{Binding StartupSupported}">
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="{loc:Str Settings_SectionStartup}" FontSize="14" FontWeight="SemiBold" />
+                        <atom:CheckBox x:Name="AutoStartCheckBox"
+                                       Content="{loc:Str Settings_AutoStart}"
+                                       IsChecked="{Binding AutoStart, Mode=TwoWay}" />
+                        <atom:CheckBox Content="{loc:Str Settings_StartMinimized}"
+                                       IsChecked="{Binding StartMinimized, Mode=TwoWay}" />
+                        <TextBlock Text="{loc:Str Settings_StartupHint}" FontSize="12" Opacity="0.6" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+
                 <Border Classes="card" Padding="18,16">
                     <StackPanel Spacing="12">
                         <TextBlock Text="{loc:Str Settings_SectionLanguage}" FontSize="14" FontWeight="SemiBold" />
@@ -207,6 +219,7 @@
                     <atom:Button Content="{loc:Str Common_Close}" Click="OnCloseClicked" />
                     <atom:Button ButtonType="Primary"
                                  Content="{loc:Str Settings_SaveSettings}"
+                                 AutomationProperties.AutomationId="SaveSettingsButton"
                                  Command="{Binding SaveCommand}"
                                  IsDefault="True" />
                 </StackPanel>

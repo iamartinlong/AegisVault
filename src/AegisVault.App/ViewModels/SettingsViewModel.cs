@@ -28,6 +28,8 @@ public partial class SettingsViewModel : ObservableObject
     private readonly Action<bool>? _applyFloatingBall;
     private readonly Action<string>? _applyLanguage;
     private readonly Action? _imported;
+    private readonly Func<bool, bool>? _applyAutoStart;
+    private readonly Action<bool>? _applyStartMinimized;
 
     public SettingsViewModel(
         VaultService vault,
@@ -41,7 +43,12 @@ public partial class SettingsViewModel : ObservableObject
         Action<bool>? applyFloatingBall = null,
         Action? imported = null,
         string currentLanguage = Loc.System,
-        Action<string>? applyLanguage = null)
+        Action<string>? applyLanguage = null,
+        bool startupSupported = false,
+        bool autoStart = false,
+        bool startMinimized = false,
+        Func<bool, bool>? applyAutoStart = null,
+        Action<bool>? applyStartMinimized = null)
     {
         _vault = vault;
         _config = config;
@@ -51,6 +58,8 @@ public partial class SettingsViewModel : ObservableObject
         _applyFloatingBall = applyFloatingBall;
         _applyLanguage = applyLanguage;
         _imported = imported;
+        _applyAutoStart = applyAutoStart;
+        _applyStartMinimized = applyStartMinimized;
 
         var user = config.Current;
         SelectedAutoLock = AutoLockOptions.FirstOrDefault(option => option.Minutes == user.AutoLockMinutes) ?? AutoLockOptions[0];
@@ -70,6 +79,10 @@ public partial class SettingsViewModel : ObservableObject
         ScreenGuardSupported = screenGuardSupported;
         DisableScreenCapture = user.DisableScreenCapture;
         ShowFloatingBall = showFloatingBall;
+
+        StartupSupported = startupSupported;
+        AutoStart = autoStart;
+        StartMinimized = startMinimized;
     }
 
     public IReadOnlyList<AutoLockOption> AutoLockOptions { get; } =
@@ -143,6 +156,15 @@ public partial class SettingsViewModel : ObservableObject
     private bool deviceKeySupported;
 
     [ObservableProperty]
+    private bool startupSupported;
+
+    [ObservableProperty]
+    private bool autoStart;
+
+    [ObservableProperty]
+    private bool startMinimized;
+
+    [ObservableProperty]
     private bool hasDeviceKey;
 
     [ObservableProperty]
@@ -182,6 +204,17 @@ public partial class SettingsViewModel : ObservableObject
         _applyScreenGuard?.Invoke(!DisableScreenCapture);
         _applyFloatingBall?.Invoke(ShowFloatingBall);
         _applyLanguage?.Invoke(SelectedLanguage?.Value ?? Loc.System);
+
+        // The auto-start entry lives in the OS, so the write can fail; keep the
+        // switch honest and tell the user instead of pretending it worked.
+        if (_applyAutoStart is { } applyAutoStart && !applyAutoStart(AutoStart))
+        {
+            AutoStart = false;
+            StatusMessage = Loc.T("Settings_StatusAutoStartFailed");
+            return;
+        }
+
+        _applyStartMinimized?.Invoke(StartMinimized);
         StatusMessage = Loc.T("Settings_StatusSaved");
     }
 
