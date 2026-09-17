@@ -217,11 +217,13 @@ public partial class MainWindow : Window
                 Loc.T("Main_NewCategoryTitle"),
                 Loc.T("Main_CategoryNameLabel"),
                 string.Empty,
-                name => viewModel.ValidateCategoryName(name));
+                name => viewModel.ValidateCategoryName(name),
+                initialColor: null,
+                showColorPicker: true);
             var result = await dialog.ShowDialog<string?>(this);
             if (!string.IsNullOrEmpty(result))
             {
-                viewModel.TryCreateCategory(result, out _);
+                viewModel.TryCreateCategory(result, out _, CategoryPalette.ToStorage(dialog.SelectedColor));
             }
         }
         catch (Exception)
@@ -244,11 +246,14 @@ public partial class MainWindow : Window
                 Loc.T("Main_RenameCategoryTitle"),
                 Loc.T("Main_CategoryNameLabel"),
                 item.DisplayName,
-                name => viewModel.ValidateCategoryName(name, id));
+                name => viewModel.ValidateCategoryName(name, id),
+                initialColor: item.Color,
+                showColorPicker: true);
             var result = await dialog.ShowDialog<string?>(this);
             if (!string.IsNullOrEmpty(result))
             {
                 viewModel.TryRenameCategory(id, result, out _);
+                viewModel.SetCategoryColor(id, CategoryPalette.ToStorage(dialog.SelectedColor));
             }
         }
         catch (Exception)

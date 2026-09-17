@@ -29,7 +29,8 @@ public sealed record CategoryItem(
     bool IsFavorites,
     int Count,
     CategoryKind Kind = CategoryKind.System,
-    Guid? CategoryId = null)
+    Guid? CategoryId = null,
+    string Color = "")
 {
     public bool IsUserCategory => Kind == CategoryKind.Category;
 
@@ -778,7 +779,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
                 false,
                 Entries.Count(entry => entry.CategoryId == category.Id),
                 CategoryKind.Category,
-                category.Id));
+                category.Id,
+                category.Color));
         }
 
         if (_vault.Categories.Count > 0 && Entries.Any(entry => entry.CategoryId is null))
@@ -868,7 +870,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>Creates a user category; returns false with a localized reason when invalid.</summary>
-    public bool TryCreateCategory(string? name, out string? error)
+    public bool TryCreateCategory(string? name, out string? error, string? color = null)
     {
         error = ValidateCategoryName(name, excludeId: null);
         if (error is not null)
@@ -876,11 +878,22 @@ public partial class MainViewModel : ObservableObject, IDisposable
             return false;
         }
 
-        var category = _vault.AddCategory(name!.Trim());
+        var category = _vault.AddCategory(name!.Trim(), color);
         RefreshCategories();
         SelectedCategoryChoice = CategoryChoices.First(choice => choice.Id == category.Id);
         StatusMessage = Loc.T("Main_StatusCategoryCreated");
         return true;
+    }
+
+    /// <summary>Applies a new palette/hex colour to a category.</summary>
+    public void SetCategoryColor(Guid id, string? color)
+    {
+        if (!_vault.SetCategoryColor(id, color))
+        {
+            return;
+        }
+
+        RefreshCategories();
     }
 
     /// <summary>Renames a user category; returns false with a localized reason when invalid.</summary>

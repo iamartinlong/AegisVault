@@ -71,5 +71,6 @@ internal static class ModelMigrations
     public static Category Normalize(Category category) => category with
     {
         Name = category.Name ?? string.Empty,
+        Color = CategoryColors.Normalize(category.Color),
     };
 }

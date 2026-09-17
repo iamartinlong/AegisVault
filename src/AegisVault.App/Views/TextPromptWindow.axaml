@@ -18,6 +18,17 @@
         <StackPanel Grid.Row="1" Margin="20" Spacing="12">
             <TextBlock x:Name="LabelText" Classes="field" />
             <atom:LineEdit x:Name="InputBox" />
+
+            <!-- Optional colour row (category editor only). -->
+            <StackPanel x:Name="ColorSection" Spacing="8" IsVisible="False">
+                <TextBlock Classes="field" Text="{loc:Str Main_CategoryColor}" />
+                <atom:ColorPicker x:Name="ColorPickerBox"
+                                  AutomationProperties.AutomationId="CategoryColorPicker"
+                                  IsAlphaEnabled="False"
+                                  IsPaletteGroupEnabled="True"
+                                  HorizontalAlignment="Left" />
+            </StackPanel>
+
             <TextBlock x:Name="ErrorBlock"
                        Foreground="{atom:SharedTokenResource ColorError}"
                        FontSize="12"

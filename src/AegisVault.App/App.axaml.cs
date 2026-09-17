@@ -50,6 +50,7 @@ public partial class App : Application
         this.UseAtomUI(builder =>
         {
             builder.UseDesktopControls();
+            builder.UseDesktopColorPicker();
             AppTheme.ConfigureInitial(builder, _preferences.Theme);
         });
 

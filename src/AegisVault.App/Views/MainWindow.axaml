@@ -22,6 +22,7 @@
         <conv:InitialTileBackgroundConverter x:Key="TileBackgroundConverter" />
         <conv:InitialTileForegroundConverter x:Key="TileForegroundConverter" />
         <conv:CategoryIconConverter x:Key="CategoryIconConverter" />
+        <conv:CategoryDotConverter x:Key="CategoryDotConverter" />
     </Window.Resources>
 
     <Window.Styles>
@@ -150,6 +151,7 @@
                                 <TextBlock Grid.Column="0" Classes="section" Text="{loc:Str Main_CategoryField}" />
                                 <atom:Button Grid.Column="1"
                                              ButtonType="Text"
+                                             AutomationProperties.AutomationId="NewCategoryButton"
                                              Icon="{antd:AntDesignIconProvider PlusOutlined}"
                                              Margin="0,6,4,0"
                                              ToolTip.Tip="{loc:Str Main_NewCategoryTitle}"
@@ -162,10 +164,13 @@
                                 <ListBox.ItemTemplate>
                                     <DataTemplate DataType="vm:CategoryItem">
                                         <Grid ColumnDefinitions="Auto,*,Auto,Auto">
-                                            <ContentControl Grid.Column="0"
-                                                            Content="{Binding Converter={StaticResource CategoryIconConverter}}"
-                                                            Margin="0,0,8,0"
-                                                            VerticalAlignment="Center" />
+                                            <!-- Categories render as a colour dot (palette key or custom hex;
+                                                 unset colours fall back to a name-derived slot). -->
+                                            <Ellipse Grid.Column="0"
+                                                     Width="10" Height="10"
+                                                     Margin="3,0,10,0"
+                                                     VerticalAlignment="Center"
+                                                     Fill="{Binding Converter={StaticResource CategoryDotConverter}}" />
                                             <TextBlock Grid.Column="1"
                                                        Text="{Binding DisplayName}"
                                                        TextTrimming="CharacterEllipsis"

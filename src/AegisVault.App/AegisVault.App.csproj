@@ -13,6 +13,7 @@
     <PackageReference Include="Avalonia.Themes.Fluent" />
     <PackageReference Include="Avalonia.Fonts.Inter" />
     <PackageReference Include="AtomUI.Desktop.Controls" />
+    <PackageReference Include="AtomUI.Desktop.Controls.ColorPicker" />
     <PackageReference Include="AtomUI.Icons.AntDesign" />
     <PackageReference Include="CommunityToolkit.Mvvm" />
   </ItemGroup>

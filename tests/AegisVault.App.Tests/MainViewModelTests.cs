@@ -174,6 +174,23 @@ public sealed class MainViewModelTests : IDisposable
     });
 
     [Fact]
+    public Task CreatesAndRecolorsCategories() => Headless.Run(() =>
+    {
+        using var vault = CreateVaultWithEntries();
+        using var viewModel = new MainViewModel(vault);
+
+        Assert.True(viewModel.TryCreateCategory("Work", out _, "blue"));
+        var created = viewModel.UserCategories.Single(item => item.DisplayName == "Work");
+        Assert.Equal("blue", created.Color);
+
+        viewModel.SetCategoryColor(created.CategoryId!.Value, "#12ab34");
+        Assert.Equal("#12AB34", viewModel.UserCategories.Single(item => item.DisplayName == "Work").Color);
+
+        Assert.True(viewModel.TryCreateCategory("Loose", out _));
+        Assert.Equal(string.Empty, viewModel.UserCategories.Single(item => item.DisplayName == "Loose").Color);
+    });
+
+    [Fact]
     public Task SelectingEntryPopulatesEditorAndSaves() => Headless.Run(() =>
     {
         using var vault = CreateVaultWithEntries();

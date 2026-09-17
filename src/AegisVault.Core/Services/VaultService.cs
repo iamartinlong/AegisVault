@@ -27,6 +27,10 @@ public sealed class VaultService : IDisposable
     private const string CategoriesSettingKey = "categories";
 
     private static readonly byte[] CategoriesAssociatedData =
+        System.Text.Encoding.UTF8.GetBytes("AegisVault|settings|categories|v2");
+
+    /// <summary>v1 categories payload AAD (no colour field); read-only fallback.</summary>
+    private static readonly byte[] CategoriesAssociatedDataV1 =
         System.Text.Encoding.UTF8.GetBytes("AegisVault|settings|categories|v1");
 
     private readonly VaultDatabase _database;
@@ -249,7 +253,7 @@ public sealed class VaultService : IDisposable
     }
 
     /// <summary>Creates a category. Names are trimmed, non-empty and unique (case-insensitive).</summary>
-    public Category AddCategory(string name)
+    public Category AddCategory(string name, string? color = null)
     {
         ThrowIfDisposed();
         EnsureUnlocked();
@@ -257,7 +261,7 @@ public sealed class VaultService : IDisposable
         var normalized = NormalizeCategoryName(name);
         EnsureUniqueCategoryName(normalized, excludeId: null);
 
-        var category = new Category { Name = normalized };
+        var category = new Category { Name = normalized, Color = CategoryColors.Normalize(color) };
         _categories.Add(category);
         SortCategories();
         PersistCategories();
@@ -280,6 +284,23 @@ public sealed class VaultService : IDisposable
 
         _categories[index] = _categories[index] with { Name = normalized };
         SortCategories();
+        PersistCategories();
+        return true;
+    }
+
+    /// <summary>Sets (or clears) the palette/hex colour of a category.</summary>
+    public bool SetCategoryColor(Guid id, string? color)
+    {
+        ThrowIfDisposed();
+        EnsureUnlocked();
+
+        var index = _categories.FindIndex(category => category.Id == id);
+        if (index < 0)
+        {
+            return false;
+        }
+
+        _categories[index] = _categories[index] with { Color = CategoryColors.Normalize(color) };
         PersistCategories();
         return true;
     }
@@ -545,14 +566,20 @@ public sealed class VaultService : IDisposable
         }
     }
 
-    private List<Category> LoadCategories()
+    /// <summary>
+    /// Reads the encrypted categories blob. Tries the current AAD first and falls
+    /// back to the v1 AAD, reporting whether the payload has to be written back
+    /// in the current format.
+    /// </summary>
+    private (List<Category> Categories, bool Upgraded) LoadCategories()
     {
         var stored = ReadSetting(CategoriesSettingKey);
         if (stored is null)
         {
-            return [];
+            return ([], false);
         }
 
+        var upgraded = false;
         byte[] json;
         try
         {
@@ -564,20 +591,32 @@ public sealed class VaultService : IDisposable
         }
         catch (CryptographicException)
         {
-            // A corrupt categories blob must never break unlocking; fall back to none.
-            return [];
+            try
+            {
+                json = DecryptSetting(
+                    stored.Value.Nonce,
+                    stored.Value.Ciphertext,
+                    stored.Value.Tag,
+                    CategoriesAssociatedDataV1);
+                upgraded = true;
+            }
+            catch (CryptographicException)
+            {
+                // A corrupt categories blob must never break unlocking; fall back to none.
+                return ([], false);
+            }
         }
 
         try
         {
             var categories = JsonSerializer.Deserialize(json, VaultJsonContext.Default.ListCategory) ?? [];
-            return categories.Where(category => category is not null)
+            return (categories.Where(category => category is not null)
                 .Select(ModelMigrations.Normalize)
-                .ToList();
+                .ToList(), upgraded);
         }
         catch (JsonException)
         {
-            return [];
+            return ([], false);
         }
         finally
         {
@@ -654,7 +693,21 @@ public sealed class VaultService : IDisposable
         // Categories are decrypted with the session key, so load them only after
         // the DEK is in place.
         _categories.Clear();
-        _categories.AddRange(LoadCategories());
+        var (categories, upgraded) = LoadCategories();
+        _categories.AddRange(categories);
+
+        if (upgraded)
+        {
+            // One-shot best-effort rewrite at the current AAD version; a failure
+            // simply retries on the next unlock.
+            try
+            {
+                PersistCategories();
+            }
+            catch (Exception exception) when (exception is SqliteException or IOException)
+            {
+            }
+        }
 
         return VaultUnlockStatus.Success;
     }
