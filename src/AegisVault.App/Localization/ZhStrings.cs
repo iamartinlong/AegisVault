@@ -57,6 +57,11 @@ internal static class ZhStrings
         ["Unlock_VaultFileType"] = "AegisVault 密码库",
         ["Unlock_Warning"] = "⚠ 主密码无法找回：请务必牢记，并定期制作加密备份。",
 
+        // Splash
+        ["Splash_Preparing"] = "正在准备…",
+        ["Splash_LoadingShell"] = "正在加载界面资源…",
+        ["Splash_OpeningVault"] = "正在打开密码库…",
+
         // Main window
         ["Main_Categories"] = "分类",
         ["Main_CategoryAll"] = "全部条目",

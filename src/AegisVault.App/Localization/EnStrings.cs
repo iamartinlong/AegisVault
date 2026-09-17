@@ -57,6 +57,11 @@ internal static class EnStrings
         ["Unlock_VaultFileType"] = "AegisVault vault",
         ["Unlock_Warning"] = "⚠ The master password cannot be recovered. Keep it safe and make encrypted backups regularly.",
 
+        // Splash
+        ["Splash_Preparing"] = "Preparing…",
+        ["Splash_LoadingShell"] = "Loading interface resources…",
+        ["Splash_OpeningVault"] = "Opening the vault…",
+
         // Main window
         ["Main_Categories"] = "Categories",
         ["Main_CategoryAll"] = "All items",

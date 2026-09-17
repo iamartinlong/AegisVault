@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using AegisVault.App.Localization;
 using AegisVault.App.Services;
 using AegisVault.App.Theme;
@@ -21,10 +22,21 @@ namespace AegisVault.App;
 
 public partial class App : Application
 {
+    /// <summary>Shortest time the splash stays up, so it never just flickers.</summary>
+    private const int MinimumSplashMilliseconds = 500;
+
+    /// <summary>
+    /// Short yield after showing the splash so the compositor picks the window
+    /// up before the (blocking) AtomUI initialisation starts. The first frame
+    /// itself is rendered by the compositor thread, so it also arrives while
+    /// the UI thread is busy.
+    /// </summary>
+    private const int SplashPresentSettleMilliseconds = 200;
+
     private IClassicDesktopStyleApplicationLifetime? _desktop;
     private readonly AppPreferencesStore _preferencesStore = new();
     private AppPreferences _preferences = new();
-    private bool _initialWindowAssigned;
+    private SplashWindow? _splash;
     private VaultService? _vault;
     private MainWindow? _mainWindow;
     private MainViewModel? _mainViewModel;
@@ -48,13 +60,6 @@ public partial class App : Application
     {
         _preferences = _preferencesStore.Load();
 
-        this.UseAtomUI(builder =>
-        {
-            builder.UseDesktopControls();
-            builder.UseDesktopColorPicker();
-            AppTheme.ConfigureInitial(builder, _preferences.Theme);
-        });
-
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             _desktop = desktop;
@@ -72,12 +77,84 @@ public partial class App : Application
                 };
             }
 
-            InitializeTray();
-            InitializeHotKey();
-            _ = ShowUnlockAsync(desktop);
+            _ = StartAsync(desktop);
+        }
+        else
+        {
+            // Headless test host and design-time: no interactive startup, but
+            // the AtomUI themes must be registered so controls render.
+            InitializeAtomUI();
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    /// <summary>
+    /// Staged startup: the brand splash goes up first, then AtomUI and the
+    /// shell are initialised, then the vault is opened and the session hands
+    /// over to the destination window (main or unlock). The frame yields let
+    /// the compositor present the splash before the next stage blocks the UI
+    /// thread (AtomUI theme initialisation takes several seconds on a cold
+    /// start; the window itself must never flash before it is ready).
+    /// </summary>
+    private async Task StartAsync(IClassicDesktopStyleApplicationLifetime desktop)
+    {
+        var splash = new SplashWindow(_preferences.Theme);
+        _splash = splash;
+        var splashShownAt = Stopwatch.GetTimestamp();
+
+        await YieldFrameAsync();
+        splash.Show();
+        // The first frame is rendered by the compositor thread (so it arrives
+        // even while the UI thread is busy); the yield below is just courtesy.
+        await Task.Delay(SplashPresentSettleMilliseconds);
+        await YieldFrameAsync();
+
+        splash.SetStatus(Loc.T("Splash_LoadingShell"), 0.45);
+        await YieldFrameAsync();
+
+        InitializeAtomUI();
+        InitializeTray();
+        InitializeHotKey();
+        await YieldFrameAsync();
+
+        splash.SetStatus(Loc.T("Splash_OpeningVault"), 0.75);
+        await ShowUnlockAsync(desktop);
+        await CloseSplashAsync(splash, splashShownAt);
+    }
+
+    private void InitializeAtomUI()
+    {
+        this.UseAtomUI(builder =>
+        {
+            builder.UseDesktopControls();
+            builder.UseDesktopColorPicker();
+            AppTheme.ConfigureInitial(builder, _preferences.Theme);
+        });
+    }
+
+    /// <summary>
+    /// Yields at a priority below rendering, so the pending layout/animation
+    /// frame is composited before the next (blocking) startup stage runs.
+    /// </summary>
+    private static async Task YieldFrameAsync()
+        => await Dispatcher.UIThread.InvokeAsync(static () => { }, DispatcherPriority.Background);
+
+    private async Task CloseSplashAsync(SplashWindow splash, long shownAt)
+    {
+        var remaining = TimeSpan.FromMilliseconds(MinimumSplashMilliseconds)
+            - Stopwatch.GetElapsedTime(shownAt);
+        if (remaining > TimeSpan.Zero)
+        {
+            await Task.Delay(remaining);
+        }
+
+        if (ReferenceEquals(_splash, splash))
+        {
+            _splash = null;
+        }
+
+        await splash.FadeOutAndCloseAsync();
     }
 
     private void InitializeTray()
@@ -137,30 +214,20 @@ public partial class App : Application
                 ShowMain(desktop, unlockWindow: null, vault);
                 return;
             }
-
-            // The lifetime shows (or skips) its main window before this
-            // continuation runs, so an explicit Show() is required here.
-            CreateUnlockWindow(desktop, viewModel, showImmediately: true);
-            return;
         }
 
-        CreateUnlockWindow(desktop, viewModel, showImmediately: _initialWindowAssigned);
+        CreateUnlockWindow(desktop, viewModel);
     }
 
     private void CreateUnlockWindow(
         IClassicDesktopStyleApplicationLifetime desktop,
-        UnlockViewModel viewModel,
-        bool showImmediately)
+        UnlockViewModel viewModel)
     {
         var window = new UnlockWindow { DataContext = viewModel };
         viewModel.VaultOpened += vault => ShowMain(desktop, window, vault);
 
         desktop.MainWindow = window;
-        _initialWindowAssigned = true;
-        if (showImmediately)
-        {
-            window.Show();
-        }
+        window.Show();
     }
 
     private void ShowMain(
@@ -350,6 +417,8 @@ public partial class App : Application
         CleanupSession();
         _hotKey?.Dispose();
         _floatingBall?.Close();
+        _splash?.Close();
+        _splash = null;
         _desktop?.Shutdown();
     }
 
