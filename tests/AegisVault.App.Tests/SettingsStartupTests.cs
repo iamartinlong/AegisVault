@@ -107,6 +107,24 @@ public sealed class SettingsStartupTests : IDisposable
         Assert.Empty(appliedMinimized);
     });
 
+    [Fact]
+    public Task CommandsOnALockedSessionReportInsteadOfCrashing() => Headless.Run(() =>
+    {
+        var vault = VaultService.CreateNew(TempVaultPath(), Password, FastOptions);
+        var config = new SecureConfigService(vault);
+        var protector = new FakeKeyProtector();
+        vault.RememberDevice(protector);
+
+        var viewModel = new SettingsViewModel(vault, config, protector, null, "system", showFloatingBall: true);
+        vault.Dispose(); // the shell disposed it when the session locked
+
+        viewModel.SaveCommand.Execute(null);
+        Assert.Equal(Loc.T("Settings_StatusSessionLocked"), viewModel.StatusMessage);
+
+        viewModel.ForgetDeviceCommand.Execute(null);
+        Assert.Equal(Loc.T("Settings_StatusSessionLocked"), viewModel.StatusMessage);
+    });
+
     private string TempVaultPath()
         => Path.Combine(_directory, Guid.NewGuid().ToString("N"), "vault.aegis");
 }

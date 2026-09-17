@@ -17,17 +17,33 @@ internal static class CsvImportFlow
         Action<string> setStatus,
         Action? afterImport = null)
     {
+        ImportResult result;
         try
         {
-            var (imported, skipped) = await Task.Run(() => VaultCsvImporter.Import(vault, File.ReadAllText(path)));
-            setStatus(Loc.Format("Settings_StatusImportDone", imported, skipped));
-            afterImport?.Invoke();
-            return new ImportResult(imported, skipped);
+            // Only the parsing (CPU + file IO) runs off-thread; the vault write
+            // happens back on the caller's thread in one transaction, because
+            // the vault owns a single non-thread-safe SQLite connection.
+            var (entries, skipped) = await Task.Run(() => VaultCsvImporter.Parse(File.ReadAllText(path)));
+            var added = vault.AddEntries(entries);
+            result = new ImportResult(added.Count, skipped);
+            setStatus(Loc.Format("Settings_StatusImportDone", result.Imported, result.Skipped));
         }
         catch (Exception)
         {
             setStatus(Loc.T("Settings_StatusImportFailed"));
             return new ImportResult(0, 0);
         }
+
+        try
+        {
+            afterImport?.Invoke();
+        }
+        catch (Exception)
+        {
+            // The entries are in the vault; a refresh failure must not be
+            // reported as an import failure.
+        }
+
+        return result;
     }
 }

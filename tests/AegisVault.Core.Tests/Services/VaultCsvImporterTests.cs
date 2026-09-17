@@ -124,4 +124,63 @@ public sealed class VaultCsvImporterTests
         Assert.Equal(["a", "b\"c", "d"], rows[0]);
         Assert.Equal(["x\r\ny", "", "z"], rows[1]);
     }
+
+    [Fact]
+    public void ParseDoesNotTouchTheVaultAndAcceptsBitwardenFavouriteFlags()
+    {
+        // Real Bitwarden exports write favourites as 1/0, not true/false.
+        const string csv = """
+            folder,favorite,type,name,notes,fields,reprompt,login_uri,login_username,login_password,login_totp
+            work,1,login,One,,,,,,,
+            ,0,login,Two,,,,,,,
+            ,yes,login,Three,,,,,,,
+            ,y,login,Four,,,,,,,
+            """;
+
+        var (entries, skipped) = VaultCsvImporter.Parse(csv);
+
+        Assert.Equal(4, entries.Count);
+        Assert.Equal(0, skipped);
+        Assert.True(entries.Single(entry => entry.Title == "One").IsFavorite);
+        Assert.False(entries.Single(entry => entry.Title == "Two").IsFavorite);
+        Assert.True(entries.Single(entry => entry.Title == "Three").IsFavorite);
+        Assert.True(entries.Single(entry => entry.Title == "Four").IsFavorite);
+    }
+
+    [Fact]
+    public void BulkAddWritesEveryEntryInOneCall()
+    {
+        var (vault, directory) = CreateVault();
+        try
+        {
+            var entries = Enumerable.Range(1, 50)
+                .Select(index => new PasswordEntry { Title = $"Bulk {index:D2}", Username = $"u{index}" })
+                .ToList();
+
+            var added = vault.AddEntries(entries);
+
+            Assert.Equal(50, added.Count);
+            Assert.Equal(50, vault.Entries.Count);
+            Assert.All(added, entry => Assert.NotEqual(Guid.Empty, entry.Id));
+            Assert.All(added, entry => Assert.NotEqual(default, entry.CreatedAt));
+
+            // Reopen from disk: the batch must have been committed.
+            var path = vault.VaultPath;
+            vault.Dispose();
+            using var reopened = VaultService.Open(path);
+            Assert.Equal(VaultUnlockStatus.Success, reopened.Unlock("master password"u8));
+            Assert.Equal(50, reopened.Entries.Count);
+            Assert.Contains(reopened.Entries, entry => entry.Title == "Bulk 50");
+        }
+        finally
+        {
+            try
+            {
+                Directory.Delete(directory, recursive: true);
+            }
+            catch (IOException)
+            {
+            }
+        }
+    }
 }

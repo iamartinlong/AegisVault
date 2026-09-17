@@ -219,6 +219,53 @@ public sealed class VaultService : IDisposable
         return item;
     }
 
+    /// <summary>
+    /// Adds many entries in a single transaction (bulk import). Runs on the
+    /// calling thread so the vault's connection is never used concurrently;
+    /// callers on a UI thread should parse off-thread and call this on the UI
+    /// thread.
+    /// </summary>
+    public IReadOnlyList<PasswordEntry> AddEntries(IEnumerable<PasswordEntry> entries)
+    {
+        ThrowIfDisposed();
+        EnsureUnlocked();
+        ArgumentNullException.ThrowIfNull(entries);
+
+        var now = DateTimeOffset.UtcNow;
+        var items = new List<PasswordEntry>();
+        foreach (var entry in entries)
+        {
+            items.Add(entry with
+            {
+                Id = entry.Id == Guid.Empty ? Guid.NewGuid() : entry.Id,
+                CreatedAt = entry.CreatedAt == default ? now : entry.CreatedAt,
+                UpdatedAt = now,
+            });
+        }
+
+        if (items.Count == 0)
+        {
+            return items;
+        }
+
+        var records = new List<EntryRecord>(items.Count);
+        foreach (var item in items)
+        {
+            var (nonce, ciphertext, tag) = EntryRepository.Encrypt(_dek!.ReadOnlySpan, item);
+            records.Add(new EntryRecord(
+                item.Id,
+                EntryRepository.EntryFormatVersion,
+                nonce,
+                ciphertext,
+                tag,
+                item.UpdatedAt));
+        }
+
+        _database.WriteEntries(records);
+        _entries.AddRange(items);
+        return items;
+    }
+
     public bool UpdateEntry(PasswordEntry entry)
     {
         ThrowIfDisposed();

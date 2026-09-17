@@ -9,13 +9,19 @@ internal static class Program
     /// <summary>Window title of the running instance a second launch activates.</summary>
     internal const string WindowTitle = "AegisVault";
 
+    /// <summary>
+    /// Held for the whole process lifetime. The restart flow releases it early
+    /// so the replacement process does not mistake itself for a second instance.
+    /// </summary>
+    internal static SingleInstanceGuard? Instance { get; private set; }
+
     [STAThread]
     public static void Main(string[] args)
     {
         CoreDumpGuard.DisableCoreDumps();
 
-        using var instance = SingleInstanceGuard.Acquire();
-        if (!instance.IsOwner)
+        Instance = SingleInstanceGuard.Acquire();
+        if (!Instance.IsOwner)
         {
             // Another instance owns the vault: bring its window forward and exit.
             // The window may not exist yet when both launches race; the second
@@ -24,7 +30,15 @@ internal static class Program
             return;
         }
 
-        BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+        try
+        {
+            BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+        }
+        finally
+        {
+            Instance.Dispose();
+            Instance = null;
+        }
     }
 
     public static AppBuilder BuildAvaloniaApp()

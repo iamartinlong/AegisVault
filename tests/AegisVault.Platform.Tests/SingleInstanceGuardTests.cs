@@ -60,4 +60,53 @@ public sealed class SingleInstanceGuardTests
 
         Assert.False(activated);
     }
+
+    [Fact]
+    public async Task ReleaseHandsTheLockOverForARestart()
+    {
+        using var first = SingleInstanceGuard.Acquire();
+        Assert.True(first.IsOwner);
+
+        // The restart flow releases before spawning the replacement process.
+        Assert.True(first.Release());
+        Assert.False(first.IsOwner);
+
+        var second = await Task.Run(SingleInstanceGuard.Acquire);
+        try
+        {
+            Assert.True(second.IsOwner);
+        }
+        finally
+        {
+            second.Dispose();
+        }
+    }
+
+    [Fact]
+    public void ReacquireSucceedsWhenNobodyTookOver()
+    {
+        using var guard = SingleInstanceGuard.Acquire();
+
+        Assert.True(guard.Release());
+        Assert.True(guard.TryReacquire());
+        Assert.True(guard.IsOwner);
+    }
+
+    [Fact]
+    public async Task ReacquireFailsWhenAnotherInstanceTookOver()
+    {
+        using var guard = SingleInstanceGuard.Acquire();
+        Assert.True(guard.Release());
+
+        var other = await Task.Run(SingleInstanceGuard.Acquire);
+        try
+        {
+            Assert.False(guard.TryReacquire());
+            Assert.False(guard.IsOwner);
+        }
+        finally
+        {
+            other.Dispose();
+        }
+    }
 }

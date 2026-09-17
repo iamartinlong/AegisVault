@@ -13,15 +13,33 @@ public sealed record ImportResult(int Imported, int Skipped);
 /// </summary>
 public static class VaultCsvImporter
 {
+    /// <summary>
+    /// Parses the CSV and writes every entry in one transaction. Callers with a
+    /// UI thread should prefer <see cref="Parse"/> on a worker thread and then
+    /// <see cref="VaultService.AddEntries"/> on the vault's own thread.
+    /// </summary>
     public static ImportResult Import(VaultService vault, string csv)
     {
         ArgumentNullException.ThrowIfNull(vault);
+
+        var (entries, skipped) = Parse(csv);
+        var added = vault.AddEntries(entries);
+        return new ImportResult(added.Count, skipped);
+    }
+
+    /// <summary>
+    /// Parses a CSV export into entries without touching a vault (CPU only, safe
+    /// to run on a background thread).
+    /// </summary>
+    public static (List<PasswordEntry> Entries, int Skipped) Parse(string csv)
+    {
         ArgumentNullException.ThrowIfNull(csv);
 
+        var entries = new List<PasswordEntry>();
         var rows = ParseCsv(csv);
         if (rows.Count == 0)
         {
-            return new ImportResult(0, 0);
+            return (entries, 0);
         }
 
         var headers = rows[0]
@@ -37,7 +55,6 @@ public static class VaultCsvImporter
             map[headers[i].ToLowerInvariant()] = i;
         }
 
-        var imported = 0;
         var skipped = 0;
 
         for (var row = 1; row < rows.Count; row++)
@@ -70,7 +87,7 @@ public static class VaultCsvImporter
                 tags.Add(folder);
             }
 
-            vault.AddEntry(new PasswordEntry
+            entries.Add(new PasswordEntry
             {
                 Title = title.Length == 0 ? username : title,
                 Username = username,
@@ -79,13 +96,20 @@ public static class VaultCsvImporter
                 Notes = notes,
                 TotpSecret = totp,
                 Tags = tags,
-                IsFavorite = favorite.Equals("true", StringComparison.OrdinalIgnoreCase),
+                IsFavorite = IsTruthy(favorite),
             });
-            imported++;
         }
 
-        return new ImportResult(imported, skipped);
+        return (entries, skipped);
     }
+
+    /// <summary>Bitwarden exports favourites as "1"/"0"; accept the common truthy spellings.</summary>
+    private static bool IsTruthy(string value)
+        => value.Equals("true", StringComparison.OrdinalIgnoreCase) ||
+           value.Equals("1", StringComparison.Ordinal) ||
+           value.Equals("yes", StringComparison.OrdinalIgnoreCase) ||
+           value.Equals("y", StringComparison.OrdinalIgnoreCase);
+
 
     private static string Get(List<string> fields, Dictionary<string, int> map, params string[] keys)
     {

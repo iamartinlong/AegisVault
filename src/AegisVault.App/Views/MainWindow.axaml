@@ -328,6 +328,7 @@
                                 <atom:Button ButtonType="Text"
                                              Icon="{antd:AntDesignIconProvider LockOutlined}"
                                              ToolTip.Tip="{loc:Str Main_Lock}"
+                                             AutomationProperties.AutomationId="LockButton"
                                              Command="{Binding LockCommand}" />
                             </StackPanel>
                         </Grid>

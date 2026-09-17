@@ -199,7 +199,18 @@ public partial class SettingsViewModel : ObservableObject
             },
         };
 
-        _config.Save(updated);
+        try
+        {
+            _config.Save(updated);
+        }
+        catch (Exception exception) when (exception is ObjectDisposedException or InvalidOperationException)
+        {
+            // The session was locked while the dialog stayed open; the window is
+            // closed on lock, but be defensive instead of crashing.
+            StatusMessage = Loc.T("Settings_StatusSessionLocked");
+            return;
+        }
+
         _applyTheme?.Invoke(SelectedTheme?.Value ?? "system");
         _applyScreenGuard?.Invoke(!DisableScreenCapture);
         _applyFloatingBall?.Invoke(ShowFloatingBall);
@@ -250,6 +261,10 @@ public partial class SettingsViewModel : ObservableObject
             HasDeviceKey = _protector is { IsAvailable: true } && _vault.HasDeviceKey(_protector);
             StatusMessage = Loc.T("Settings_StatusPasswordChanged");
         }
+        catch (Exception exception) when (exception is ObjectDisposedException or InvalidOperationException)
+        {
+            StatusMessage = Loc.T("Settings_StatusSessionLocked");
+        }
         catch (Exception)
         {
             StatusMessage = Loc.T("Settings_StatusPasswordChangeFailed");
@@ -274,6 +289,10 @@ public partial class SettingsViewModel : ObservableObject
             HasDeviceKey = true;
             StatusMessage = Loc.T("Settings_StatusDeviceRemembered");
         }
+        catch (Exception exception) when (exception is ObjectDisposedException or InvalidOperationException)
+        {
+            StatusMessage = Loc.T("Settings_StatusSessionLocked");
+        }
         catch (Exception)
         {
             StatusMessage = Loc.T("Settings_StatusDeviceRememberFailed");
@@ -288,9 +307,16 @@ public partial class SettingsViewModel : ObservableObject
             return;
         }
 
-        _vault.ForgetDevice(protector);
-        HasDeviceKey = false;
-        StatusMessage = Loc.T("Settings_StatusDeviceForgotten");
+        try
+        {
+            _vault.ForgetDevice(protector);
+            HasDeviceKey = false;
+            StatusMessage = Loc.T("Settings_StatusDeviceForgotten");
+        }
+        catch (Exception exception) when (exception is ObjectDisposedException or InvalidOperationException)
+        {
+            StatusMessage = Loc.T("Settings_StatusSessionLocked");
+        }
     }
 
     public void SaveBackupTo(string path)
@@ -299,6 +325,10 @@ public partial class SettingsViewModel : ObservableObject
         {
             _vault.SaveBackup(path);
             StatusMessage = Loc.T("Settings_StatusBackupSaved");
+        }
+        catch (Exception exception) when (exception is ObjectDisposedException or InvalidOperationException)
+        {
+            StatusMessage = Loc.T("Settings_StatusSessionLocked");
         }
         catch (Exception)
         {

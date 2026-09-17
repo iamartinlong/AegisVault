@@ -54,8 +54,10 @@ public partial class App : Application
     private readonly IAppRestarter _restarter = ProcessAppRestarter.Instance;
     private readonly IStartupRegistration _startupRegistration = new WindowsStartupRegistration();
     private bool _unlockDialogOpen;
+    private bool _exiting;
     private bool _startMinimizedOnLaunch;
     private bool _startMinimizedConsumed;
+    private SettingsWindow? _settingsWindow;
 
     public override void Initialize()
     {
@@ -86,6 +88,7 @@ public partial class App : Application
             }
 
             _ = StartAsync(desktop);
+            Dispatcher.UIThread.UnhandledException += OnDispatcherUnhandledException;
         }
         else
         {
@@ -111,24 +114,72 @@ public partial class App : Application
         _splash = splash;
         var splashShownAt = Stopwatch.GetTimestamp();
 
-        await YieldFrameAsync();
-        splash.Show();
-        // The first frame is rendered by the compositor thread (so it arrives
-        // even while the UI thread is busy); the yield below is just courtesy.
-        await Task.Delay(SplashPresentSettleMilliseconds);
-        await YieldFrameAsync();
+        try
+        {
+            await YieldFrameAsync();
+            splash.Show();
+            // The first frame is rendered by the compositor thread (so it arrives
+            // even while the UI thread is busy); the yield below is just courtesy.
+            await Task.Delay(SplashPresentSettleMilliseconds);
+            await YieldFrameAsync();
 
-        splash.SetStatus(Loc.T("Splash_LoadingShell"), 0.45);
-        await YieldFrameAsync();
+            splash.SetStatus(Loc.T("Splash_LoadingShell"), 0.45);
+            await YieldFrameAsync();
 
-        InitializeAtomUI();
-        InitializeTray();
-        InitializeHotKey();
-        await YieldFrameAsync();
+            InitializeAtomUI();
+            InitializeTray();
+            InitializeHotKey();
+            await YieldFrameAsync();
 
-        splash.SetStatus(Loc.T("Splash_OpeningVault"), 0.75);
-        await ShowUnlockAsync(desktop);
-        await CloseSplashAsync(splash, splashShownAt);
+            splash.SetStatus(Loc.T("Splash_OpeningVault"), 0.75);
+            await ShowUnlockAsync(desktop);
+            await CloseSplashAsync(splash, splashShownAt);
+        }
+        catch (Exception exception)
+        {
+            // Startup must never leave a frozen splash behind: close it and fall
+            // back to the unlock window (or exit) instead of a zombie process.
+            Trace.TraceError($"Startup failed: {exception}");
+            _splash = null;
+
+            try
+            {
+                splash.Close();
+                ShowUnlockFallback(desktop);
+            }
+            catch (Exception fallbackException)
+            {
+                Trace.TraceError($"Startup fallback failed: {fallbackException}");
+                _desktop?.Shutdown();
+            }
+        }
+    }
+
+    /// <summary>Last-resort window after a failed startup.</summary>
+    private void ShowUnlockFallback(IClassicDesktopStyleApplicationLifetime desktop)
+    {
+        var viewModel = new UnlockViewModel
+        {
+            DeviceKeyProtector = CreateKeyProtector(),
+            SecureInputAvailable = OperatingSystem.IsWindows(),
+        };
+        viewModel.ApplyPreferences(_preferences);
+        CreateUnlockWindow(desktop, viewModel);
+    }
+
+    /// <summary>
+    /// Last-resort guard for exceptions raised from UI callbacks (commands,
+    /// native tray/hotkey callbacks): report instead of dying silently mid-action.
+    /// </summary>
+    private void OnDispatcherUnhandledException(object? sender, DispatcherUnhandledExceptionEventArgs e)
+    {
+        Trace.TraceError($"Unhandled UI exception: {e.Exception}");
+        e.Handled = true;
+
+        if (_mainViewModel is { } viewModel)
+        {
+            viewModel.StatusMessage = Loc.T("Main_StatusUnexpectedError");
+        }
     }
 
     private void InitializeAtomUI()
@@ -276,7 +327,10 @@ public partial class App : Application
             {
                 if (ReferenceEquals(_mainWindow, window))
                 {
-                    CleanupSession();
+                    // The main window is the session; closing it exits. Keeping
+                    // the process alive would leave a tray icon that can no
+                    // longer open anything.
+                    ExitApplication(restart: false);
                 }
             };
             desktop.MainWindow = window;
@@ -327,8 +381,6 @@ public partial class App : Application
             return;
         }
 
-        _quickAccess?.Hide();
-
         var window = _mainWindow;
         if (window is null)
         {
@@ -377,7 +429,11 @@ public partial class App : Application
 
     private void CleanupSession(bool keepWindow = false)
     {
-        _quickAccess?.Hide();
+        // A dialog that outlives the session would hit a disposed vault on its
+        // next command; close it as part of the teardown.
+        CloseSettingsWindow();
+
+        _quickAccess?.Close();
         _quickAccess = null;
 
         _sessionWatcher?.Dispose();
@@ -437,13 +493,31 @@ public partial class App : Application
     /// <summary>Closes the session and optionally spawns a fresh instance.</summary>
     private void ExitApplication(bool restart)
     {
-        if (restart && !_restarter.TryStartNewInstance())
+        if (_exiting)
         {
-            // Keep the current session alive rather than leaving the user with nothing.
-            _mainViewModel?.StatusMessage = Loc.T("Main_RestartManualHint");
             return;
         }
 
+        if (restart)
+        {
+            // The replacement process would see the still-held instance lock and
+            // exit as a "second instance", so hand the lock over first.
+            var handedOver = Program.Instance?.Release() == true;
+
+            if (!_restarter.TryStartNewInstance())
+            {
+                if (handedOver)
+                {
+                    Program.Instance?.TryReacquire();
+                }
+
+                // Keep the current session alive rather than leaving the user with nothing.
+                _mainViewModel?.StatusMessage = Loc.T("Main_RestartManualHint");
+                return;
+            }
+        }
+
+        _exiting = true;
         CleanupSession();
         _hotKey?.Dispose();
         _floatingBall?.Close();
@@ -491,8 +565,19 @@ public partial class App : Application
         {
             var viewModel = new QuickAccessViewModel(_mainViewModel, _clipboard);
             viewModel.EntryActivated += ShowMainWindow;
-            _quickAccess = new QuickAccessWindow { DataContext = viewModel };
-            _quickAccess.Closed += (_, _) => viewModel.Dispose();
+            var quickAccess = new QuickAccessWindow { DataContext = viewModel };
+            quickAccess.Closed += (_, _) =>
+            {
+                viewModel.Dispose();
+
+                // The user may close it with Alt+F4; a closed Avalonia window
+                // cannot be shown again, so forget it and recreate on demand.
+                if (ReferenceEquals(_quickAccess, quickAccess))
+                {
+                    _quickAccess = null;
+                }
+            };
+            _quickAccess = quickAccess;
         }
 
         if (_quickAccess.IsVisible)
@@ -511,15 +596,24 @@ public partial class App : Application
     {
         if (_mainWindow is null || !_preferences.ShowFloatingBall)
         {
-            _floatingBall?.Hide();
+            _floatingBall?.Close();
+            _floatingBall = null;
             return;
         }
 
         if (_floatingBall is null)
         {
-            _floatingBall = new FloatingBallWindow();
-            _floatingBall.BallClicked += ToggleQuickAccess;
-            _floatingBall.PlacementChanged += OnBallPlacementChanged;
+            var ball = new FloatingBallWindow();
+            ball.BallClicked += ToggleQuickAccess;
+            ball.PlacementChanged += OnBallPlacementChanged;
+            ball.Closed += (_, _) =>
+            {
+                if (ReferenceEquals(_floatingBall, ball))
+                {
+                    _floatingBall = null;
+                }
+            };
+            _floatingBall = ball;
         }
 
         if (!_floatingBall.IsVisible)
@@ -613,6 +707,13 @@ public partial class App : Application
             return;
         }
 
+        // Only one settings dialog at a time (tray + toolbar can both ask).
+        if (_settingsWindow is { } existing)
+        {
+            existing.Activate();
+            return;
+        }
+
         var viewModel = new SettingsViewModel(
             _vault,
             _configService,
@@ -668,7 +769,40 @@ public partial class App : Application
                 SavePreferences();
             });
         var window = new SettingsWindow { DataContext = viewModel };
+        _settingsWindow = window;
+        window.Closed += (_, _) =>
+        {
+            if (ReferenceEquals(_settingsWindow, window))
+            {
+                _settingsWindow = null;
+            }
+        };
+
         _ = window.ShowDialog(_mainWindow);
+    }
+
+    /// <summary>
+    /// Closes the settings dialog (lock/exit). It is modal on the main window,
+    /// so leaving it open would let the user run commands against a session
+    /// that has already been disposed.
+    /// </summary>
+    private void CloseSettingsWindow()
+    {
+        var window = _settingsWindow;
+        if (window is null)
+        {
+            return;
+        }
+
+        _settingsWindow = null;
+        try
+        {
+            window.Close();
+        }
+        catch (Exception)
+        {
+            // Closing is best effort; the guards in the view model stay in place.
+        }
     }
 
     private void ApplyTheme(string theme)
