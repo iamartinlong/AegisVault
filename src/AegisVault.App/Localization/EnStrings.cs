@@ -49,7 +49,7 @@ internal static class EnStrings
         ["Unlock_SecureInput"] = "Secure input",
         ["Unlock_SecureInputTitle"] = "Enter your master password (secure desktop input)",
         ["Unlock_SecureInputUnavailable"] = "Secure input is unavailable. Please type your master password.",
-        ["Unlock_Subtitle"] = "Shieldbox · local encrypted vault",
+        ["Unlock_Subtitle"] = "AegisVault · local encrypted vault",
         ["Unlock_TabCreate"] = "Create a new vault",
         ["Unlock_TabOpen"] = "Open an existing vault",
         ["Unlock_Unlock"] = "Unlock",

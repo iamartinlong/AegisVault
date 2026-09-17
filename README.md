@@ -1,4 +1,4 @@
-# AegisVault（盾匣）
+# AegisVault（玄钥）
 
 **本地优先、零知识的跨平台密码管理器** — 基于 .NET 10 + Avalonia UI 构建，以金融级加密保护你的数字资产。
 

@@ -49,7 +49,7 @@ internal static class ZhStrings
         ["Unlock_SecureInput"] = "安全输入",
         ["Unlock_SecureInputTitle"] = "请输入主密码（系统安全桌面输入）",
         ["Unlock_SecureInputUnavailable"] = "安全输入不可用，请手动输入主密码。",
-        ["Unlock_Subtitle"] = "盾匣 · 本地加密密码库",
+        ["Unlock_Subtitle"] = "玄钥 · 本地加密密码库",
         ["Unlock_TabCreate"] = "创建新密码库",
         ["Unlock_TabOpen"] = "打开已有密码库",
         ["Unlock_Unlock"] = "解锁",
