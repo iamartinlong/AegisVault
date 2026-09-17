@@ -51,11 +51,14 @@ public sealed class VaultHealthViewModelTests : IDisposable
     }
 
     [Fact]
-    public Task ReportsSecurityIssuesAndWeakCategory() => Headless.Run(() =>
+    public Task ReportsSecurityIssuesAndWeakCategory() => Headless.RunAsync<object?>(async () =>
     {
         using var vault = CreateVaultWithEntries();
         using var viewModel = new MainViewModel(vault);
 
+        await viewModel.HealthAnalysis;
+
+        Assert.False(viewModel.IsHealthAnalyzing);
         Assert.True(viewModel.HasSecurityIssues);
         Assert.Equal(2, viewModel.Health.WeakCount);
         Assert.Equal(2, viewModel.Health.ReusedCount);
@@ -67,28 +70,52 @@ public sealed class VaultHealthViewModelTests : IDisposable
         Assert.Equal(weakCategory, viewModel.SelectedCategory);
         Assert.Equal(2, viewModel.FilteredEntries.Count);
         Assert.All(viewModel.FilteredEntries, entry => Assert.Contains(entry.Title, new[] { "WeakOne", "WeakTwo" }));
-        
+        return null;
     });
 
     [Fact]
-    public Task CleanVaultHidesWeakCategory() => Headless.Run(() =>
+    public Task HealthAnalysisShowsAPlaceholderUntilItLands() => Headless.RunAsync<object?>(async () =>
+    {
+        using var vault = CreateVaultWithEntries();
+        using var viewModel = new MainViewModel(vault);
+
+        // The analysis is kicked off in the constructor: until its continuation
+        // runs, the shell must show the loading state, not a wrong "all good".
+        Assert.True(viewModel.IsHealthAnalyzing);
+        Assert.Equal(Localization.Loc.T("Main_HealthAnalyzing"), viewModel.HealthSummary);
+        Assert.Equal(Localization.Loc.T("Main_HealthAnalyzingCompact"), viewModel.HealthCompactText);
+        Assert.False(viewModel.HasSecurityIssues);
+
+        await viewModel.HealthAnalysis;
+
+        Assert.False(viewModel.IsHealthAnalyzing);
+        Assert.DoesNotContain(Localization.Loc.T("Main_HealthAnalyzing"), viewModel.HealthSummary);
+        return null;
+    });
+
+    [Fact]
+    public Task CleanVaultHidesWeakCategory() => Headless.RunAsync<object?>(async () =>
     {
         using var vault = VaultService.CreateNew(_vaultPath, Password, FastOptions);
         vault.AddEntry(new PasswordEntry { Title = "Strong", Username = "a", Password = "correct horse battery staple 42!" });
         using var viewModel = new MainViewModel(vault);
 
+        await viewModel.HealthAnalysis;
+
         Assert.False(viewModel.HasSecurityIssues);
         Assert.DoesNotContain(viewModel.Categories, category => category.Key == "weak");
         Assert.Contains("全部良好", viewModel.HealthSummary);
-        
+        return null;
     });
 
     [Fact]
-    public Task StaleEntriesShowStaleCategoryAndSummary() => Headless.Run(() =>
+    public Task StaleEntriesShowStaleCategoryAndSummary() => Headless.RunAsync<object?>(async () =>
     {
         using var vault = VaultService.CreateNew(_vaultPath, Password, FastOptions);
         vault.AddEntry(new PasswordEntry { Title = "Old", Username = "a", Password = "correct horse battery staple 42!" });
         using var viewModel = new MainViewModel(vault, null, new FixedTimeProvider(DateTimeOffset.UtcNow.AddDays(400)));
+
+        await viewModel.HealthAnalysis;
 
         Assert.Equal(1, viewModel.Health.OldCount);
         Assert.False(viewModel.HasSecurityIssues);
@@ -100,6 +127,7 @@ public sealed class VaultHealthViewModelTests : IDisposable
         Assert.Equal(staleCategory, viewModel.SelectedCategory);
         Assert.Equal("Old", viewModel.FilteredEntries.Single().Title);
         Assert.Contains("未更新", viewModel.HealthSummary);
+        return null;
     });
 
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider

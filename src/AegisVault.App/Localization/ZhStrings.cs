@@ -127,6 +127,8 @@ internal static class ZhStrings
         ["Main_GuideStepQuickAccess"] = "按 Ctrl+Shift+Space 随时打开快速访问",
         ["Main_GuideTitle"] = "三步开始",
         ["Main_HealthEmpty"] = "密码库为空",
+        ["Main_HealthAnalyzing"] = "正在分析安全性…",
+        ["Main_HealthAnalyzingCompact"] = "分析中…",
         ["Main_HealthCompact"] = "弱 {0} · 重复 {1} · 待更新 {2}",
         ["Main_HealthIssues"] = "安全：{0} 条弱密码，{1} 条重复，{2} 条超过一年未更新",
         ["Main_HealthOk"] = "安全：{0} 条密码全部良好",

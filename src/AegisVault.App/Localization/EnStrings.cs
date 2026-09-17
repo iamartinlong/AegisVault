@@ -127,6 +127,8 @@ internal static class EnStrings
         ["Main_GuideStepQuickAccess"] = "Press Ctrl+Shift+Space for quick access anytime",
         ["Main_GuideTitle"] = "Get started in three steps",
         ["Main_HealthEmpty"] = "Vault is empty",
+        ["Main_HealthAnalyzing"] = "Analyzing security…",
+        ["Main_HealthAnalyzingCompact"] = "Analyzing…",
         ["Main_HealthCompact"] = "Weak {0} · Reused {1} · Stale {2}",
         ["Main_HealthIssues"] = "Security: {0} weak, {1} reused, {2} over a year old",
         ["Main_HealthOk"] = "Security: all {0} passwords look good",

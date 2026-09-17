@@ -79,8 +79,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
         FilteredEntries = [];
         Categories = [];
 
-        RefreshCategories();
+        // The sidebar shows up immediately; the health analysis (the expensive
+        // part on large vaults) runs on a background thread and backfills.
+        RefreshCategoryViews();
         ApplyFilter();
+        _healthAnalysis = AnalyzeHealthAsync();
 
         _totpTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _totpTimer.Tick += (_, _) => UpdateTotp();
@@ -253,18 +256,32 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     public VaultHealthReport Health => _health;
 
-    public bool HasSecurityIssues => _health.WeakCount > 0 || _health.ReusedCount > 0;
+    /// <summary>True while the initial (background) health analysis is running.</summary>
+    [ObservableProperty]
+    private bool isHealthAnalyzing;
 
-    public string HealthSummary => _health.TotalEntries == 0
+    /// <summary>Awaits the initial analysis; the shell shows a placeholder until it lands.</summary>
+    internal Task HealthAnalysis => _healthAnalysis ?? Task.CompletedTask;
+
+    private Task? _healthAnalysis;
+
+    partial void OnIsHealthAnalyzingChanged(bool value) => NotifyHealthChanged();
+
+    public bool HasSecurityIssues => !IsHealthAnalyzing && (_health.WeakCount > 0 || _health.ReusedCount > 0);
+
+    public string HealthSummary => IsHealthAnalyzing
+        ? Loc.T("Main_HealthAnalyzing")
+        : _health.TotalEntries == 0
         ? Loc.T("Main_HealthEmpty")
-        : HasSecurityIssues
-            ? Loc.Format("Main_HealthIssues", _health.WeakCount, _health.ReusedCount, _health.OldCount)
-            : _health.OldCount > 0
-                ? Loc.Format("Main_HealthStale", _health.TotalEntries, _health.OldCount)
-                : Loc.Format("Main_HealthOk", _health.TotalEntries);
+        : _health.WeakCount > 0 || _health.ReusedCount > 0
+        ? Loc.Format("Main_HealthIssues", _health.WeakCount, _health.ReusedCount, _health.OldCount)
+        : _health.OldCount > 0
+        ? Loc.Format("Main_HealthStale", _health.TotalEntries, _health.OldCount)
+        : Loc.Format("Main_HealthOk", _health.TotalEntries);
 
-    public string HealthCompactText =>
-        Loc.Format("Main_HealthCompact", _health.WeakCount, _health.ReusedCount, _health.OldCount);
+    public string HealthCompactText => IsHealthAnalyzing
+        ? Loc.T("Main_HealthAnalyzingCompact")
+        : Loc.Format("Main_HealthCompact", _health.WeakCount, _health.ReusedCount, _health.OldCount);
 
     public bool HasSelection => SelectedEntry is not null;
 
@@ -778,13 +795,47 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     private void RefreshCategories()
     {
-        var selectedKey = SelectedCategory?.Key;
-
         _health = VaultHealth.Analyze(Entries, _timeProvider);
+        RefreshCategoryViews();
+    }
+
+    /// <summary>
+    /// Initial health analysis for the freshly built window: runs the report off
+    /// the UI thread (thousands of entries used to stall "unlock → main window")
+    /// and marshals the result back through the dispatcher context.
+    /// </summary>
+    private async Task AnalyzeHealthAsync()
+    {
+        IsHealthAnalyzing = true;
+        try
+        {
+            var entries = Entries.ToArray();
+            var report = await Task.Run(() => VaultHealth.Analyze(entries, _timeProvider));
+
+            _health = report;
+            RefreshCategoryViews();
+        }
+        finally
+        {
+            IsHealthAnalyzing = false;
+            NotifyHealthChanged();
+        }
+    }
+
+    private void NotifyHealthChanged()
+    {
         OnPropertyChanged(nameof(Health));
         OnPropertyChanged(nameof(HasSecurityIssues));
         OnPropertyChanged(nameof(HealthSummary));
         OnPropertyChanged(nameof(HealthCompactText));
+    }
+
+    /// <summary>Rebuilds the sidebar from the current entries and health report.</summary>
+    private void RefreshCategoryViews()
+    {
+        var selectedKey = SelectedCategory?.Key;
+
+        NotifyHealthChanged();
 
         Categories.Clear();
         Categories.Add(new CategoryItem(AllCategoryKey, Loc.T("Main_CategoryAll"), null, false, Entries.Count));
