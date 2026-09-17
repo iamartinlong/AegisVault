@@ -18,8 +18,12 @@
         <StackPanel Grid.Row="1" Margin="20" Spacing="18">
             <TextBlock x:Name="MessageText" TextWrapping="Wrap" />
             <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
-                <atom:Button Content="{loc:Str Common_Cancel}" Click="OnCancelClicked" IsCancel="True" />
-                <atom:Button ButtonType="Primary"
+                <atom:Button x:Name="CancelButton"
+                             Content="{loc:Str Common_Cancel}"
+                             Click="OnCancelClicked"
+                             IsCancel="True" />
+                <atom:Button x:Name="OkButton"
+                             ButtonType="Primary"
                              Content="{loc:Str Common_Ok}"
                              Click="OnOkClicked"
                              IsDefault="True" />

@@ -36,6 +36,7 @@ public partial class App : Application
     private QuickAccessWindow? _quickAccess;
     private FloatingBallWindow? _floatingBall;
     private HotKeyService? _hotKey;
+    private readonly IAppRestarter _restarter = ProcessAppRestarter.Instance;
     private bool _unlockDialogOpen;
 
     public override void Initialize()
@@ -154,6 +155,9 @@ public partial class App : Application
         sessionWatcher.ScreenLocked += autoLock.ReportScreenLocked;
         sessionWatcher.Suspended += autoLock.ReportSuspended;
         var viewModel = new MainViewModel(vault, clipboard);
+        viewModel.ThemePreference = _preferences.Theme;
+        viewModel.LanguagePreference = _preferences.Language;
+        viewModel.AttachAppearanceCallbacks(ApplyTheme, ApplyLanguage);
         var window = _mainWindow;
 
         if (window is null)
@@ -183,7 +187,7 @@ public partial class App : Application
         _preferences = _preferences with { LastVaultPath = vault.VaultPath };
         SavePreferences();
 
-        window.Attach(viewModel, clipboard, autoLock, ShowSettings, ToggleTheme);
+        window.Attach(viewModel, clipboard, autoLock, ShowSettings);
         viewModel.LockRequested += LockVault;
         autoLock.LockTriggered += _ => LockVault();
 
@@ -308,8 +312,18 @@ public partial class App : Application
 
     private void OnTrayLockClicked(object? sender, EventArgs e) => LockVault();
 
-    private void OnTrayExitClicked(object? sender, EventArgs e)
+    private void OnTrayExitClicked(object? sender, EventArgs e) => ExitApplication(restart: false);
+
+    /// <summary>Closes the session and optionally spawns a fresh instance.</summary>
+    private void ExitApplication(bool restart)
     {
+        if (restart && !_restarter.TryStartNewInstance())
+        {
+            // Keep the current session alive rather than leaving the user with nothing.
+            _mainViewModel?.StatusMessage = Loc.T("Main_RestartManualHint");
+            return;
+        }
+
         CleanupSession();
         _hotKey?.Dispose();
         _floatingBall?.Close();
@@ -487,12 +501,49 @@ public partial class App : Application
         _preferences = _preferences with { Theme = theme };
         SavePreferences();
         ApplyThemeVariant(theme);
+
+        // Keep the toolbar icon in sync when the theme is changed elsewhere
+        // (e.g. from the settings window).
+        if (_mainViewModel is { } viewModel)
+        {
+            viewModel.ThemePreference = theme;
+        }
     }
 
-    private void ToggleTheme()
+    /// <summary>
+    /// Persists the language preference and offers an immediate restart, since
+    /// the string tables are resolved once at startup.
+    /// </summary>
+    private async void ApplyLanguage(string language)
     {
-        var next = AppTheme.IsDarkPreference(_preferences.Theme) ? "light" : "dark";
-        ApplyTheme(next);
+        var changed = !string.Equals(_preferences.Language, language, StringComparison.Ordinal);
+        _preferences = _preferences with { Language = language };
+        SavePreferences();
+
+        if (_mainViewModel is { } viewModel)
+        {
+            viewModel.LanguagePreference = language;
+        }
+
+        if (!changed || _mainWindow is not { } owner)
+        {
+            return;
+        }
+
+        var dialog = new ConfirmWindow(
+            Loc.T("Main_LanguageSwitchTitle"),
+            Loc.T("Main_LanguageSwitchMessage"),
+            Loc.T("Main_RestartNow"),
+            Loc.T("Main_RestartLater"));
+
+        if (await dialog.ShowDialog<bool>(owner))
+        {
+            ExitApplication(restart: true);
+        }
+        else if (_mainViewModel is { } current)
+        {
+            current.StatusMessage = Loc.T("Main_LanguageRestartHint");
+        }
     }
 
     private void ApplyThemeVariant(string theme) => AppTheme.Apply(this, theme);

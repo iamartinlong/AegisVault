@@ -11,12 +11,22 @@ public partial class ConfirmWindow : Window
         InitializeComponent();
     }
 
-    public ConfirmWindow(string title, string message)
+    public ConfirmWindow(string title, string message, string? okText = null, string? cancelText = null)
         : this()
     {
         Title = title;
         TitleBar.Title = title;
         MessageText.Text = message;
+
+        if (!string.IsNullOrEmpty(okText))
+        {
+            OkButton.Content = okText;
+        }
+
+        if (!string.IsNullOrEmpty(cancelText))
+        {
+            CancelButton.Content = cancelText;
+        }
     }
 
     private void OnOkClicked(object? sender, RoutedEventArgs e) => Close(true);

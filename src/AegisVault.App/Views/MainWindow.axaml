@@ -23,6 +23,7 @@
         <conv:InitialTileForegroundConverter x:Key="TileForegroundConverter" />
         <conv:CategoryIconConverter x:Key="CategoryIconConverter" />
         <conv:CategoryDotConverter x:Key="CategoryDotConverter" />
+        <conv:ThemeIconConverter x:Key="ThemeIconConverter" />
     </Window.Resources>
 
     <Window.Styles>
@@ -259,10 +260,66 @@
                                        VerticalAlignment="Center"
                                        IsVisible="{Binding !HasSecurityIssues}" />
                             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="0">
-                                <atom:Button ButtonType="Text"
-                                             Icon="{antd:AntDesignIconProvider BulbOutlined}"
-                                             ToolTip.Tip="{loc:Str Main_ToggleTheme}"
-                                             Click="OnThemeToggleClicked" />
+                                <!-- Theme modes: the icon follows the active mode (system/light/dark). -->
+                                <atom:DropdownButton Name="ThemeButton"
+                                                     AutomationProperties.AutomationId="ThemeButton"
+                                                     ButtonType="Text"
+                                                     TriggerType="Click"
+                                                     IsArrowVisible="False"
+                                                     IsShowOpenIndicator="False"
+                                                     Icon="{Binding ThemePreference, Converter={StaticResource ThemeIconConverter}}"
+                                                     ToolTip.Tip="{loc:Str Settings_Theme}"
+                                                     Click="OnThemeButtonClicked">
+                                    <atom:DropdownButton.DropdownFlyout>
+                                        <atom:MenuFlyout Opened="OnThemeFlyoutOpened">
+                                            <atom:MenuItem x:Name="ThemeSystemItem"
+                                                           Header="{loc:Str Settings_ThemeSystem}"
+                                                           ToggleType="Radio"
+                                                           GroupName="ThemeMode"
+                                                           Click="OnThemeSystemClicked" />
+                                            <atom:MenuItem x:Name="ThemeLightItem"
+                                                           Header="{loc:Str Settings_ThemeLight}"
+                                                           ToggleType="Radio"
+                                                           GroupName="ThemeMode"
+                                                           Click="OnThemeLightClicked" />
+                                            <atom:MenuItem x:Name="ThemeDarkItem"
+                                                           Header="{loc:Str Settings_ThemeDark}"
+                                                           ToggleType="Radio"
+                                                           GroupName="ThemeMode"
+                                                           Click="OnThemeDarkClicked" />
+                                        </atom:MenuFlyout>
+                                    </atom:DropdownButton.DropdownFlyout>
+                                </atom:DropdownButton>
+                                <!-- Language menu: takes effect after a restart (offered right away). -->
+                                <atom:DropdownButton Name="LanguageButton"
+                                                     AutomationProperties.AutomationId="LanguageButton"
+                                                     ButtonType="Text"
+                                                     TriggerType="Click"
+                                                     IsArrowVisible="False"
+                                                     IsShowOpenIndicator="False"
+                                                     Icon="{antd:AntDesignIconProvider TranslationOutlined}"
+                                                     ToolTip.Tip="{loc:Str Settings_SectionLanguage}"
+                                                     Click="OnLanguageButtonClicked">
+                                    <atom:DropdownButton.DropdownFlyout>
+                                        <atom:MenuFlyout Opened="OnLanguageFlyoutOpened">
+                                            <atom:MenuItem x:Name="LanguageSystemItem"
+                                                           Header="{loc:Str Settings_LanguageSystem}"
+                                                           ToggleType="Radio"
+                                                           GroupName="LanguageMode"
+                                                           Click="OnLanguageSystemClicked" />
+                                            <atom:MenuItem x:Name="LanguageZhItem"
+                                                           Header="{loc:Str Settings_LanguageZh}"
+                                                           ToggleType="Radio"
+                                                           GroupName="LanguageMode"
+                                                           Click="OnLanguageZhClicked" />
+                                            <atom:MenuItem x:Name="LanguageEnItem"
+                                                           Header="{loc:Str Settings_LanguageEn}"
+                                                           ToggleType="Radio"
+                                                           GroupName="LanguageMode"
+                                                           Click="OnLanguageEnClicked" />
+                                        </atom:MenuFlyout>
+                                    </atom:DropdownButton.DropdownFlyout>
+                                </atom:DropdownButton>
                                 <atom:Button ButtonType="Text"
                                              Icon="{antd:AntDesignIconProvider SettingOutlined}"
                                              ToolTip.Tip="{loc:Str Main_Settings}"

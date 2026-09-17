@@ -70,8 +70,6 @@ public sealed class InitialTileForegroundConverter : IValueConverter
 /// <summary>Maps a sidebar category item to its Ant Design icon.</summary>
 public sealed class CategoryIconConverter : IValueConverter
 {
-    private static readonly Dictionary<string, Func<Icon>?> Cache = new(StringComparer.Ordinal);
-
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         if (value is not CategoryItem item)
@@ -93,33 +91,9 @@ public sealed class CategoryIconConverter : IValueConverter
             },
         };
 
-        var icon = GetCreator(name)?.Invoke();
-        if (icon is not null)
-        {
-            icon.Width = 16;
-            icon.Height = 16;
-        }
-
-        return icon;
+        return AntDesignIconFactory.Create(name);
     }
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
         => throw new NotSupportedException();
-
-    private static Func<Icon>? GetCreator(string name)
-    {
-        lock (Cache)
-        {
-            if (Cache.TryGetValue(name, out var cached))
-            {
-                return cached;
-            }
-
-            var info = AntDesignIconCatalog.GetIcons()
-                .FirstOrDefault(candidate => string.Equals(candidate.Name, name, StringComparison.Ordinal));
-            var creator = info.Name is null ? null : info.Creator;
-            Cache[name] = creator;
-            return creator;
-        }
-    }
 }

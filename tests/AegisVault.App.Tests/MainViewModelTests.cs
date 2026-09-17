@@ -601,6 +601,42 @@ public sealed class MainViewModelTests : IDisposable
         Assert.Equal(Loc.T("Main_StatusUrlOpenFailed"), viewModel.StatusMessage);
     });
 
+    [Fact]
+    public void SetThemeUpdatesPreferenceAndNotifiesShell()
+    {
+        using var vault = CreateVaultWithEntries();
+        using var viewModel = new MainViewModel(vault);
+        var applied = new List<string>();
+        viewModel.AttachAppearanceCallbacks(applied.Add, null);
+
+        Assert.Equal("system", viewModel.ThemePreference);
+
+        viewModel.SetThemeCommand.Execute("dark");
+
+        Assert.Equal("dark", viewModel.ThemePreference);
+        Assert.Equal(["dark"], applied);
+
+        // Unknown values are ignored instead of poisoning the preference.
+        viewModel.SetThemeCommand.Execute(null);
+        Assert.Equal("dark", viewModel.ThemePreference);
+    }
+
+    [Fact]
+    public void SetLanguageUpdatesPreferenceAndNotifiesShell()
+    {
+        using var vault = CreateVaultWithEntries();
+        using var viewModel = new MainViewModel(vault);
+        var applied = new List<string>();
+        viewModel.AttachAppearanceCallbacks(null, applied.Add);
+
+        Assert.Equal(Loc.System, viewModel.LanguagePreference);
+
+        viewModel.SetLanguageCommand.Execute(Loc.English);
+
+        Assert.Equal(Loc.English, viewModel.LanguagePreference);
+        Assert.Equal([Loc.English], applied);
+    }
+
     private VaultService CreateVaultWithEntries()
     {
         var vault = VaultService.CreateNew(_vaultPath, Password, FastOptions);

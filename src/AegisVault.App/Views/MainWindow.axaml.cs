@@ -14,7 +14,6 @@ public partial class MainWindow : Window
     private ClipboardService? _clipboard;
     private AutoLockService? _autoLock;
     private Action? _openSettings;
-    private Action? _toggleTheme;
     private bool _handlersAttached;
 
     /// <summary>Raised when the user asks to unlock from the lock overlay.</summary>
@@ -40,14 +39,12 @@ public partial class MainWindow : Window
         MainViewModel viewModel,
         ClipboardService clipboard,
         AutoLockService autoLock,
-        Action? openSettings = null,
-        Action? toggleTheme = null)
+        Action? openSettings = null)
     {
         DataContext = viewModel;
         _clipboard = clipboard;
         _autoLock = autoLock;
         _openSettings = openSettings;
-        _toggleTheme = toggleTheme;
         HideLockOverlay();
 
         if (_handlersAttached)
@@ -196,8 +193,6 @@ public partial class MainWindow : Window
 
     private void OnSettingsClicked(object? sender, RoutedEventArgs e) => _openSettings?.Invoke();
 
-    private void OnThemeToggleClicked(object? sender, RoutedEventArgs e) => _toggleTheme?.Invoke();
-
     private void OnRowCopyPasswordClicked(object? sender, RoutedEventArgs e)
         => InvokeForRow(sender, viewModel => viewModel.CopyPasswordCommand.Execute(null));
 
@@ -286,16 +281,7 @@ public partial class MainWindow : Window
     }
 
     private void OnSortButtonClicked(object? sender, RoutedEventArgs e)
-    {
-        // Pointer presses open the flyout through FlyoutStateHelper; this path
-        // only ends up here for keyboard activation (Space/Enter), which keeps
-        // sorting reachable without a mouse.
-        var flyout = SortButton.DropdownFlyout;
-        if (flyout is not null && !flyout.IsOpen)
-        {
-            flyout.ShowAt(SortButton);
-        }
-    }
+        => OpenFlyoutOnKeyboard(SortButton);
 
     private void OnSortFlyoutOpened(object? sender, EventArgs e)
     {
@@ -315,6 +301,70 @@ public partial class MainWindow : Window
 
     private void OnSortByRecentClicked(object? sender, RoutedEventArgs e)
         => (DataContext as MainViewModel)?.SortByRecentCommand.Execute(null);
+
+    private void OnThemeButtonClicked(object? sender, RoutedEventArgs e)
+        => OpenFlyoutOnKeyboard(ThemeButton);
+
+    private void OnThemeFlyoutOpened(object? sender, EventArgs e)
+    {
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        // The flyout lives outside the normal binding scope, so the radio
+        // state is synced explicitly whenever the menu opens.
+        ThemeSystemItem.IsChecked = viewModel.ThemePreference == "system";
+        ThemeLightItem.IsChecked = viewModel.ThemePreference == "light";
+        ThemeDarkItem.IsChecked = viewModel.ThemePreference == "dark";
+    }
+
+    private void OnThemeSystemClicked(object? sender, RoutedEventArgs e) => SetTheme("system");
+
+    private void OnThemeLightClicked(object? sender, RoutedEventArgs e) => SetTheme("light");
+
+    private void OnThemeDarkClicked(object? sender, RoutedEventArgs e) => SetTheme("dark");
+
+    private void SetTheme(string theme)
+        => (DataContext as MainViewModel)?.SetThemeCommand.Execute(theme);
+
+    private void OnLanguageButtonClicked(object? sender, RoutedEventArgs e)
+        => OpenFlyoutOnKeyboard(LanguageButton);
+
+    private void OnLanguageFlyoutOpened(object? sender, EventArgs e)
+    {
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        LanguageSystemItem.IsChecked = viewModel.LanguagePreference == Loc.System;
+        LanguageZhItem.IsChecked = viewModel.LanguagePreference == Loc.Chinese;
+        LanguageEnItem.IsChecked = viewModel.LanguagePreference == Loc.English;
+    }
+
+    private void OnLanguageSystemClicked(object? sender, RoutedEventArgs e) => SetLanguage(Loc.System);
+
+    private void OnLanguageZhClicked(object? sender, RoutedEventArgs e) => SetLanguage(Loc.Chinese);
+
+    private void OnLanguageEnClicked(object? sender, RoutedEventArgs e) => SetLanguage(Loc.English);
+
+    private void SetLanguage(string language)
+        => (DataContext as MainViewModel)?.SetLanguageCommand.Execute(language);
+
+    /// <summary>
+    /// Pointer presses open a dropdown flyout through FlyoutStateHelper; the
+    /// Click event only fires for keyboard activation (Space/Enter), so the
+    /// menu stays reachable without a mouse.
+    /// </summary>
+    private static void OpenFlyoutOnKeyboard(AtomUI.Desktop.Controls.DropdownButton button)
+    {
+        var flyout = button.DropdownFlyout;
+        if (flyout is not null && !flyout.IsOpen)
+        {
+            flyout.ShowAt(button);
+        }
+    }
 
     private void InvokeForRow(object? sender, Action<MainViewModel> action)
     {

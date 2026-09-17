@@ -61,6 +61,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private bool _loadingEditor;
     private PasswordStrengthResult? _editPasswordStrength;
     private readonly IUrlLauncher _urlLauncher;
+    private Action<string>? _applyTheme;
+    private Action<string>? _applyLanguage;
     private VaultHealthReport _health = new(0, 0, 0, new HashSet<Guid>(), new HashSet<Guid>(), new HashSet<Guid>());
 
     public event Action? LockRequested;
@@ -1097,6 +1099,45 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     partial void OnClipboardToastRemainingChanged(int value) => OnPropertyChanged(nameof(ClipboardToastText));
 
+    /// <summary>Current theme mode: "system", "light" or "dark".</summary>
+    [ObservableProperty]
+    private string themePreference = "system";
+
+    /// <summary>Current language preference: "system", "zh" or "en".</summary>
+    [ObservableProperty]
+    private string languagePreference = Loc.System;
+
+    /// <summary>Wires the shell callbacks that persist and apply appearance changes.</summary>
+    public void AttachAppearanceCallbacks(Action<string>? applyTheme, Action<string>? applyLanguage)
+    {
+        _applyTheme = applyTheme;
+        _applyLanguage = applyLanguage;
+    }
+
+    [RelayCommand]
+    private void SetTheme(string? theme)
+    {
+        if (string.IsNullOrEmpty(theme))
+        {
+            return;
+        }
+
+        ThemePreference = theme;
+        _applyTheme?.Invoke(theme);
+    }
+
+    [RelayCommand]
+    private void SetLanguage(string? language)
+    {
+        if (string.IsNullOrEmpty(language))
+        {
+            return;
+        }
+
+        LanguagePreference = language;
+        _applyLanguage?.Invoke(language);
+    }
+
     private void UpdateTotp()
     {
         if (_loadingEditor)
@@ -1126,7 +1167,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     private static bool Contains(string? value, string query)
         => value is not null && value.Contains(query, StringComparison.OrdinalIgnoreCase);
-
     private static List<string> ParseTags(string text)
         => [.. text.Split([',', '，'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Distinct()];
 }
