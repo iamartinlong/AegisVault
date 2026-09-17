@@ -65,17 +65,43 @@ public sealed class TextPromptWindowTests
     });
 
     [Fact]
-    public Task CustomSwatchExpandsTheInlinePicker() => Headless.Run(() =>
+    public Task CustomSwatchTogglesTheInlinePicker() => Headless.Run(() =>
     {
         var window = Open();
         try
         {
+            var collapsed = window.Bounds.Height;
+
+            Click(window, ColorSwatchRow(window).Children[CustomSwatchIndex]);
+            Assert.True(CustomPickerView(window).IsVisible);
+            Assert.True(window.Bounds.Height > collapsed, "dialog did not grow");
+
+            Click(window, ColorSwatchRow(window).Children[CustomSwatchIndex]);
+            Assert.False(CustomPickerView(window).IsVisible);
+            Assert.Equal(collapsed, window.Bounds.Height, 1);
+        }
+        finally
+        {
+            window.Close();
+        }
+    });
+
+    [Fact]
+    public Task ChoosingAPresetCollapsesThePicker() => Headless.Run(() =>
+    {
+        var window = Open();
+        try
+        {
+            var collapsed = window.Bounds.Height;
+
             Click(window, ColorSwatchRow(window).Children[CustomSwatchIndex]);
             Assert.True(CustomPickerView(window).IsVisible);
 
-            // Choosing a preset closes the picker again to keep the dialog compact.
             Click(window, ColorSwatchRow(window).Children[2]);
+
+            // A blank gap would remain if the dialog kept the expanded height.
             Assert.False(CustomPickerView(window).IsVisible);
+            Assert.Equal(collapsed, window.Bounds.Height, 1);
             Assert.Equal("gold", CategoryPalette.ToStorage(window.SelectedColor));
         }
         finally

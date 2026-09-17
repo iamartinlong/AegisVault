@@ -5,6 +5,7 @@ using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Styling;
 using AegisVault.App.Localization;
@@ -155,7 +156,7 @@ public partial class TextPromptWindow : Window
 
         if (tag == "custom")
         {
-            SetPickerExpanded(true);
+            SetPickerExpanded(!CustomPicker.IsVisible);
         }
         else if (CategoryPalette.FindPreset(tag) is { } preset)
         {
@@ -172,14 +173,22 @@ public partial class TextPromptWindow : Window
     }
 
     /// <summary>
-    /// Shows or hides the inline picker. The explicit measure invalidation is
-    /// required: a control that starts collapsed keeps its zero measure cache
-    /// when it becomes visible, so the dialog would never grow to fit it.
+    /// Shows or hides the inline picker. Both transitions need an explicit
+    /// measure invalidation: a collapsed control keeps its zero measure cache
+    /// when it becomes visible (the dialog would never grow), and Avalonia skips
+    /// measure invalidation for controls that just became invisible, so the
+    /// parent keeps the expanded height (the dialog would keep a blank gap).
     /// </summary>
     private void SetPickerExpanded(bool expanded)
     {
+        if (CustomPicker.IsVisible == expanded)
+        {
+            return;
+        }
+
         CustomPicker.IsVisible = expanded;
         CustomPicker.InvalidateMeasure();
+        (CustomPicker.Parent as Layoutable)?.InvalidateMeasure();
     }
 
     private void OnPickerValueChanged(object? sender, AtomUIColorChangedEventArgs e)
