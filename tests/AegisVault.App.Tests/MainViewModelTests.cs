@@ -136,6 +136,54 @@ public sealed class MainViewModelTests : IDisposable
     });
 
     [Fact]
+    public Task DebouncedSearchWaitsForTheTypingPause() => Headless.Run(() =>
+    {
+        using var vault = CreateVaultWithEntries();
+        using var viewModel = new MainViewModel(vault, searchDebounce: TimeSpan.FromMilliseconds(200));
+
+        var baseline = viewModel.FilteredEntries.Count;
+        viewModel.SearchText = "GitHub";
+
+        // The debounce postpones the re-filter; clearing the box applies at once.
+        Assert.Equal(baseline, viewModel.FilteredEntries.Count);
+        viewModel.SearchText = string.Empty;
+        Assert.Equal(baseline, viewModel.FilteredEntries.Count);
+    });
+
+    [Fact]
+    public Task FilteringReplacesTheListInOneStep() => Headless.Run(() =>
+    {
+        using var vault = CreateVaultWithEntries();
+        using var viewModel = new MainViewModel(vault);
+
+        var before = viewModel.FilteredEntries;
+        viewModel.SearchText = "GitHub";
+
+        // The bound list is replaced wholesale instead of Clear+Add per entry.
+        Assert.NotSame(before, viewModel.FilteredEntries);
+        Assert.Single(viewModel.FilteredEntries);
+    });
+
+    [Fact]
+    public Task HealthAnalysisAfterChangesReflectsTheLatestEntries() => Headless.RunAsync<object?>(async () =>
+    {
+        using var vault = VaultService.CreateNew(_vaultPath, Password, FastOptions);
+        vault.AddEntry(new PasswordEntry { Title = "Strong", Password = "correct horse battery staple 42!" });
+        using var viewModel = new MainViewModel(vault);
+
+        // Change the vault while the constructor's analysis may still be
+        // running: the newest analysis must win, a stale backfill must not
+        // overwrite it.
+        vault.AddEntry(new PasswordEntry { Title = "Weak", Password = "123456" });
+        viewModel.ReloadFromVault();
+
+        await viewModel.HealthAnalysis;
+
+        Assert.Equal(1, viewModel.Health.WeakCount);
+        return null;
+    });
+
+    [Fact]
     public Task ListEmptyHintOnlyShowsForNonEmptyVaults() => Headless.Run(() =>
     {
         using var vault = CreateVaultWithEntries();

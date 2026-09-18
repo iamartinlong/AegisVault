@@ -58,6 +58,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private readonly TimeProvider _timeProvider;
     private readonly DispatcherTimer _totpTimer;
     private readonly DispatcherTimer _toastTimer;
+    private readonly DispatcherTimer? _searchTimer;
+    private readonly DispatcherTimer? _healthTimer;
+    private int _healthRevision;
+    private bool _disposed;
     private bool _loadingEditor;
     private PasswordStrengthResult? _editPasswordStrength;
     private readonly IUrlLauncher _urlLauncher;
@@ -68,7 +72,13 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     public event Action? LockRequested;
 
-    public MainViewModel(VaultService vault, ClipboardService? clipboard = null, TimeProvider? timeProvider = null, IUrlLauncher? urlLauncher = null)
+    public MainViewModel(
+        VaultService vault,
+        ClipboardService? clipboard = null,
+        TimeProvider? timeProvider = null,
+        IUrlLauncher? urlLauncher = null,
+        TimeSpan? searchDebounce = null,
+        TimeSpan? healthDebounce = null)
     {
         _vault = vault;
         _clipboard = clipboard;
@@ -79,11 +89,14 @@ public partial class MainViewModel : ObservableObject, IDisposable
         FilteredEntries = [];
         Categories = [];
 
+        _searchTimer = CreateDebounceTimer(searchDebounce ?? TimeSpan.Zero, ApplyFilter);
+        _healthTimer = CreateDebounceTimer(healthDebounce ?? TimeSpan.Zero, StartHealthAnalysis);
+
         // The sidebar shows up immediately; the health analysis (the expensive
         // part on large vaults) runs on a background thread and backfills.
         RefreshCategoryViews();
         ApplyFilter();
-        _healthAnalysis = AnalyzeHealthAsync();
+        ScheduleHealthAnalysis();
 
         _totpTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _totpTimer.Tick += (_, _) => UpdateTotp();
@@ -98,9 +111,30 @@ public partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
+    private static DispatcherTimer? CreateDebounceTimer(TimeSpan delay, Action action)
+    {
+        if (delay <= TimeSpan.Zero)
+        {
+            return null;
+        }
+
+        var timer = new DispatcherTimer { Interval = delay };
+        timer.Tick += (_, _) =>
+        {
+            timer.Stop();
+            action();
+        };
+        return timer;
+    }
+
     public ObservableCollection<PasswordEntry> Entries { get; }
 
-    public ObservableCollection<PasswordEntry> FilteredEntries { get; }
+    /// <summary>
+    /// Filtered view of <see cref="Entries"/>. Replaced wholesale (one change
+    /// notification) instead of Clear+Add per entry on every keystroke.
+    /// </summary>
+    [ObservableProperty]
+    private List<PasswordEntry> filteredEntries = [];
 
     public ObservableCollection<CategoryItem> Categories { get; }
 
@@ -349,7 +383,21 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     public double EditPasswordStrengthPercent => (_editPasswordStrength?.Score ?? 0) * 25;
 
-    partial void OnSearchTextChanged(string value) => ApplyFilter();
+    partial void OnSearchTextChanged(string value)
+    {
+        // Clearing the box applies immediately (and headless tests run without
+        // a debounce timer); longer queries wait for a short typing pause so
+        // every keystroke does not re-filter thousands of entries.
+        if (_searchTimer is null || string.IsNullOrEmpty(value))
+        {
+            _searchTimer?.Stop();
+            ApplyFilter();
+            return;
+        }
+
+        _searchTimer.Stop();
+        _searchTimer.Start();
+    }
 
     [ObservableProperty]
     private EntrySortMode sortMode = EntrySortMode.Name;
@@ -602,7 +650,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
         if (_vault.DeleteEntry(target.Id))
         {
             Entries.Remove(target);
-            FilteredEntries.Remove(target);
             SelectedEntry = null;
             IsEditing = false;
             RefreshCategories();
@@ -751,6 +798,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
+        _disposed = true;
+        _searchTimer?.Stop();
+        _healthTimer?.Stop();
         _totpTimer.Stop();
         _toastTimer.Stop();
 
@@ -795,30 +845,72 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     private void RefreshCategories()
     {
-        _health = VaultHealth.Analyze(Entries, _timeProvider);
+        // The sidebar counts that come from the entry list (favorites, tags,
+        // categories) are cheap and must update immediately; the weak/reused
+        // metrics are recomputed off the UI thread and refresh the sidebar
+        // again when they land.
         RefreshCategoryViews();
+        ScheduleHealthAnalysis();
     }
 
     /// <summary>
-    /// Initial health analysis for the freshly built window: runs the report off
-    /// the UI thread (thousands of entries used to stall "unlock → main window")
-    /// and marshals the result back through the dispatcher context.
+    /// Queues a health re-analysis. A revision number makes sure only the
+    /// latest run may publish its result: a slow first analysis must not
+    /// overwrite the report of a newer edit (and a disposed view model must
+    /// not be touched at all).
     /// </summary>
-    private async Task AnalyzeHealthAsync()
+    private void ScheduleHealthAnalysis()
     {
+        _healthRevision++;
         IsHealthAnalyzing = true;
+
+        if (_healthTimer is null)
+        {
+            StartHealthAnalysis();
+            return;
+        }
+
+        _healthTimer.Stop();
+        _healthTimer.Start();
+    }
+
+    private void StartHealthAnalysis()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _healthAnalysis = AnalyzeHealthAsync(_healthRevision);
+    }
+
+    /// <summary>
+    /// Health analysis that runs off the UI thread (thousands of entries used
+    /// to stall "unlock → main window") and marshals the result back through
+    /// the dispatcher context.
+    /// </summary>
+    private async Task AnalyzeHealthAsync(int revision)
+    {
         try
         {
             var entries = Entries.ToArray();
             var report = await Task.Run(() => VaultHealth.Analyze(entries, _timeProvider));
+
+            if (_disposed || revision != _healthRevision)
+            {
+                return;
+            }
 
             _health = report;
             RefreshCategoryViews();
         }
         finally
         {
-            IsHealthAnalyzing = false;
-            NotifyHealthChanged();
+            if (!_disposed && revision == _healthRevision)
+            {
+                IsHealthAnalyzing = false;
+                NotifyHealthChanged();
+            }
         }
     }
 
@@ -966,7 +1058,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         }
 
         var category = _vault.AddCategory(name!.Trim(), color);
-        RefreshCategories();
+        RefreshCategoryViews();
         SelectedCategoryChoice = CategoryChoices.First(choice => choice.Id == category.Id);
         StatusMessage = Loc.T("Main_StatusCategoryCreated");
         return true;
@@ -980,7 +1072,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        RefreshCategories();
+        RefreshCategoryViews();
     }
 
     /// <summary>Renames a user category; returns false with a localized reason when invalid.</summary>
@@ -998,7 +1090,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
             return false;
         }
 
-        RefreshCategories();
+        RefreshCategoryViews();
         StatusMessage = Loc.T("Main_StatusCategoryRenamed");
         return true;
     }
@@ -1036,21 +1128,21 @@ public partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        // Clearing the bound collection makes the ListBox drop its selection
-        // and write null back, so remember it first and restore it when it still
+        // Replacing the bound list makes the ListBox drop its selection and
+        // write null back, so remember it first and restore it when it still
         // matches the new filter.
         var previousSelection = SelectedEntry;
+        var query = SearchText?.Trim() ?? string.Empty;
 
-        FilteredEntries.Clear();
-        var matches = Entries.Where(entry => MatchesCategory(entry) && MatchesSearch(entry));
+        var matches = Entries.Where(entry => MatchesCategory(entry) && MatchesSearch(entry, query));
         var ordered = SortMode == EntrySortMode.RecentlyUpdated
             ? matches.OrderByDescending(static entry => entry.UpdatedAt)
             : matches.OrderByDescending(static entry => entry.IsFavorite)
                 .ThenBy(static entry => entry.Title, StringComparer.OrdinalIgnoreCase);
-        foreach (var entry in ordered)
-        {
-            FilteredEntries.Add(entry);
-        }
+
+        // One notification instead of Clear+Add per entry: on large vaults the
+        // per-item collection changes dominated every keystroke.
+        FilteredEntries = ordered.ToList();
 
         if (previousSelection is not null && FilteredEntries.Contains(previousSelection))
         {
@@ -1103,9 +1195,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
                entry.Tags.Contains(tag, StringComparer.OrdinalIgnoreCase);
     }
 
-    private bool MatchesSearch(PasswordEntry entry)
+    private bool MatchesSearch(PasswordEntry entry, string query)
     {
-        var query = SearchText?.Trim() ?? string.Empty;
         if (query.Length == 0)
         {
             return true;
