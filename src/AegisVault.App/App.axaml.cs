@@ -55,6 +55,7 @@ public partial class App : Application
     private readonly IStartupRegistration _startupRegistration = new WindowsStartupRegistration();
     private bool _unlockDialogOpen;
     private bool _exiting;
+    private bool _restarting;
     private bool _startMinimizedOnLaunch;
     private bool _startMinimizedConsumed;
     private SettingsWindow? _settingsWindow;
@@ -303,7 +304,11 @@ public partial class App : Application
         var sessionWatcher = new SessionLockWatcher();
         sessionWatcher.ScreenLocked += autoLock.ReportScreenLocked;
         sessionWatcher.Suspended += autoLock.ReportSuspended;
-        var viewModel = new MainViewModel(vault, clipboard);
+        var viewModel = new MainViewModel(
+            vault,
+            clipboard,
+            searchDebounce: TimeSpan.FromMilliseconds(120),
+            healthDebounce: TimeSpan.FromMilliseconds(200));
         viewModel.ThemePreference = _preferences.Theme;
         viewModel.LanguagePreference = _preferences.Language;
         viewModel.AttachAppearanceCallbacks(ApplyTheme, ApplyLanguage);
@@ -791,7 +796,20 @@ public partial class App : Application
             }
         };
 
-        _ = window.ShowDialog(_mainWindow);
+        _ = ObserveDialogAsync(window.ShowDialog(_mainWindow));
+    }
+
+    /// <summary>Fire-and-forget modal dialogs must not let exceptions escape.</summary>
+    private static async Task ObserveDialogAsync(Task dialog)
+    {
+        try
+        {
+            await dialog;
+        }
+        catch (Exception exception)
+        {
+            Trace.TraceWarning($"Dialog failed: {exception.Message}");
+        }
     }
 
     /// <summary>
@@ -838,33 +856,52 @@ public partial class App : Application
     /// </summary>
     private async void ApplyLanguage(string language)
     {
-        var changed = !string.Equals(_preferences.Language, language, StringComparison.Ordinal);
-        _preferences = _preferences with { Language = language };
-        SavePreferences();
-
-        if (_mainViewModel is { } viewModel)
+        try
         {
-            viewModel.LanguagePreference = language;
+            var changed = !string.Equals(_preferences.Language, language, StringComparison.Ordinal);
+            _preferences = _preferences with { Language = language };
+            SavePreferences();
+
+            if (_mainViewModel is { } viewModel)
+            {
+                viewModel.LanguagePreference = language;
+            }
+
+            if (!changed || _mainWindow is not { } owner)
+            {
+                return;
+            }
+
+            var dialog = new ConfirmWindow(
+                Loc.T("Main_LanguageSwitchTitle"),
+                Loc.T("Main_LanguageSwitchMessage"),
+                Loc.T("Main_RestartNow"),
+                Loc.T("Main_RestartLater"));
+
+            if (await dialog.ShowDialog<bool>(owner))
+            {
+                if (_restarting)
+                {
+                    return;
+                }
+
+                _restarting = true;
+                ExitApplication(restart: true);
+                if (!_exiting)
+                {
+                    // The replacement process could not be spawned (the current
+                    // session kept running), so let the user try again.
+                    _restarting = false;
+                }
+            }
+            else if (_mainViewModel is { } current)
+            {
+                current.StatusMessage = Loc.T("Main_LanguageRestartHint");
+            }
         }
-
-        if (!changed || _mainWindow is not { } owner)
+        catch (Exception exception)
         {
-            return;
-        }
-
-        var dialog = new ConfirmWindow(
-            Loc.T("Main_LanguageSwitchTitle"),
-            Loc.T("Main_LanguageSwitchMessage"),
-            Loc.T("Main_RestartNow"),
-            Loc.T("Main_RestartLater"));
-
-        if (await dialog.ShowDialog<bool>(owner))
-        {
-            ExitApplication(restart: true);
-        }
-        else if (_mainViewModel is { } current)
-        {
-            current.StatusMessage = Loc.T("Main_LanguageRestartHint");
+            Trace.TraceWarning($"Language switch failed: {exception.Message}");
         }
     }
 
