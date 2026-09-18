@@ -6,40 +6,27 @@ namespace AegisVault.Platform.Tests;
 public sealed class SingleInstanceGuardTests
 {
     [Fact]
-    public async Task SecondAcquirerIsNotTheOwner()
+    public void SecondAcquirerIsNotTheOwner()
     {
         using var first = SingleInstanceGuard.Acquire();
         Assert.True(first.IsOwner);
 
-        // A mutex is owned per thread: the second attempt comes from another
-        // thread, which is exactly the "second process" situation.
-        var second = await Task.Run(SingleInstanceGuard.Acquire);
-        try
-        {
-            Assert.False(second.IsOwner);
-        }
-        finally
-        {
-            second.Dispose();
-        }
+        // The second attempt must run on a *different* thread: a named mutex
+        // is owned per thread, and Task.Run may reuse the awaiting thread
+        // (recursive acquisition would look like success).
+        using var second = AcquireOnADedicatedThread();
+        Assert.False(second.IsOwner);
     }
 
     [Fact]
-    public async Task GuardCanBeReacquiredAfterRelease()
+    public void GuardCanBeReacquiredAfterRelease()
     {
         var first = SingleInstanceGuard.Acquire();
         Assert.True(first.IsOwner);
         first.Dispose();
 
-        var second = await Task.Run(SingleInstanceGuard.Acquire);
-        try
-        {
-            Assert.True(second.IsOwner);
-        }
-        finally
-        {
-            second.Dispose();
-        }
+        using var second = AcquireOnADedicatedThread();
+        Assert.True(second.IsOwner);
     }
 
     [Fact]
@@ -62,7 +49,7 @@ public sealed class SingleInstanceGuardTests
     }
 
     [Fact]
-    public async Task ReleaseHandsTheLockOverForARestart()
+    public void ReleaseHandsTheLockOverForARestart()
     {
         using var first = SingleInstanceGuard.Acquire();
         Assert.True(first.IsOwner);
@@ -71,15 +58,8 @@ public sealed class SingleInstanceGuardTests
         Assert.True(first.Release());
         Assert.False(first.IsOwner);
 
-        var second = await Task.Run(SingleInstanceGuard.Acquire);
-        try
-        {
-            Assert.True(second.IsOwner);
-        }
-        finally
-        {
-            second.Dispose();
-        }
+        using var second = AcquireOnADedicatedThread();
+        Assert.True(second.IsOwner);
     }
 
     [Fact]
@@ -93,20 +73,65 @@ public sealed class SingleInstanceGuardTests
     }
 
     [Fact]
-    public async Task ReacquireFailsWhenAnotherInstanceTookOver()
+    public void ReacquireFailsWhenAnotherInstanceTookOver()
     {
         using var guard = SingleInstanceGuard.Acquire();
         Assert.True(guard.Release());
 
-        var other = await Task.Run(SingleInstanceGuard.Acquire);
+        // The other instance must stay alive while it owns the lock: a thread
+        // that exits would abandon the mutex, and an abandoned mutex may be
+        // taken over by anyone (the guard treats that as ownership).
+        var (other, stop, worker) = AcquireOnALiveThread();
         try
         {
+            Assert.True(other.IsOwner);
             Assert.False(guard.TryReacquire());
             Assert.False(guard.IsOwner);
         }
         finally
         {
-            other.Dispose();
+            stop.Set();
+            worker.Join();
         }
+    }
+
+    /// <summary>
+    /// Acquires on a dedicated thread, then waits for it to finish. Task.Run
+    /// is not enough: the pool may reuse the awaiting thread and a named
+    /// mutex is owned per thread.
+    /// </summary>
+    private static SingleInstanceGuard AcquireOnADedicatedThread()
+    {
+        SingleInstanceGuard? guard = null;
+        var thread = new Thread(() => guard = SingleInstanceGuard.Acquire())
+        {
+            IsBackground = true,
+        };
+
+        thread.Start();
+        thread.Join();
+        return guard!;
+    }
+
+    /// <summary>
+    /// Acquires on a dedicated thread that keeps owning the lock until the
+    /// returned <see cref="ManualResetEventSlim"/> is set.
+    /// </summary>
+    private static (SingleInstanceGuard Guard, ManualResetEventSlim Stop, Thread Thread) AcquireOnALiveThread()
+    {
+        SingleInstanceGuard? guard = null;
+        var stop = new ManualResetEventSlim(false);
+        var thread = new Thread(() =>
+        {
+            guard = SingleInstanceGuard.Acquire();
+            stop.Wait();
+        })
+        {
+            IsBackground = true,
+        };
+
+        thread.Start();
+        Assert.True(SpinWait.SpinUntil(() => Volatile.Read(ref guard) is not null, TimeSpan.FromSeconds(5)));
+        return (guard!, stop, thread);
     }
 }
