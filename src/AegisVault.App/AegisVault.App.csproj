@@ -5,6 +5,9 @@
     <TargetFramework>net10.0</TargetFramework>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <RootNamespace>AegisVault.App</RootNamespace>
+    <!-- Turns on the trim/AOT analyzers so publish-only diagnostics show up in
+         the normal build (the gate runs with -warnaserror). -->
+    <IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
 
   <ItemGroup>

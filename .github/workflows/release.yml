@@ -27,8 +27,10 @@ jobs:
             # is still being chased, so a macOS-ARM failure must not block the
             # other artifacts. Flip back to false once the link step is green.
             experimental: true
-          - os: macos-13
+          - os: macos-14
             rid: osx-x64
+            # macos-13 is EOL; cross-arch AOT from the arm64 host is supported
+            # by the SDK (Xcode ships both toolchains).
             experimental: true
     runs-on: ${{ matrix.os }}
     continue-on-error: ${{ matrix.experimental }}
@@ -90,9 +92,10 @@ jobs:
   release:
     name: release
     needs: publish
-    # Placed after every publish job, but a platform-specific failure (see the
-    # experimental flags above) must not stop the release for the others.
-    if: always() && startsWith(github.ref, 'refs/tags/')
+    # Only ships when the required platform builds succeeded; experimental
+    # platforms may fail without blocking, but an all-red run must not create
+    # an empty release.
+    if: startsWith(github.ref, 'refs/tags/') && needs.publish.result == 'success'
     runs-on: ubuntu-22.04
     steps:
       - name: Download artifacts
@@ -100,6 +103,7 @@ jobs:
         with:
           path: artifacts
           merge-multiple: true
+          if-no-files-found: error
 
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
