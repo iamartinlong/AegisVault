@@ -63,6 +63,22 @@ public sealed class VaultHealthTests
         Assert.Equal(1, VaultHealth.Analyze([entry], new FixedTimeProvider(DateTimeOffset.UtcNow.AddDays(400))).OldCount);
     }
 
+    [Fact]
+    public void ScoreNeverGoesNegative()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var report = VaultHealth.Analyze(
+        [
+            new PasswordEntry { Title = "B", Password = "123456", UpdatedAt = now },
+            new PasswordEntry { Title = "C", Password = "123456", UpdatedAt = now },
+        ]);
+
+        // The same weak password is reused: it must count once per entry, not
+        // twice, so the score floors at 0 instead of going negative.
+        Assert.Equal(2, report.IssueCount);
+        Assert.Equal(0, report.HealthScore);
+    }
+
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => now;

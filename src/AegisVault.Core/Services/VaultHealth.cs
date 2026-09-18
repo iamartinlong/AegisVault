@@ -26,10 +26,10 @@ public sealed record VaultHealthReport(
         }
     }
 
-    /// <summary>0–100; entries with a weak or reused password drag it down.</summary>
+    /// <summary>0–100; distinct entries with a weak or reused password drag it down.</summary>
     public int HealthScore => TotalEntries == 0
         ? 100
-        : (int)Math.Round(100d * (TotalEntries - WeakEntryIds.Count - ReusedEntryIds.Count) / TotalEntries);
+        : Math.Clamp(100 - (int)Math.Round(100d * IssueCount / TotalEntries), 0, 100);
 }
 
 /// <summary>

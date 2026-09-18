@@ -720,7 +720,8 @@ public sealed class VaultService : IDisposable
         {
             loaded = LoadEntries(dek, outdated);
         }
-        catch (Exception exception) when (exception is CryptographicException or JsonException or InvalidDataException)
+        catch (Exception exception)
+            when (exception is CryptographicException or ArgumentException or JsonException or InvalidDataException)
         {
             dek.Dispose();
             return VaultUnlockStatus.Corrupted;

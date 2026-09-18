@@ -150,6 +150,29 @@ public sealed class VaultServiceTests : IDisposable
     }
 
     [Fact]
+    public void TruncatedNonceReportsCorrupted()
+    {
+        using (var vault = VaultService.CreateNew(_vaultPath, Password, FastOptions))
+        {
+            vault.AddEntry(TestEntry("GitHub"));
+        }
+
+        using (var connection = new SqliteConnection($"Data Source={_vaultPath}"))
+        {
+            connection.Open();
+            using var command = connection.CreateCommand();
+            // A wrong-length nonce makes AesGcmCipher.Decrypt throw
+            // ArgumentException; it must be mapped to Corrupted like any other
+            // damaged payload instead of escaping as an unexpected error.
+            command.CommandText = "UPDATE entries SET nonce = zeroblob(4) WHERE rowid = 1;";
+            command.ExecuteNonQuery();
+        }
+
+        using var reopened = VaultService.Open(_vaultPath);
+        Assert.Equal(VaultUnlockStatus.Corrupted, reopened.Unlock(Password));
+    }
+
+    [Fact]
     public void VaultFileDoesNotContainPlaintextEntryContent()
     {
         using (var vault = VaultService.CreateNew(_vaultPath, Password, FastOptions))
