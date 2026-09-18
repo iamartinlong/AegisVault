@@ -33,6 +33,17 @@ internal sealed class VaultDatabase : IDisposable
 
     public string Path { get; }
 
+    /// <summary>Effective SQLite synchronous mode (1 = NORMAL); contract-tested.</summary>
+    internal long SynchronousMode
+    {
+        get
+        {
+            using var command = _connection.CreateCommand();
+            command.CommandText = "PRAGMA synchronous;";
+            return Convert.ToInt64(command.ExecuteScalar(), CultureInfo.InvariantCulture);
+        }
+    }
+
     public static VaultDatabase OpenOrCreate(string path)
     {
         var fullPath = System.IO.Path.GetFullPath(path);
@@ -61,6 +72,9 @@ internal sealed class VaultDatabase : IDisposable
             ExecuteNonQuery(connection, null, "PRAGMA journal_mode=WAL;");
             ExecuteNonQuery(connection, null, "PRAGMA foreign_keys=ON;");
             ExecuteNonQuery(connection, null, "PRAGMA busy_timeout=5000;");
+            // WAL defaults to FULL and fsyncs on every commit; NORMAL is the
+            // documented-safe pairing for WAL and keeps bulk writes fast.
+            ExecuteNonQuery(connection, null, "PRAGMA synchronous=NORMAL;");
             SchemaMigrations.Apply(connection);
         }
         catch
