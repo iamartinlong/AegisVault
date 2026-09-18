@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
+using AegisVault.Platform;
 
 namespace AegisVault.App.Services;
 
@@ -24,6 +25,11 @@ public sealed class AvaloniaClipboardAccess : IClipboardAccess
         var transfer = new DataTransfer();
         transfer.Add(DataTransferItem.CreateText(text));
         await clipboard.SetDataAsync(transfer);
+
+        // Keep secrets out of the Windows clipboard history and cloud
+        // clipboard while this process still owns the clipboard.
+        var handle = _topLevelProvider()?.TryGetPlatformHandle()?.Handle ?? 0;
+        ClipboardExclusion.TryMarkCurrent(handle);
     }
 
     public async Task<string?> GetTextAsync()

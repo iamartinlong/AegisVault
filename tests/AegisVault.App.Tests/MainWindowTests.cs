@@ -155,6 +155,26 @@ public sealed class MainWindowTests
         }
     });
 
+    [Fact]
+    public Task ClosingClearsACopiedSecret() => Headless.RunAsync<object?>(async () =>
+    {
+        var fake = new FakeClipboardAccess();
+        using var clipboard = new Services.ClipboardService(fake, () => new Core.Models.UserConfig());
+        var window = new MainWindow();
+        window.HookClipboardCleanup(clipboard);
+        window.Show();
+
+        await clipboard.CopyAsync("s3cret");
+        Assert.Equal("s3cret", fake.Text);
+
+        // Closing fires while the window is still alive, so the clipboard is
+        // still reachable and the secret is cleared before exit.
+        window.Close();
+
+        Assert.Null(fake.Text);
+        return null;
+    });
+
     private static List<AtomUIMenuItem> ReadRadioItems(
         AtomUI.Desktop.Controls.DropdownButton button,
         string groupName)

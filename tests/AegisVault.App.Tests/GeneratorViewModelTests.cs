@@ -68,6 +68,29 @@ public sealed class GeneratorViewModelTests
     }
 
     [Fact]
+    public void AppliesSavedOptionsOnOpen()
+    {
+        var viewModel = new GeneratorViewModel(
+            null,
+            new PasswordGeneratorOptions
+            {
+                Length = 12,
+                IncludeLowercase = true,
+                IncludeUppercase = false,
+                IncludeDigits = false,
+                IncludeSymbols = false,
+                ExcludeAmbiguous = true,
+            });
+
+        Assert.Equal(12, viewModel.Password.Length);
+        Assert.False(viewModel.IncludeUppercase);
+        Assert.False(viewModel.IncludeDigits);
+        Assert.False(viewModel.IncludeSymbols);
+        Assert.True(viewModel.ExcludeAmbiguous);
+        Assert.All(viewModel.Password, character => Assert.True(char.IsAsciiLetterLower(character)));
+    }
+
+    [Fact]
     public Task CopyPasswordUsesSessionClipboardService() => Headless.RunAsync<object?>(async () =>
     {
         var fake = new FakeClipboardAccess();

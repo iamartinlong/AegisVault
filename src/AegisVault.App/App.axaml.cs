@@ -349,7 +349,13 @@ public partial class App : Application
         };
         SavePreferences();
 
-        window.Attach(viewModel, clipboard, autoLock, ShowSettings);
+        window.Attach(
+            viewModel,
+            clipboard,
+            autoLock,
+            ShowSettings,
+            ApplyScreenGuard,
+            () => _configService?.Current.Generator);
         viewModel.LockRequested += LockVault;
         autoLock.LockTriggered += _ => LockVault();
 
@@ -732,6 +738,11 @@ public partial class App : Application
                 {
                     ApplyScreenGuard(quickAccess);
                 }
+
+                if (_settingsWindow is { } settings)
+                {
+                    ApplyScreenGuard(settings);
+                }
             },
             showFloatingBall: _preferences.ShowFloatingBall,
             applyFloatingBall: show =>
@@ -769,6 +780,8 @@ public partial class App : Application
                 SavePreferences();
             });
         var window = new SettingsWindow { DataContext = viewModel };
+        // The native handle exists only after the dialog is shown.
+        window.Opened += (_, _) => ApplyScreenGuard(window);
         _settingsWindow = window;
         window.Closed += (_, _) =>
         {

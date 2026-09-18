@@ -15,7 +15,10 @@ public partial class MainWindow : Window
     private ClipboardService? _clipboard;
     private AutoLockService? _autoLock;
     private Action? _openSettings;
+    private Action<Window>? _applyScreenGuard;
+    private Func<PasswordGeneratorOptions?>? _generatorOptions;
     private bool _handlersAttached;
+    private bool _clipboardCleanupAttached;
 
     /// <summary>Raised when the user asks to unlock from the lock overlay.</summary>
     public event Action? UnlockRequested;
@@ -40,12 +43,17 @@ public partial class MainWindow : Window
         MainViewModel viewModel,
         ClipboardService clipboard,
         AutoLockService autoLock,
-        Action? openSettings = null)
+        Action? openSettings = null,
+        Action<Window>? applyScreenGuard = null,
+        Func<PasswordGeneratorOptions?>? generatorOptions = null)
     {
         DataContext = viewModel;
         _clipboard = clipboard;
         _autoLock = autoLock;
         _openSettings = openSettings;
+        _applyScreenGuard = applyScreenGuard;
+        _generatorOptions = generatorOptions;
+        HookClipboardCleanup(clipboard);
         HideLockOverlay();
 
         if (_handlersAttached)
@@ -70,6 +78,23 @@ public partial class MainWindow : Window
         };
 
         Activated += (_, _) => _autoLock.ReportActivity();
+    }
+
+    /// <summary>
+    /// Clears a pending secret while the window (and its clipboard) is still
+    /// alive. <c>Closed</c> is too late: the TopLevel is torn down by then and
+    /// the cleanup silently fails, leaving the secret behind on exit.
+    /// </summary>
+    internal void HookClipboardCleanup(ClipboardService clipboard)
+    {
+        _clipboard = clipboard;
+        if (_clipboardCleanupAttached)
+        {
+            return;
+        }
+
+        _clipboardCleanupAttached = true;
+        Closing += (_, _) => _clipboard?.Dispose();
     }
 
     protected override void OnKeyDown(KeyEventArgs e)
@@ -415,8 +440,12 @@ public partial class MainWindow : Window
 
             var dialog = new GeneratorWindow
             {
-                DataContext = new GeneratorViewModel(_clipboard),
+                DataContext = new GeneratorViewModel(_clipboard, _generatorOptions?.Invoke()),
             };
+
+            // The native window handle only exists once the dialog is shown;
+            // applying the capture guard earlier would silently do nothing.
+            dialog.Opened += (_, _) => _applyScreenGuard?.Invoke(dialog);
 
             var result = await dialog.ShowDialog<string?>(this);
             if (!string.IsNullOrEmpty(result))

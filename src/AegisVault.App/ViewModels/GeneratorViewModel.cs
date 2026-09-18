@@ -48,9 +48,23 @@ public partial class GeneratorViewModel : ObservableObject
 
     public string EntropyText => StrengthFormatting.FormatInfo(EntropyBits);
 
-    public GeneratorViewModel(ClipboardService? clipboard = null)
+    public GeneratorViewModel(ClipboardService? clipboard = null, PasswordGeneratorOptions? options = null)
     {
         _clipboard = clipboard;
+
+        if (options is not null)
+        {
+            // Apply the saved defaults before the first generation so the
+            // dialog opens with the user's configured options. Assign through
+            // the properties so the bound controls see the values too.
+            Length = options.Length;
+            IncludeLowercase = options.IncludeLowercase;
+            IncludeUppercase = options.IncludeUppercase;
+            IncludeDigits = options.IncludeDigits;
+            IncludeSymbols = options.IncludeSymbols;
+            ExcludeAmbiguous = options.ExcludeAmbiguous;
+        }
+
         Regenerate();
     }
 
