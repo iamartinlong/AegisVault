@@ -2,7 +2,9 @@ namespace AegisVault.Core.Models;
 
 /// <summary>
 /// User-defined category (single assignment per entry), stored encrypted inside
-/// the vault alongside the entries. Tags remain the multi-assignment dimension.
+/// the vault alongside the entries. Categories form a tree: <see cref="ParentId"/>
+/// is <c>null</c> for a top-level category. Tags remain the multi-assignment
+/// dimension.
 /// </summary>
 public sealed record Category
 {
@@ -15,6 +17,12 @@ public sealed record Category
     /// empty means "unset" and the UI falls back to a name-derived colour.
     /// </summary>
     public string Color { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Parent category, or <c>null</c> for a top-level category. Load-time
+    /// normalization drops dangling references, breaks cycles and caps depth.
+    /// </summary>
+    public Guid? ParentId { get; init; }
 
     public DateTimeOffset CreatedAt { get; init; } = DateTimeOffset.UtcNow;
 }

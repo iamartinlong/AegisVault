@@ -1,4 +1,5 @@
 using AegisVault.Core.Models;
+using AegisVault.Core.Services;
 
 namespace AegisVault.Core.Storage;
 
@@ -73,4 +74,105 @@ internal static class ModelMigrations
         Name = category.Name ?? string.Empty,
         Color = CategoryColors.Normalize(category.Color),
     };
+
+    /// <summary>Deepest category level the UI renders (roots sit at level 1).</summary>
+    public const int MaxCategoryDepth = 4;
+
+    /// <summary>
+    /// Applies version-specific upgrades to a decrypted categories payload and
+    /// normalizes the tree. Called for the envelope (v3) and for the bare lists
+    /// written by older releases (v1/v2).
+    /// </summary>
+    public static List<Category> UpgradeCategories(IReadOnlyList<Category>? categories, int fromVersion)
+    {
+        if (fromVersion < CategoriesPayload.OldestSupportedVersion)
+        {
+            throw new InvalidDataException($"Categories payload version {fromVersion} is not supported.");
+        }
+
+        if (fromVersion > CategoriesPayload.CurrentVersion)
+        {
+            throw new UnsupportedVaultVersionException(
+                $"Categories payload version {fromVersion} is newer than this application supports.");
+        }
+
+        // v1 -> v2: added the colour field (normalized to an empty string).
+        // v2 -> v3: added ParentId (hierarchy); older payloads are flat, so every
+        // category becomes a root.
+        return NormalizeCategoryTree(categories);
+    }
+
+    /// <summary>
+    /// Normalizes a category list into a well-formed tree. A category must never
+    /// be lost: dangling parents, self-parents and cycles become roots, and
+    /// anything deeper than <see cref="MaxCategoryDepth"/> is lifted to the
+    /// deepest allowed level.
+    /// </summary>
+    public static List<Category> NormalizeCategoryTree(IReadOnlyList<Category>? categories)
+    {
+        var normalized = new List<Category>();
+        var byId = new Dictionary<Guid, Category>();
+        foreach (var candidate in categories ?? [])
+        {
+            if (candidate is null)
+            {
+                continue;
+            }
+
+            var category = Normalize(candidate);
+            if (byId.TryAdd(category.Id, category))
+            {
+                normalized.Add(category);
+            }
+        }
+
+        for (var index = 0; index < normalized.Count; index++)
+        {
+            var category = normalized[index];
+            var (parentId, _) = ResolveParent(category, byId);
+            if (parentId != category.ParentId)
+            {
+                normalized[index] = category with { ParentId = parentId };
+            }
+        }
+
+        return normalized;
+    }
+
+    private static (Guid? ParentId, int Depth) ResolveParent(
+        Category category,
+        IReadOnlyDictionary<Guid, Category> byId)
+    {
+        if (category.ParentId is not { } parentId ||
+            parentId == category.Id ||
+            !byId.ContainsKey(parentId))
+        {
+            return (null, 1);
+        }
+
+        var chain = new List<Guid>();
+        var seen = new HashSet<Guid> { category.Id };
+        Guid? current = parentId;
+        while (current is { } id && byId.TryGetValue(id, out var ancestor))
+        {
+            if (!seen.Add(id))
+            {
+                // A cycle: keep the category but detach it from the loop.
+                return (null, 1);
+            }
+
+            chain.Add(id);
+            current = ancestor.ParentId is { } next && next != id && byId.ContainsKey(next) ? next : null;
+        }
+
+        var depth = chain.Count + 1;
+        if (depth <= MaxCategoryDepth)
+        {
+            return (chain[0], depth);
+        }
+
+        // chain[0] is the direct parent, chain[depth - MaxCategoryDepth] is the
+        // ancestor that leaves the category at exactly the deepest allowed level.
+        return (chain[depth - MaxCategoryDepth], MaxCategoryDepth);
+    }
 }

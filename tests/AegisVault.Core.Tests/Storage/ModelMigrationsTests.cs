@@ -178,4 +178,87 @@ public sealed class ModelMigrationsTests
         Assert.Equal(string.Empty, normalized.Name);
         Assert.Equal(Guid.Parse("6f9619ff-8b86-d011-b42d-00cf4fc964ff"), normalized.Id);
     }
+
+    [Fact]
+    public void CategoryTreeNormalizationKeepsDanglingAndSelfParentedNodesAsRoots()
+    {
+        var rootId = Guid.NewGuid();
+        var danglingId = Guid.NewGuid();
+        var selfId = Guid.NewGuid();
+        var categories = ModelMigrations.NormalizeCategoryTree(
+        [
+            new Category { Id = rootId, Name = "Work" },
+            new Category { Id = danglingId, Name = "Orphan", ParentId = Guid.NewGuid() },
+            new Category { Id = selfId, Name = "Self", ParentId = selfId },
+        ]);
+
+        Assert.Equal(3, categories.Count);
+        Assert.All(categories, category => Assert.Null(category.ParentId));
+    }
+
+    [Fact]
+    public void CategoryTreeNormalizationBreaksCyclesWithoutLosingCategories()
+    {
+        var firstId = Guid.NewGuid();
+        var secondId = Guid.NewGuid();
+        var categories = ModelMigrations.NormalizeCategoryTree(
+        [
+            new Category { Id = firstId, Name = "First", ParentId = secondId },
+            new Category { Id = secondId, Name = "Second", ParentId = firstId },
+        ]);
+
+        Assert.Equal(2, categories.Count);
+        Assert.All(categories, category => Assert.Null(category.ParentId));
+    }
+
+    [Fact]
+    public void CategoryTreeNormalizationCapsTheDepth()
+    {
+        var ids = Enumerable.Range(0, ModelMigrations.MaxCategoryDepth + 2).Select(_ => Guid.NewGuid()).ToArray();
+        var categories = new List<Category>();
+        for (var index = 0; index < ids.Length; index++)
+        {
+            categories.Add(new Category
+            {
+                Id = ids[index],
+                Name = $"Level{index + 1}",
+                ParentId = index == 0 ? null : ids[index - 1],
+            });
+        }
+
+        var normalized = ModelMigrations.NormalizeCategoryTree(categories);
+
+        var deepest = normalized.Single(category => category.Id == ids[^1]);
+        var expectedParent = normalized.Single(category => category.Id == ids[ModelMigrations.MaxCategoryDepth - 2]);
+        Assert.Equal(expectedParent.Id, deepest.ParentId);
+
+        // Every node stays within the cap even when the chain was far deeper.
+        var byId = normalized.ToDictionary(category => category.Id);
+        foreach (var category in normalized)
+        {
+            var depth = 1;
+            var parentId = category.ParentId;
+            while (parentId is { } id && byId.TryGetValue(id, out var parent))
+            {
+                depth++;
+                parentId = parent.ParentId;
+            }
+
+            Assert.True(depth <= ModelMigrations.MaxCategoryDepth, $"{category.Name} sits at depth {depth}.");
+        }
+    }
+
+    [Fact]
+    public void CategoryTreeNormalizationDropsDuplicateIds()
+    {
+        var id = Guid.NewGuid();
+        var categories = ModelMigrations.NormalizeCategoryTree(
+        [
+            new Category { Id = id, Name = "First" },
+            new Category { Id = id, Name = "Second" },
+        ]);
+
+        Assert.Single(categories);
+        Assert.Equal("First", categories[0].Name);
+    }
 }

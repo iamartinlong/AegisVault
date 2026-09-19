@@ -12,4 +12,5 @@ namespace AegisVault.Core.Storage;
 [JsonSerializable(typeof(UserConfig))]
 [JsonSerializable(typeof(PasswordGeneratorOptions))]
 [JsonSerializable(typeof(List<Category>))]
+[JsonSerializable(typeof(CategoriesPayload))]
 internal sealed partial class VaultJsonContext : JsonSerializerContext;

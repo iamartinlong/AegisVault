@@ -26,12 +26,13 @@ public sealed class VaultService : IDisposable
     private const int DeviceKeyPayloadSize = 1 + 32 + KeyEnvelope.DekSize;
     private const string CategoriesSettingKey = "categories";
 
-    private static readonly byte[] CategoriesAssociatedData =
-        System.Text.Encoding.UTF8.GetBytes("AegisVault|settings|categories|v2");
-
-    /// <summary>v1 categories payload AAD (no colour field); read-only fallback.</summary>
-    private static readonly byte[] CategoriesAssociatedDataV1 =
-        System.Text.Encoding.UTF8.GetBytes("AegisVault|settings|categories|v1");
+    /// <summary>
+    /// AAD for a categories payload version. The version participates in the AAD
+    /// so a payload written by a newer release fails to decrypt instead of being
+    /// misread (see <c>docs/数据迁移设计.md</c>).
+    /// </summary>
+    private static byte[] CategoriesAssociatedData(int version)
+        => System.Text.Encoding.UTF8.GetBytes($"AegisVault|settings|categories|v{version}");
 
     private readonly VaultDatabase _database;
     private readonly List<PasswordEntry> _entries = [];
@@ -54,6 +55,14 @@ public sealed class VaultService : IDisposable
     public IReadOnlyList<PasswordEntry> Entries => _entries;
 
     public IReadOnlyList<Category> Categories => _categories;
+
+    /// <summary>
+    /// True when the vault carries a categories blob this application cannot read
+    /// (damaged, or written by a newer release). Unlocking still succeeds so the
+    /// entries stay usable, but the UI should tell the user instead of silently
+    /// showing no categories.
+    /// </summary>
+    public bool CategoriesUnreadable { get; private set; }
 
     /// <summary>Creates a new vault and returns it in the unlocked state.</summary>
     public static VaultService CreateNew(string path, ReadOnlySpan<byte> password, VaultOptions? options = null)
@@ -602,10 +611,15 @@ public sealed class VaultService : IDisposable
 
     private void PersistCategories()
     {
-        var json = JsonSerializer.SerializeToUtf8Bytes(_categories, VaultJsonContext.Default.ListCategory);
+        var payload = new CategoriesPayload
+        {
+            Version = CategoriesPayload.CurrentVersion,
+            Categories = _categories,
+        };
+        var json = JsonSerializer.SerializeToUtf8Bytes(payload, VaultJsonContext.Default.CategoriesPayload);
         try
         {
-            var (nonce, ciphertext, tag) = EncryptSetting(json, CategoriesAssociatedData);
+            var (nonce, ciphertext, tag) = EncryptSetting(json, CategoriesAssociatedData(CategoriesPayload.CurrentVersion));
             WriteSetting(CategoriesSettingKey, nonce, ciphertext, tag);
         }
         finally
@@ -615,29 +629,25 @@ public sealed class VaultService : IDisposable
     }
 
     /// <summary>
-    /// Reads the encrypted categories blob. Tries the current AAD first and falls
-    /// back to the v1 AAD, reporting whether the payload has to be written back
-    /// in the current format.
+    /// Reads the encrypted categories blob. The current version is a versioned
+    /// envelope; older releases wrote a bare list under their own AAD, so every
+    /// known version is tried in turn and the result is reported as needing a
+    /// rewrite when it came from an older one.
     /// </summary>
     private (List<Category> Categories, bool Upgraded) LoadCategories()
     {
+        CategoriesUnreadable = false;
         var stored = ReadSetting(CategoriesSettingKey);
         if (stored is null)
         {
             return ([], false);
         }
 
-        var upgraded = false;
-        byte[] json;
-        try
-        {
-            json = DecryptSetting(
-                stored.Value.Nonce,
-                stored.Value.Ciphertext,
-                stored.Value.Tag,
-                CategoriesAssociatedData);
-        }
-        catch (CryptographicException)
+        byte[]? json = null;
+        var version = CategoriesPayload.CurrentVersion;
+        for (var candidate = CategoriesPayload.CurrentVersion;
+             candidate >= CategoriesPayload.OldestSupportedVersion;
+             candidate--)
         {
             try
             {
@@ -645,25 +655,49 @@ public sealed class VaultService : IDisposable
                     stored.Value.Nonce,
                     stored.Value.Ciphertext,
                     stored.Value.Tag,
-                    CategoriesAssociatedDataV1);
-                upgraded = true;
+                    CategoriesAssociatedData(candidate));
+                version = candidate;
+                break;
             }
             catch (CryptographicException)
             {
-                // A corrupt categories blob must never break unlocking; fall back to none.
-                return ([], false);
             }
+        }
+
+        if (json is null)
+        {
+            // Never break unlocking on a categories blob we cannot read, but do
+            // report it so the UI can warn instead of pretending the vault has no
+            // categories at all.
+            CategoriesUnreadable = true;
+            return ([], false);
         }
 
         try
         {
-            var categories = JsonSerializer.Deserialize(json, VaultJsonContext.Default.ListCategory) ?? [];
-            return (categories.Where(category => category is not null)
-                .Select(ModelMigrations.Normalize)
-                .ToList(), upgraded);
+            List<Category>? categories;
+            if (version >= CategoriesPayload.CurrentVersion)
+            {
+                var payload = JsonSerializer.Deserialize(json, VaultJsonContext.Default.CategoriesPayload);
+                if (payload is not null && payload.Version > CategoriesPayload.CurrentVersion)
+                {
+                    throw new UnsupportedVaultVersionException(
+                        $"Categories payload version {payload.Version} is newer than this application supports.");
+                }
+
+                categories = payload?.Categories;
+            }
+            else
+            {
+                categories = JsonSerializer.Deserialize(json, VaultJsonContext.Default.ListCategory);
+            }
+
+            return (ModelMigrations.UpgradeCategories(categories, version),
+                version != CategoriesPayload.CurrentVersion);
         }
         catch (JsonException)
         {
+            CategoriesUnreadable = true;
             return ([], false);
         }
         finally
@@ -745,9 +779,26 @@ public sealed class VaultService : IDisposable
         PersistOutdatedEntries(outdated, dek);
 
         // Categories are decrypted with the session key, so load them only after
-        // the DEK is in place.
+        // the DEK is in place. A payload this application cannot support fails the
+        // unlock instead of leaving a half-established session behind.
         _categories.Clear();
-        var (categories, upgraded) = LoadCategories();
+        List<Category> categories;
+        bool upgraded;
+        try
+        {
+            (categories, upgraded) = LoadCategories();
+        }
+        catch (UnsupportedVaultVersionException)
+        {
+            Lock();
+            return VaultUnlockStatus.UnsupportedVersion;
+        }
+        catch (Exception exception) when (exception is CryptographicException or ArgumentException or JsonException or InvalidDataException)
+        {
+            Lock();
+            return VaultUnlockStatus.Corrupted;
+        }
+
         _categories.AddRange(categories);
 
         if (upgraded)
