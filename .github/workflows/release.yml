@@ -23,15 +23,15 @@ jobs:
             experimental: false
           - os: macos-14
             rid: osx-arm64
-            # Xcode 16 SDK link failure (missing swift_time; dotnet/runtime#125858)
-            # is still being chased, so a macOS-ARM failure must not block the
-            # other artifacts. Flip back to false once the link step is green.
-            experimental: true
+            # Green since the SDK sysroot + dynamic-lookup workaround in
+            # AegisVault.App.csproj (run 35426423612; dotnet/runtime#125858).
+            experimental: false
           - os: macos-14
             rid: osx-x64
             # macos-13 is EOL; cross-arch AOT from the arm64 host is supported
-            # by the SDK (Xcode ships both toolchains).
-            experimental: true
+            # by the SDK (Xcode ships both toolchains) and verified in
+            # run 35426423612.
+            experimental: false
     runs-on: ${{ matrix.os }}
     continue-on-error: ${{ matrix.experimental }}
     steps:
