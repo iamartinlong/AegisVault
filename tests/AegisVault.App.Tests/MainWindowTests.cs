@@ -2,6 +2,9 @@ using System.Linq;
 using AegisVault.App.Views;
 using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia;
+using Avalonia.Headless;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using Xunit;
@@ -185,6 +188,73 @@ public sealed class MainWindowTests
 
         Assert.Null(fake.Text);
         return null;
+    });
+
+    [Fact]
+    public Task CategoryTreeRendersRowsWithAnActionMenuAndExpands() => Headless.Run(() =>
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "aegis-ui-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            using var vault = Core.Services.VaultService.CreateNew(
+                Path.Combine(directory, "vault.aegis"),
+                "master password"u8.ToArray(),
+                new Core.Services.VaultOptions
+                {
+                    Kdf = new Core.Models.KdfParameters
+                    {
+                        Algorithm = Core.Models.KdfParameters.AlgorithmArgon2id,
+                        Iterations = 3,
+                        MemoryBytes = 8L * 1024 * 1024,
+                    },
+                });
+
+            var root = vault.AddCategory("Work");
+            var child = vault.AddCategory("Servers", parentId: root.Id);
+            vault.AddEntry(new Core.Models.PasswordEntry { Title = "Host", CategoryId = child.Id });
+
+            using var viewModel = new ViewModels.MainViewModel(vault);
+            var window = new MainWindow { DataContext = viewModel };
+            window.Show();
+
+            var tree = window.GetVisualDescendants().OfType<AtomUI.Desktop.Controls.NavMenu>().FirstOrDefault(
+                candidate => (candidate.GetValue(AutomationProperties.AutomationIdProperty) as string) == "CategoryTree");
+            Assert.NotNull(tree);
+
+            var actionButtons = window.GetVisualDescendants().OfType<Button>()
+                .Where(button => (button.GetValue(AutomationProperties.AutomationIdProperty) as string) == "CategoryActionsButton")
+                .ToList();
+            var rootButton = Assert.Single(actionButtons);
+            Assert.Equal("Work", ((ViewModels.CategoryNavNode)rootButton.DataContext!).Item.DisplayName);
+
+            // Clicking the row (outside the action button) expands the branch and the
+            // nested row brings its own action button.
+            var header = rootButton.GetVisualAncestors().OfType<Control>()
+                .First(candidate => candidate.GetType().Name == "InlineNavMenuItemHeader");
+            var point = header.TranslatePoint(new Point(header.Bounds.Width - 4, header.Bounds.Height / 2), window)!.Value;
+            window.MouseDown(point, MouseButton.Left);
+            window.MouseUp(point, MouseButton.Left);
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+
+            var nested = window.GetVisualDescendants().OfType<Button>()
+                .Where(button => (button.GetValue(AutomationProperties.AutomationIdProperty) as string) == "CategoryActionsButton")
+                .Select(button => ((ViewModels.CategoryNavNode)button.DataContext!).Item.DisplayName)
+                .ToList();
+            Assert.Contains("Servers", nested);
+
+            window.Close();
+        }
+        finally
+        {
+            try
+            {
+                Directory.Delete(directory, recursive: true);
+            }
+            catch (IOException)
+            {
+            }
+        }
     });
 
     private static List<AtomUIMenuItem> ReadRadioItems(

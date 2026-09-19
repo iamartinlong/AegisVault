@@ -1,3 +1,5 @@
+using System.Collections.Specialized;
+using System.Linq;
 using AegisVault.App.Localization;
 using AegisVault.App.Services;
 using AegisVault.App.ViewModels;
@@ -5,8 +7,12 @@ using AegisVault.Core.Models;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Controls.Templates;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
+using AtomUIMenuItem = AtomUI.Desktop.Controls.MenuItem;
+using MenuFlyout = AtomUI.Desktop.Controls.MenuFlyout;
+using MenuSeparator = AtomUI.Desktop.Controls.MenuSeparator;
 
 namespace AegisVault.App.Views;
 
@@ -26,6 +32,54 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+    }
+
+    private MainViewModel? _categoryNodesViewModel;
+
+    /// <summary>
+    /// Assigns the row template to every category node. AtomUI only uses a node's
+    /// own template, and falls back to a TreeDataTemplate that would render the
+    /// node object itself, so the view owns this wiring (and re-applies it when
+    /// the tree is rebuilt).
+    /// </summary>
+    protected override void OnDataContextChanged(EventArgs e)
+    {
+        base.OnDataContextChanged(e);
+
+        if (_categoryNodesViewModel is not null)
+        {
+            _categoryNodesViewModel.CategoryNodes.CollectionChanged -= OnCategoryNodesChanged;
+            _categoryNodesViewModel = null;
+        }
+
+        if (DataContext is MainViewModel viewModel)
+        {
+            _categoryNodesViewModel = viewModel;
+            viewModel.CategoryNodes.CollectionChanged += OnCategoryNodesChanged;
+            ApplyCategoryRowTemplates(viewModel);
+        }
+    }
+
+    private void OnCategoryNodesChanged(object? sender, NotifyCollectionChangedEventArgs e)
+        => ApplyCategoryRowTemplates(_categoryNodesViewModel);
+
+    private void ApplyCategoryRowTemplates(MainViewModel? viewModel)
+    {
+        if (viewModel is null || Resources["CategoryRowTemplate"] is not IDataTemplate template)
+        {
+            return;
+        }
+
+        Apply(viewModel.CategoryNodes);
+
+        void Apply(IEnumerable<CategoryNavNode> nodes)
+        {
+            foreach (var node in nodes)
+            {
+                node.HeaderTemplate = template;
+                Apply(node.Entries.OfType<CategoryNavNode>());
+            }
+        }
     }
 
     public void ShowLockOverlay()
@@ -280,11 +334,48 @@ public partial class MainWindow : Window
         }
     }
 
-    private async void OnRenameCategoryClicked(object? sender, RoutedEventArgs e)
+    /// <summary>
+    /// Per-row "…" menu. The row itself expands or selects the node, so every
+    /// category action lives in this flyout instead of inline buttons.
+    /// </summary>
+    private void OnCategoryActionsClicked(object? sender, RoutedEventArgs e)
     {
-        if (sender is not Button { DataContext: CategoryItem item } ||
-            item.CategoryId is not { } id ||
-            DataContext is not MainViewModel viewModel)
+        if (sender is not Button { DataContext: CategoryNavNode node } button ||
+            DataContext is not MainViewModel viewModel ||
+            node.Item.CategoryId is not { } id)
+        {
+            return;
+        }
+
+        var flyout = new MenuFlyout();
+
+        var rename = new AtomUIMenuItem { Header = Loc.T("Main_RenameCategoryTooltip") };
+        rename.Click += async (_, _) => await RenameCategoryAsync(id, node.Item);
+        flyout.Items.Add(rename);
+
+        var move = new AtomUIMenuItem { Header = Loc.T("Main_CategoryMoveTo") };
+        move.Click += async (_, _) => await MoveCategoryAsync(id, node.Item);
+        flyout.Items.Add(move);
+
+        if (viewModel.CategoryNodes.Count > 1)
+        {
+            var merge = new AtomUIMenuItem { Header = Loc.T("Main_MergeCategory") };
+            merge.Click += async (_, _) => await MergeCategoryAsync(id, node.Item);
+            flyout.Items.Add(merge);
+        }
+
+        flyout.Items.Add(new MenuSeparator());
+
+        var delete = new AtomUIMenuItem { Header = Loc.T("Main_DeleteCategoryTooltip") };
+        delete.Click += async (_, _) => await DeleteCategoryAsync(id, node.Item);
+        flyout.Items.Add(delete);
+
+        flyout.ShowAt(button);
+    }
+
+    private async Task RenameCategoryAsync(Guid id, CategoryItem item)
+    {
+        if (DataContext is not MainViewModel viewModel)
         {
             return;
         }
@@ -310,23 +401,91 @@ public partial class MainWindow : Window
         }
     }
 
-    private async void OnDeleteCategoryClicked(object? sender, RoutedEventArgs e)
+    private async Task MoveCategoryAsync(Guid id, CategoryItem item)
     {
-        if (sender is not Button { DataContext: CategoryItem item } ||
-            item.CategoryId is not { } id ||
-            DataContext is not MainViewModel viewModel)
+        if (DataContext is not MainViewModel viewModel)
         {
             return;
         }
 
         try
         {
-            var dialog = new ConfirmWindow(
-                Loc.T("Main_DeleteCategoryTitle"),
-                Loc.Format("Main_DeleteCategoryMessage", item.DisplayName));
+            var dialog = new CategoryParentWindow(
+                Loc.T("Main_CategoryMoveTo"),
+                Loc.Format("Main_CategoryMoveMessage", item.DisplayName),
+                viewModel.BuildParentChoices(id),
+                item.ParentId,
+                Loc.T("Main_CategoryMoveAction"),
+                Loc.T("Main_Cancel"));
             if (await dialog.ShowDialog<bool>(this))
             {
-                viewModel.DeleteCategory(id);
+                viewModel.TryMoveCategory(id, dialog.SelectedParentId, out _);
+            }
+        }
+        catch (Exception)
+        {
+        }
+    }
+
+    private async Task MergeCategoryAsync(Guid id, CategoryItem item)
+    {
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        try
+        {
+            var choices = viewModel.Categories
+                .Where(category => category.CategoryId is { } candidate &&
+                                   candidate != id &&
+                                   !viewModel.GetCategorySubtreeIds(id).Contains(candidate))
+                .Select(category => new CategoryChoice(category.CategoryId, category.DisplayName))
+                .ToList();
+            if (choices.Count == 0)
+            {
+                return;
+            }
+
+            var dialog = new CategoryParentWindow(
+                Loc.T("Main_MergeCategory"),
+                Loc.Format("Main_CategoryMergeMessage", item.DisplayName),
+                choices,
+                null,
+                Loc.T("Main_CategoryMergeAction"),
+                Loc.T("Main_Cancel"));
+            if (await dialog.ShowDialog<bool>(this) && dialog.SelectedParentId is { } targetId)
+            {
+                viewModel.TryMergeCategory(id, targetId, out _);
+            }
+        }
+        catch (Exception)
+        {
+        }
+    }
+
+    private async Task DeleteCategoryAsync(Guid id, CategoryItem item)
+    {
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        try
+        {
+            var (children, entries) = viewModel.DescribeCategory(id);
+            var message = children > 0
+                ? Loc.Format("Main_DeleteCategoryWithChildren", item.DisplayName, children)
+                : Loc.Format("Main_DeleteCategoryMessage", item.DisplayName);
+            if (entries > 0 && children > 0)
+            {
+                message += Environment.NewLine + Loc.Format("Main_DeleteCategoryEntries", entries);
+            }
+
+            var dialog = new ConfirmWindow(Loc.T("Main_DeleteCategoryTitle"), message);
+            if (await dialog.ShowDialog<bool>(this))
+            {
+                viewModel.DeleteCategory(id, CategoryDeleteMode.PromoteChildren);
             }
         }
         catch (Exception)

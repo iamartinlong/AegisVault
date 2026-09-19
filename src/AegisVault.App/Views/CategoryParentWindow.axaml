@@ -1,0 +1,45 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:AegisVault.App.ViewModels"
+        xmlns:loc="using:AegisVault.App.Localization"
+        xmlns:controls="using:AegisVault.App.Controls"
+        xmlns:atom="https://atomui.net"
+        x:Class="AegisVault.App.Views.CategoryParentWindow"
+        Icon="/Assets/app.png"
+        Width="440"
+        Height="420"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{atom:SharedTokenResource ColorBgContainer}"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaTitleBarHeightHint="40">
+    <Grid RowDefinitions="40,*,Auto">
+        <controls:AegisTitleBar x:Name="TitleBar" Grid.Row="0" ShowIcon="True" />
+
+        <Grid Grid.Row="1" Margin="20,4,20,0" RowDefinitions="Auto,*" RowSpacing="10">
+            <TextBlock x:Name="MessageText" Grid.Row="0" TextWrapping="Wrap" Opacity="0.75" FontSize="12" />
+            <ListBox x:Name="ParentList"
+                     Grid.Row="1"
+                     AutomationProperties.AutomationId="CategoryParentList"
+                     Background="Transparent">
+                <ListBox.ItemTemplate>
+                    <DataTemplate DataType="vm:CategoryChoice">
+                        <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </Grid>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right" Margin="20">
+            <atom:Button x:Name="CancelButton"
+                         Content="{loc:Str Common_Cancel}"
+                         Click="OnCancelClicked"
+                         IsCancel="True" />
+            <atom:Button x:Name="OkButton"
+                         ButtonType="Primary"
+                         Content="{loc:Str Common_Ok}"
+                         Click="OnOkClicked"
+                         IsDefault="True" />
+        </StackPanel>
+    </Grid>
+</Window>

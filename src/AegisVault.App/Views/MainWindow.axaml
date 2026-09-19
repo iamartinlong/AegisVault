@@ -24,6 +24,41 @@
         <conv:CategoryIconConverter x:Key="CategoryIconConverter" />
         <conv:CategoryDotConverter x:Key="CategoryDotConverter" />
         <conv:ThemeIconConverter x:Key="ThemeIconConverter" />
+
+        <!-- Category tree row: colour dot, name, per-row action menu and branch count.
+             The view assigns it to every CategoryNavNode (AtomUI falls back to a
+             TreeDataTemplate otherwise, which would render the node itself). -->
+        <DataTemplate x:Key="CategoryRowTemplate" DataType="vm:CategoryNavNode" x:DataType="vm:CategoryNavNode">
+            <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                <Ellipse Grid.Column="0"
+                         Width="8" Height="8"
+                         Margin="4,0,12,0"
+                         VerticalAlignment="Center"
+                         Fill="{Binding Item, Converter={StaticResource CategoryDotConverter}}" />
+                <TextBlock Grid.Column="1"
+                           Text="{Binding Item.DisplayName}"
+                           FontSize="13"
+                           TextTrimming="CharacterEllipsis"
+                           VerticalAlignment="Center" />
+                <StackPanel Grid.Column="2"
+                            Classes="categoryActions"
+                            Orientation="Horizontal"
+                            Spacing="0"
+                            VerticalAlignment="Center">
+                    <atom:Button ButtonType="Text"
+                                 AutomationProperties.AutomationId="CategoryActionsButton"
+                                 Icon="{antd:AntDesignIconProvider EllipsisOutlined}"
+                                 ToolTip.Tip="{loc:Str Main_CategoryActionsTooltip}"
+                                 Click="OnCategoryActionsClicked" />
+                </StackPanel>
+                <TextBlock Grid.Column="3"
+                           Text="{Binding Item.Count}"
+                           FontSize="11"
+                           Opacity="0.5"
+                           Margin="6,0,0,0"
+                           VerticalAlignment="Center" />
+            </Grid>
+        </DataTemplate>
     </Window.Resources>
 
     <Window.Styles>
@@ -158,51 +193,17 @@
                                              ToolTip.Tip="{loc:Str Main_NewCategoryTitle}"
                                              Click="OnNewCategoryClicked" />
                             </Grid>
-                            <ListBox Classes="nav"
-                                     Background="Transparent"
-                                     ItemsSource="{Binding UserCategories}"
-                                     SelectedItem="{Binding SelectedUserCategory}">
-                                <ListBox.ItemTemplate>
-                                    <DataTemplate DataType="vm:CategoryItem">
-                                        <Grid ColumnDefinitions="Auto,*,Auto,Auto">
-                                            <!-- Categories render as a small colour dot (palette key or custom hex;
-                                                 unset colours fall back to a name-derived slot). The dot sits at the
-                                                 centre of the 16px icon column so all sidebar rows align. -->
-                                            <Ellipse Grid.Column="0"
-                                                     Width="8" Height="8"
-                                                     Margin="4,0,12,0"
-                                                     VerticalAlignment="Center"
-                                                     Fill="{Binding Converter={StaticResource CategoryDotConverter}}" />
-                                            <TextBlock Grid.Column="1"
-                                                       Text="{Binding DisplayName}"
-                                                       TextTrimming="CharacterEllipsis"
-                                                       VerticalAlignment="Center" />
-                                            <StackPanel Grid.Column="2"
-                                                        Classes="rowActions"
-                                                        Orientation="Horizontal"
-                                                        Spacing="0"
-                                                        VerticalAlignment="Center">
-                                                <atom:Button ButtonType="Text"
-                                                             AutomationProperties.AutomationId="EditCategoryButton"
-                                                             Icon="{antd:AntDesignIconProvider EditOutlined}"
-                                                             ToolTip.Tip="{loc:Str Main_RenameCategoryTooltip}"
-                                                             Click="OnRenameCategoryClicked" />
-                                                <atom:Button ButtonType="Text"
-                                                             AutomationProperties.AutomationId="DeleteCategoryButton"
-                                                             Icon="{antd:AntDesignIconProvider DeleteOutlined}"
-                                                             ToolTip.Tip="{loc:Str Main_DeleteCategoryTooltip}"
-                                                             Click="OnDeleteCategoryClicked" />
-                                            </StackPanel>
-                                            <TextBlock Grid.Column="3"
-                                                       Text="{Binding Count}"
-                                                       FontSize="11"
-                                                       Opacity="0.5"
-                                                       Margin="6,0,0,0"
-                                                       VerticalAlignment="Center" />
-                                        </Grid>
-                                    </DataTemplate>
-                                </ListBox.ItemTemplate>
-                            </ListBox>
+                            <!-- Categories render as a nested, collapsible tree; the row template is the
+                                 implicit CategoryNavNode template above and the app owns the inline
+                                 NavMenu header template in Theme/CategoryNavMenu.axaml. -->
+                            <atom:NavMenu AutomationProperties.AutomationId="CategoryTree"
+                                          Mode="Inline"
+                                          Background="Transparent"
+                                          IsItemBackgroundEnabled="False"
+                                          DefaultOpenPaths="{Binding CategoryOpenPaths}"
+                                          ItemsSource="{Binding CategoryNodes}"
+                                          SelectedItem="{Binding SelectedCategoryNode}" />
+
 
                             <TextBlock Classes="section" Text="{loc:Str Main_Tags}" />
                             <ListBox Classes="nav"

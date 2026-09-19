@@ -539,6 +539,96 @@ public sealed class MainViewModelTests : IDisposable
     });
 
     [Fact]
+    public Task CategoryTreeNodesExposeBranchCountsAndFilterTheWholeBranch() => Headless.Run(() =>
+    {
+        using var vault = CreateVaultWithEntries();
+        var root = vault.AddCategory("Work");
+        var child = vault.AddCategory("Servers", parentId: root.Id);
+        var grandChild = vault.AddCategory("Production", parentId: child.Id);
+
+        var workEntry = vault.AddEntry(new PasswordEntry { Title = "Work item", CategoryId = root.Id });
+        var serverEntry = vault.AddEntry(new PasswordEntry { Title = "Server item", CategoryId = child.Id });
+        var prodEntry = vault.AddEntry(new PasswordEntry { Title = "Prod item", CategoryId = grandChild.Id });
+
+        using var viewModel = new MainViewModel(vault);
+
+        var rootNode = Assert.Single(viewModel.CategoryNodes.Where(node => node.IsUserCategory));
+        Assert.Equal("Work", rootNode.Item.DisplayName);
+        Assert.Equal(3, rootNode.Item.Count);
+        Assert.True(rootNode.Item.HasChildren);
+        Assert.Equal(1, rootNode.Item.Depth);
+
+        var childNode = Assert.Single(rootNode.Entries.OfType<CategoryNavNode>());
+        Assert.Equal(2, childNode.Item.Count);
+        Assert.Equal(2, childNode.Item.Depth);
+
+        var grandChildNode = Assert.Single(childNode.Entries.OfType<CategoryNavNode>());
+        Assert.Equal(1, grandChildNode.Item.Count);
+
+        // Selecting the root filters the whole branch, not just its direct entries.
+        viewModel.SelectedCategoryNode = rootNode;
+
+        var titles = viewModel.FilteredEntries.Select(entry => entry.Title).OrderBy(title => title).ToList();
+        Assert.Equal(["Prod item", "Server item", "Work item"], titles);
+        Assert.DoesNotContain(viewModel.FilteredEntries, entry => entry.Title == "GitHub");
+        Assert.Contains(workEntry.Id, viewModel.FilteredEntries.Select(entry => entry.Id));
+        Assert.Contains(serverEntry.Id, viewModel.FilteredEntries.Select(entry => entry.Id));
+        Assert.Contains(prodEntry.Id, viewModel.FilteredEntries.Select(entry => entry.Id));
+
+        // Selecting the child narrows the branch.
+        viewModel.SelectedCategoryNode = childNode;
+        Assert.Equal(
+            ["Prod item", "Server item"],
+            viewModel.FilteredEntries.Select(entry => entry.Title).OrderBy(title => title));
+    });
+
+    [Fact]
+    public Task CategoryTreeKeepsNodesWhenEntriesChange() => Headless.Run(() =>
+    {
+        using var vault = CreateVaultWithEntries();
+        var root = vault.AddCategory("Work");
+
+        using var viewModel = new MainViewModel(vault);
+        var rootNode = Assert.Single(viewModel.CategoryNodes.Where(node => node.IsUserCategory));
+        Assert.Equal(0, rootNode.Item.Count);
+
+        // Entry edits refresh the row data in place: the node instance survives so
+        // the tree keeps its expansion state.
+        viewModel.SelectedCategoryNode = rootNode;
+        vault.AddEntry(new PasswordEntry { Title = "Later", CategoryId = root.Id });
+        viewModel.ReloadFromVault();
+
+        Assert.Same(rootNode, Assert.Single(viewModel.CategoryNodes.Where(node => node.IsUserCategory)));
+        Assert.Equal(1, rootNode.Item.Count);
+    });
+
+    [Fact]
+    public Task CategoryTreeSupportsMoveAndMerge() => Headless.Run(() =>
+    {
+        using var vault = CreateVaultWithEntries();
+        using var viewModel = new MainViewModel(vault);
+
+        viewModel.TryCreateCategory("Work", out _);
+        viewModel.TryCreateCategory("Servers", out _);
+        var work = viewModel.Categories.Single(category => category.DisplayName == "Work");
+        var servers = viewModel.Categories.Single(category => category.DisplayName == "Servers");
+
+        Assert.True(viewModel.TryMoveCategory(servers.CategoryId!.Value, work.CategoryId, out var moveError));
+        Assert.Null(moveError);
+
+        var rootNode = viewModel.CategoryNodes.Single(node => node.IsUserCategory);
+        Assert.Equal("Work", rootNode.Item.DisplayName);
+        Assert.Equal("Servers", Assert.Single(rootNode.Entries.OfType<CategoryNavNode>()).Item.DisplayName);
+
+        // Merging folds the child back into its parent and drops the source.
+        Assert.True(viewModel.TryMergeCategory(servers.CategoryId!.Value, work.CategoryId!.Value, out var mergeError));
+        Assert.Null(mergeError);
+        Assert.Single(viewModel.CategoryNodes.Where(node => node.IsUserCategory));
+        Assert.Empty(viewModel.CategoryNodes[0].Entries);
+        Assert.DoesNotContain(viewModel.Categories, category => category.DisplayName == "Servers");
+    });
+
+    [Fact]
     public Task NewEntryInheritsSelectedCategory() => Headless.Run(() =>
     {
         using var vault = CreateVaultWithEntries();

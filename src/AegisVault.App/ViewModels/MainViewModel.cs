@@ -3,6 +3,7 @@ using AegisVault.App.Localization;
 using AegisVault.App.Services;
 using AegisVault.Core.Models;
 using AegisVault.Core.Services;
+using AtomUI.Controls.Primitives;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -30,7 +31,10 @@ public sealed record CategoryItem(
     int Count,
     CategoryKind Kind = CategoryKind.System,
     Guid? CategoryId = null,
-    string Color = "")
+    string Color = "",
+    int Depth = 1,
+    bool HasChildren = false,
+    Guid? ParentId = null)
 {
     public bool IsUserCategory => Kind == CategoryKind.Category;
 
@@ -145,6 +149,18 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     public ObservableCollection<CategoryItem> TagCategories { get; } = [];
 
+    /// <summary>Nested tree the sidebar's inline NavMenu renders.</summary>
+    public ObservableCollection<CategoryNavNode> CategoryNodes { get; } = [];
+
+    /// <summary>
+    /// Paths expanded when the tree is (re)built. Roots start expanded so the
+    /// common flat case looks exactly like the previous sidebar list.
+    /// </summary>
+    public ObservableCollection<TreeNodePath> CategoryOpenPaths { get; } = [];
+
+    /// <summary>Shape of the last built tree; entry edits do not rebuild it.</summary>
+    private string? _categoryTreeSignature;
+
     public ObservableCollection<CategoryChoice> CategoryChoices { get; } = [];
 
     [ObservableProperty]
@@ -162,6 +178,15 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private CategoryItem? selectedTagCategory;
 
+    [ObservableProperty]
+    private CategoryNavNode? selectedCategoryNode;
+
+    /// <summary>True while the view-model pushes a selection into the sidebar.</summary>
+    private bool _syncingCategorySelection;
+
+    /// <summary>Category ids the current filter matches (the selected branch).</summary>
+    private HashSet<Guid> _categoryFilterIds = [];
+
     partial void OnSelectedSystemCategoryChanged(CategoryItem? value)
     {
         if (value is null)
@@ -172,6 +197,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         SelectedCategory = value;
         SelectedUserCategory = null;
         SelectedTagCategory = null;
+        ClearCategoryNodeSelection();
     }
 
     partial void OnSelectedUserCategoryChanged(CategoryItem? value)
@@ -196,6 +222,37 @@ public partial class MainViewModel : ObservableObject, IDisposable
         SelectedCategory = value;
         SelectedSystemCategory = null;
         SelectedUserCategory = null;
+        ClearCategoryNodeSelection();
+    }
+
+    partial void OnSelectedCategoryNodeChanged(CategoryNavNode? value)
+    {
+        if (_syncingCategorySelection || value is null)
+        {
+            return;
+        }
+
+        SelectedCategory = value.Item;
+        SelectedSystemCategory = null;
+        SelectedTagCategory = null;
+    }
+
+    private void ClearCategoryNodeSelection()
+    {
+        if (SelectedCategoryNode is null)
+        {
+            return;
+        }
+
+        _syncingCategorySelection = true;
+        try
+        {
+            SelectedCategoryNode = null;
+        }
+        finally
+        {
+            _syncingCategorySelection = false;
+        }
     }
 
     [ObservableProperty]
@@ -445,11 +502,28 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     partial void OnSelectedCategoryChanged(CategoryItem? value)
     {
+        RefreshCategoryFilter();
         ApplyFilter();
         OnPropertyChanged(nameof(IsViewAll));
         OnPropertyChanged(nameof(IsViewFavorites));
         OnPropertyChanged(nameof(IsViewSecurity));
         OnPropertyChanged(nameof(IsViewStale));
+    }
+
+    /// <summary>
+    /// Resolves the ids the current category filter matches. Selecting a category
+    /// includes its whole branch, so a parent shows everything underneath it.
+    /// </summary>
+    private void RefreshCategoryFilter()
+    {
+        if (SelectedCategory is { Kind: CategoryKind.Category, CategoryId: { } categoryId })
+        {
+            _categoryFilterIds = [.. _vault.GetCategorySubtree(categoryId)];
+        }
+        else
+        {
+            _categoryFilterIds = [];
+        }
     }
 
     partial void OnSelectedEntryChanged(PasswordEntry? value)
@@ -956,6 +1030,15 @@ public partial class MainViewModel : ObservableObject, IDisposable
             Categories.Add(new CategoryItem(StaleCategoryKey, Loc.T("Main_CategoryStale"), null, false, _health.OldCount));
         }
 
+        var directCounts = new Dictionary<Guid, int>();
+        foreach (var entry in Entries)
+        {
+            if (entry.CategoryId is { } categoryId)
+            {
+                directCounts[categoryId] = directCounts.GetValueOrDefault(categoryId) + 1;
+            }
+        }
+
         foreach (var category in _vault.Categories)
         {
             Categories.Add(new CategoryItem(
@@ -963,10 +1046,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
                 category.Name,
                 null,
                 false,
-                Entries.Count(entry => entry.CategoryId == category.Id),
+                CountBranch(category.Id, directCounts),
                 CategoryKind.Category,
                 category.Id,
-                category.Color));
+                category.Color,
+                ParentId: category.ParentId));
         }
 
         if (_vault.Categories.Count > 0 && Entries.Any(entry => entry.CategoryId is null))
@@ -998,7 +1082,166 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
         SelectedCategory = Categories.FirstOrDefault(category => category.Key == selectedKey) ?? Categories[0];
         RebuildCategorySections(SelectedCategory);
+        RebuildCategoryNodes();
+        RefreshCategoryFilter();
         RefreshCategoryChoices();
+    }
+
+    /// <summary>Entries directly in a category plus everything in its branch.</summary>
+    private int CountBranch(Guid categoryId, IReadOnlyDictionary<Guid, int> directCounts)
+    {
+        var total = directCounts.GetValueOrDefault(categoryId);
+        foreach (var category in _vault.Categories)
+        {
+            if (category.ParentId == categoryId)
+            {
+                total += CountBranch(category.Id, directCounts);
+            }
+        }
+
+        return total;
+    }
+
+    /// <summary>
+    /// Rebuilds the nested sidebar tree. Counts are branch totals so a collapsed
+    /// parent still shows how much sits underneath it. Entry edits only refresh
+    /// the row data in place, so the tree keeps its expansion state.
+    /// </summary>
+    private void RebuildCategoryNodes()
+    {
+        var signature = CategoryTreeSignature();
+        if (signature == _categoryTreeSignature)
+        {
+            RefreshCategoryNodeItems();
+            return;
+        }
+
+        _categoryTreeSignature = signature;
+        CategoryNodes.Clear();
+        CategoryOpenPaths.Clear();
+
+        // Roots are expanded before the nodes are added, so the NavMenu creates
+        // their containers already open.
+        var roots = SortedChildrenOf(null);
+        foreach (var root in roots)
+        {
+            CategoryOpenPaths.Add(TreeNodePath.Empty.Append(CategoryKeyPrefix + root.Id.ToString("D")));
+        }
+
+        foreach (var category in roots)
+        {
+            CategoryNodes.Add(BuildCategoryNode(category, depth: 1));
+        }
+
+        if (_vault.Categories.Count > 0 && Entries.Any(entry => entry.CategoryId is null))
+        {
+            var uncategorized = Categories.First(category =>
+                category.Kind == CategoryKind.Category && category.CategoryId is null);
+            CategoryNodes.Add(new CategoryNavNode(uncategorized));
+        }
+
+        RestoreSelectedCategoryNode();
+
+        CategoryNavNode BuildCategoryNode(Category category, int depth)
+        {
+            var children = SortedChildrenOf(category.Id);
+            var node = new CategoryNavNode(RowItemFor(category, depth, children.Count > 0));
+            foreach (var child in children)
+            {
+                node.Entries.Add(BuildCategoryNode(child, depth + 1));
+            }
+
+            return node;
+        }
+    }
+
+    private CategoryItem RowItemFor(Category category, int depth, bool hasChildren)
+        => Categories.First(candidate => candidate.CategoryId == category.Id) with
+        {
+            Depth = depth,
+            HasChildren = hasChildren,
+        };
+
+    /// <summary>Identity of the tree shape; entry counts deliberately excluded.</summary>
+    private string CategoryTreeSignature()
+        => string.Join(
+            '|',
+            _vault.Categories
+                .OrderBy(category => category.Id)
+                .Select(category => $"{category.Id:D}:{category.ParentId:D}:{category.Name}"));
+
+    private void RefreshCategoryNodeItems()
+    {
+        foreach (var node in EnumerateNodes(CategoryNodes))
+        {
+            if (node.Item.CategoryId is { } id &&
+                _vault.Categories.FirstOrDefault(category => category.Id == id) is { } category)
+            {
+                node.Item = RowItemFor(category, node.Item.Depth, node.Item.HasChildren);
+            }
+            else if (node.Item.CategoryId is null &&
+                     Categories.FirstOrDefault(candidate =>
+                         candidate.Kind == CategoryKind.Category && candidate.CategoryId is null) is { } uncategorized)
+            {
+                node.Item = uncategorized;
+            }
+        }
+    }
+
+    private static IEnumerable<CategoryNavNode> EnumerateNodes(IEnumerable<CategoryNavNode> nodes)
+    {
+        foreach (var node in nodes)
+        {
+            yield return node;
+            foreach (var nested in EnumerateNodes(node.Entries.OfType<CategoryNavNode>()))
+            {
+                yield return nested;
+            }
+        }
+    }
+
+    private void RestoreSelectedCategoryNode()
+    {
+        var selectedKey = SelectedCategory?.Key;
+        var restored = selectedKey is null ? null : FindNode(CategoryNodes, selectedKey);
+        if (ReferenceEquals(restored, SelectedCategoryNode))
+        {
+            return;
+        }
+
+        _syncingCategorySelection = true;
+        try
+        {
+            SelectedCategoryNode = restored;
+        }
+        finally
+        {
+            _syncingCategorySelection = false;
+        }
+    }
+
+    private List<Category> SortedChildrenOf(Guid? parentId)
+        => _vault.Categories
+            .Where(category => category.ParentId == parentId)
+            .OrderBy(category => category.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+    private static CategoryNavNode? FindNode(IEnumerable<CategoryNavNode> nodes, string key)
+    {
+        foreach (var node in nodes)
+        {
+            if (node.Item.Key == key)
+            {
+                return node;
+            }
+
+            if (FindNode(node.Entries.OfType<CategoryNavNode>(), key) is { } nested)
+            {
+                return nested;
+            }
+        }
+
+        return null;
     }
 
     private void RebuildCategorySections(CategoryItem? selected)
@@ -1056,20 +1299,79 @@ public partial class MainViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>Creates a user category; returns false with a localized reason when invalid.</summary>
-    public bool TryCreateCategory(string? name, out string? error, string? color = null)
+    public bool TryCreateCategory(string? name, out string? error, string? color = null, Guid? parentId = null)
     {
-        error = ValidateCategoryName(name, excludeId: null);
+        error = ValidateCategoryName(name, excludeId: null, parentId);
         if (error is not null)
         {
             return false;
         }
 
-        var category = _vault.AddCategory(name!.Trim(), color);
+        var category = _vault.AddCategory(name!.Trim(), color, parentId);
         RefreshCategoryViews();
         SelectedCategoryChoice = CategoryChoices.First(choice => choice.Id == category.Id);
         StatusMessage = Loc.T("Main_StatusCategoryCreated");
         return true;
     }
+
+    /// <summary>Moves a category to another parent (null = top level).</summary>
+    public bool TryMoveCategory(Guid id, Guid? parentId, out string? error)
+    {
+        error = null;
+        try
+        {
+            if (_vault.MoveCategory(id, parentId))
+            {
+                RefreshCategoryViews();
+                StatusMessage = Loc.T("Main_StatusCategoryMoved");
+                return true;
+            }
+
+            error = Loc.T("Main_CategoryMissing");
+            return false;
+        }
+        catch (ArgumentException exception)
+        {
+            error = exception.Message;
+            return false;
+        }
+    }
+
+    /// <summary>Merges every entry and child of one category into another.</summary>
+    public bool TryMergeCategory(Guid sourceId, Guid targetId, out string? error)
+    {
+        error = null;
+        try
+        {
+            if (!_vault.MergeCategories(sourceId, targetId))
+            {
+                return false;
+            }
+
+            ReloadFromVault();
+            StatusMessage = Loc.T("Main_StatusCategoryMerged");
+            return true;
+        }
+        catch (ArgumentException exception)
+        {
+            error = exception.Message;
+            return false;
+        }
+    }
+
+    /// <summary>Selects a category in the sidebar tree by id.</summary>
+    public void SelectCategoryNode(Guid categoryId)
+    {
+        var key = CategoryKeyPrefix + categoryId.ToString("D");
+        var node = FindNode(CategoryNodes, key);
+        if (node is not null)
+        {
+            SelectedCategoryNode = node;
+        }
+    }
+
+    /// <summary>First level of the sidebar tree, for the parent pickers.</summary>
+    public IEnumerable<CategoryNavNode> CategoryTree => CategoryNodes;
 
     /// <summary>Applies a new palette/hex colour to a category.</summary>
     public void SetCategoryColor(Guid id, string? color)
@@ -1085,7 +1387,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>Renames a user category; returns false with a localized reason when invalid.</summary>
     public bool TryRenameCategory(Guid id, string? name, out string? error)
     {
-        error = ValidateCategoryName(name, excludeId: id);
+        var parentId = _vault.Categories.FirstOrDefault(category => category.Id == id)?.ParentId;
+        error = ValidateCategoryName(name, excludeId: id, parentId);
         if (error is not null)
         {
             return false;
@@ -1103,18 +1406,36 @@ public partial class MainViewModel : ObservableObject, IDisposable
     }
 
     public void DeleteCategory(Guid id)
+        => DeleteCategory(id, CategoryDeleteMode.PromoteChildren);
+
+    public void DeleteCategory(Guid id, CategoryDeleteMode mode)
     {
-        if (!_vault.DeleteCategory(id))
+        if (!_vault.DeleteCategory(id, mode))
         {
             return;
         }
 
+        var wasSelected = SelectedCategory?.CategoryId == id;
         ReloadFromVault();
-        StatusMessage = Loc.T("Main_StatusCategoryDeleted");
+        if (wasSelected)
+        {
+            SelectedCategory = Categories[0];
+        }
+
+        StatusMessage = mode == CategoryDeleteMode.Cascade
+            ? Loc.T("Main_StatusCategoryBranchDeleted")
+            : Loc.T("Main_StatusCategoryDeleted");
+    }
+
+    /// <summary>Child categories and entries a delete would touch.</summary>
+    public (int Children, int Entries) DescribeCategory(Guid id)
+    {
+        var subtree = _vault.GetCategorySubtree(id);
+        return (subtree.Count - 1, Entries.Count(entry => entry.CategoryId is { } categoryId && subtree.Contains(categoryId)));
     }
 
     /// <summary>Validates a category name for the create/rename dialogs (null = valid).</summary>
-    public string? ValidateCategoryName(string? name, Guid? excludeId = null)
+    public string? ValidateCategoryName(string? name, Guid? excludeId = null, Guid? parentId = null)
     {
         var trimmed = name?.Trim() ?? string.Empty;
         if (trimmed.Length == 0)
@@ -1124,8 +1445,37 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
         var duplicate = _vault.Categories.Any(category =>
             category.Id != excludeId &&
+            category.ParentId == parentId &&
             string.Equals(category.Name, trimmed, StringComparison.OrdinalIgnoreCase));
         return duplicate ? Loc.T("Main_CategoryNameDuplicate") : null;
+    }
+
+    /// <summary>Ids of a category and everything nested under it.</summary>
+    public IReadOnlySet<Guid> GetCategorySubtreeIds(Guid id) => _vault.GetCategorySubtree(id);
+
+    /// <summary>Categories that may become the parent of <paramref name="movingId"/>.</summary>
+    public IReadOnlyList<CategoryChoice> BuildParentChoices(Guid? movingId)    {
+        var excluded = movingId is { } id ? _vault.GetCategorySubtree(id) : new HashSet<Guid>();
+        var choices = new List<CategoryChoice> { new(null, Loc.T("Main_CategoryTopLevel")) };
+        AddLevel(null, 0);
+        return choices;
+
+        void AddLevel(Guid? parentId, int depth)
+        {
+            if (depth >= 3)
+            {
+                return;
+            }
+
+            foreach (var category in SortedChildrenOf(parentId))
+            {
+                if (!excluded.Contains(category.Id))
+                {
+                    choices.Add(new CategoryChoice(category.Id, new string(' ', depth * 2) + category.Name));
+                    AddLevel(category.Id, depth + 1);
+                }
+            }
+        }
     }
 
     private void ApplyFilter()
@@ -1188,9 +1538,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
         if (SelectedCategory.Key.StartsWith(CategoryKeyPrefix, StringComparison.Ordinal))
         {
             var suffix = SelectedCategory.Key[CategoryKeyPrefix.Length..];
-            return suffix.Length == 0
-                ? entry.CategoryId is null
-                : entry.CategoryId == Guid.Parse(suffix);
+            if (suffix.Length == 0)
+            {
+                return entry.CategoryId is null;
+            }
+
+            return entry.CategoryId is { } categoryId && _categoryFilterIds.Contains(categoryId);
         }
 
         if (SelectedCategory.IsFavorites)
