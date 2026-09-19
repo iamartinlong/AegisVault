@@ -1,0 +1,73 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:atom="https://atomui.net"
+                    xmlns:antd="https://atomui.net/icons/antdesign"
+                    xmlns:conv="using:AegisVault.App.Converters">
+
+    <conv:CategoryIndentConverter x:Key="CategoryIndentConverter" />
+
+    <!--
+        The category sidebar owns the inline NavMenu row template. AtomUI's stock
+        template marks its content presenter IsHitTestVisible=False, which prunes
+        the whole row content from hit testing (colour dot, count and the per-row
+        action menu would never receive a pointer). Owning the template also lets
+        the app use its own brushes and indent step instead of control tokens.
+        Behaviour that stays with the control: expansion animation, selection,
+        keyboard navigation and "a parent row toggles instead of selecting".
+    -->
+    <ControlTheme x:Key="{x:Type atom:InlineNavMenuItemHeader}" TargetType="atom:InlineNavMenuItemHeader">
+        <Setter Property="Padding" Value="8,0" />
+        <Setter Property="MinHeight" Value="30" />
+        <Setter Property="Margin" Value="0,1,0,1" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border Name="Frame"
+                        HorizontalAlignment="Stretch"
+                        Background="Transparent"
+                        MinHeight="{TemplateBinding MinHeight}"
+                        Padding="{TemplateBinding Padding}"
+                        CornerRadius="{TemplateBinding CornerRadius}">
+                    <Grid ColumnDefinitions="Auto,*,Auto"
+                          Margin="{Binding Level, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource CategoryIndentConverter}}">
+                        <atom:IconPresenter Name="RowIcon"
+                                            Grid.Column="0"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            Margin="0,0,8,0"
+                                            Icon="{TemplateBinding Icon}"
+                                            IsVisible="{TemplateBinding Icon, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                        <ContentPresenter Name="RowContent"
+                                          Grid.Column="1"
+                                          VerticalContentAlignment="Center"
+                                          Content="{TemplateBinding Header}"
+                                          ContentTemplate="{TemplateBinding HeaderTemplate}" />
+                        <antd:RightOutlined Name="RowArrow"
+                                            Grid.Column="2"
+                                            VerticalAlignment="Center"
+                                            Margin="4,0,0,0"
+                                            FontSize="10"
+                                            IsVisible="{TemplateBinding HasSubMenu}" />
+                    </Grid>
+                </Border>
+            </ControlTemplate>
+        </Setter>
+
+        <Style Selector="^:pointerover /template/ Border#Frame">
+            <Setter Property="Background" Value="{DynamicResource AegisHoverBrush}" />
+        </Style>
+        <Style Selector="^[IsSelected=True] /template/ Border#Frame">
+            <Setter Property="Background" Value="{DynamicResource AegisSelectedBrush}" />
+        </Style>
+        <Style Selector="^[IsInSelectedPath=True] /template/ Border#Frame">
+            <Setter Property="Background" Value="{DynamicResource AegisHoverBrush}" />
+        </Style>
+        <Style Selector="^:disabled /template/ ContentPresenter#RowContent">
+            <Setter Property="Opacity" Value="0.45" />
+        </Style>
+        <Style Selector="^[IsSubMenuOpen=True] /template/ antd|RightOutlined#RowArrow">
+            <Setter Property="RenderTransform" Value="rotate(90deg)" />
+        </Style>
+    </ControlTheme>
+
+</ResourceDictionary>
