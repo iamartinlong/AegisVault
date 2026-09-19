@@ -243,6 +243,7 @@ internal static class ZhStrings
         ["Settings_StatusDeviceRemembered"] = "已记住此设备。",
         ["Settings_StatusImportDone"] = "导入完成：新增 {0} 条，跳过 {1} 条。",
         ["Settings_StatusImportFailed"] = "导入失败：无法读取该 CSV 文件。",
+        ["Settings_StatusImportTooLarge"] = "文件过大：导入上限为 16 MB / 5 万行。",
         ["Settings_StatusPasswordChangeFailed"] = "更改主密码失败。",
         ["Settings_StatusPasswordChanged"] = "主密码已更改。设备密钥已重置，可重新“记住此设备”。",
         ["Settings_StatusPasswordMismatch"] = "两次输入的密码不一致。",

@@ -11,6 +11,9 @@ namespace AegisVault.App.Services;
 /// </summary>
 internal static class CsvImportFlow
 {
+    /// <summary>Import files above this size are refused (guards against runaway files).</summary>
+    internal const long MaxImportBytes = 16L * 1024 * 1024;
+
     public static async Task<ImportResult> RunAsync(
         VaultService vault,
         string path,
@@ -20,6 +23,13 @@ internal static class CsvImportFlow
         ImportResult result;
         try
         {
+            var length = new FileInfo(path).Length;
+            if (length > MaxImportBytes)
+            {
+                setStatus(Loc.T("Settings_StatusImportTooLarge"));
+                return new ImportResult(0, 0);
+            }
+
             // Only the parsing (CPU + file IO) runs off-thread; the vault write
             // happens back on the caller's thread in one transaction, because
             // the vault owns a single non-thread-safe SQLite connection.
@@ -27,6 +37,11 @@ internal static class CsvImportFlow
             var added = vault.AddEntries(entries);
             result = new ImportResult(added.Count, skipped);
             setStatus(Loc.Format("Settings_StatusImportDone", result.Imported, result.Skipped));
+        }
+        catch (CsvImportLimitException)
+        {
+            setStatus(Loc.T("Settings_StatusImportTooLarge"));
+            return new ImportResult(0, 0);
         }
         catch (Exception)
         {

@@ -5,6 +5,9 @@ namespace AegisVault.Core.Services;
 
 public sealed record ImportResult(int Imported, int Skipped);
 
+/// <summary>Raised when an import exceeds the supported row limit.</summary>
+public sealed class CsvImportLimitException(string message) : Exception(message);
+
 /// <summary>
 /// Imports entries from CSV exports. Supported formats:
 /// Bitwarden (folder,favorite,type,name,notes,fields,reprompt,login_uri,login_username,login_password,login_totp)
@@ -13,6 +16,8 @@ public sealed record ImportResult(int Imported, int Skipped);
 /// </summary>
 public static class VaultCsvImporter
 {
+    /// <summary>Upper bound for imported rows (guards against runaway files).</summary>
+    public const int MaxRows = 50_000;
     /// <summary>
     /// Parses the CSV and writes every entry in one transaction. Callers with a
     /// UI thread should prefer <see cref="Parse"/> on a worker thread and then
@@ -40,6 +45,13 @@ public static class VaultCsvImporter
         if (rows.Count == 0)
         {
             return (entries, 0);
+        }
+
+        // rows[0] is the header; a file above the cap is refused instead of
+        // silently importing a truncated subset.
+        if (rows.Count - 1 > MaxRows)
+        {
+            throw new CsvImportLimitException($"The export has more than {MaxRows} rows.");
         }
 
         var headers = rows[0]

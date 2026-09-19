@@ -27,6 +27,19 @@ public sealed class VaultCsvImporterTests
     }
 
     [Fact]
+    public void ParseRejectsExportsAboveTheRowLimit()
+    {
+        var builder = new System.Text.StringBuilder("name,username,password\n");
+        for (var i = 0; i <= VaultCsvImporter.MaxRows; i++)
+        {
+            builder.Append("entry,user,pw\n");
+        }
+
+        var exception = Assert.Throws<CsvImportLimitException>(() => VaultCsvImporter.Parse(builder.ToString()));
+        Assert.Contains(VaultCsvImporter.MaxRows.ToString(), exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ImportsBitwardenExport()
     {
         const string csv = """

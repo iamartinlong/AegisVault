@@ -243,6 +243,7 @@ internal static class EnStrings
         ["Settings_StatusDeviceRemembered"] = "This device is now remembered.",
         ["Settings_StatusImportDone"] = "Import finished: {0} added, {1} skipped.",
         ["Settings_StatusImportFailed"] = "Import failed: could not read the CSV file.",
+        ["Settings_StatusImportTooLarge"] = "File too large: the import limit is 16 MB / 50,000 rows.",
         ["Settings_StatusPasswordChangeFailed"] = "Failed to change the master password.",
         ["Settings_StatusPasswordChanged"] = "Master password changed. The device key was reset — you can “remember this device” again.",
         ["Settings_StatusPasswordMismatch"] = "The passwords do not match.",
