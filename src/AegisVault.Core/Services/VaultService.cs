@@ -535,7 +535,7 @@ public sealed class VaultService : IDisposable
         {
             if (record.Version > EntryRepository.EntryFormatVersion)
             {
-                throw new InvalidDataException(
+                throw new UnsupportedVaultVersionException(
                     $"Entry format version {record.Version} is newer than this application supports.");
             }
 
@@ -721,8 +721,13 @@ public sealed class VaultService : IDisposable
         {
             loaded = LoadEntries(dek, outdated);
         }
-        catch (Exception exception)
-            when (exception is CryptographicException or ArgumentException or JsonException or InvalidDataException)
+        catch (UnsupportedVaultVersionException)
+        {
+            // A newer payload version must be reported as such, not as damage.
+            dek.Dispose();
+            return VaultUnlockStatus.UnsupportedVersion;
+        }
+        catch (Exception exception) when (exception is CryptographicException or ArgumentException or JsonException or InvalidDataException)
         {
             dek.Dispose();
             return VaultUnlockStatus.Corrupted;

@@ -271,7 +271,7 @@ public sealed class VaultServiceTests : IDisposable
     }
 
     [Fact]
-    public void NewerEntryVersionReportsCorrupted()
+    public void NewerEntryVersionReportsUnsupportedVersion()
     {
         using (var vault = VaultService.CreateNew(_vaultPath, Password, FastOptions))
         {
@@ -287,7 +287,28 @@ public sealed class VaultServiceTests : IDisposable
         }
 
         using var reopened = VaultService.Open(_vaultPath);
-        Assert.Equal(VaultUnlockStatus.Corrupted, reopened.Unlock(Password));
+        Assert.Equal(VaultUnlockStatus.UnsupportedVersion, reopened.Unlock(Password));
+    }
+
+    [Fact]
+    public void NewerSchemaVersionIsRejectedWhenOpening()
+    {
+        using (var vault = VaultService.CreateNew(_vaultPath, Password, FastOptions))
+        {
+            vault.AddEntry(TestEntry("GitHub"));
+        }
+
+        using (var connection = new SqliteConnection($"Data Source={_vaultPath}"))
+        {
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = "PRAGMA user_version = 99;";
+            command.ExecuteNonQuery();
+        }
+
+        // A newer schema must not be mistaken for damage: the same
+        // "unsupported version" message as a newer header applies.
+        Assert.Throws<UnsupportedVaultVersionException>(() => VaultService.Open(_vaultPath));
     }
 
     [Fact]

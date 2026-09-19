@@ -18,7 +18,7 @@ internal static class SchemaMigrations
 
         if (version > CurrentSchemaVersion)
         {
-            throw new InvalidDataException(
+            throw new AegisVault.Core.Services.UnsupportedVaultVersionException(
                 $"Vault schema version {version} is newer than this application supports ({CurrentSchemaVersion}).");
         }
 
