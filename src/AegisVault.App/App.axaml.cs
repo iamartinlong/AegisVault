@@ -645,7 +645,17 @@ public partial class App : Application
             BallPosition = BallPlacement.Format(position),
             BallDockedSide = dockedSide,
         };
-        _preferencesStore.Save(_preferences);
+
+        try
+        {
+            _preferencesStore.Save(_preferences);
+        }
+        catch (Exception exception)
+        {
+            // The ball position is a convenience preference; an IO failure must
+            // not escape into the window's drag event.
+            Trace.TraceWarning($"Saving the floating ball placement failed: {exception.Message}");
+        }
     }
 
     private void ApplyScreenGuard(Avalonia.Controls.Window window)
