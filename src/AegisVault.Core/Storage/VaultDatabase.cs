@@ -76,6 +76,7 @@ internal sealed class VaultDatabase : IDisposable
             // documented-safe pairing for WAL and keeps bulk writes fast.
             ExecuteNonQuery(connection, null, "PRAGMA synchronous=NORMAL;");
             SchemaMigrations.Apply(connection);
+            VaultFilePermissions.RestrictVault(fullPath);
         }
         catch
         {

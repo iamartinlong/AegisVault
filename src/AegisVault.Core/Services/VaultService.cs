@@ -418,6 +418,7 @@ public sealed class VaultService : IDisposable
         var destination = destinationPath ?? VaultPath + ".bak";
         _database.Checkpoint();
         File.Copy(VaultPath, destination, overwrite: true);
+        VaultFilePermissions.Restrict(destination);
     }
 
     /// <summary>Whether a usable device key is stored for the given protector.</summary>
