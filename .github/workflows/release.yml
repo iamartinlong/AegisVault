@@ -62,6 +62,23 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
 
+      # Diagnoses the NativeAOT/Swift link failures (dotnet/runtime#125858):
+      # shows whether the SDK still ships the Swift compatibility stubs.
+      - name: Diagnose macOS Swift shims
+        if: runner.os == 'macOS'
+        continue-on-error: true
+        run: |
+          SDK="$(xcrun --show-sdk-path)"
+          TOOLCHAIN="$(xcode-select -p)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/macosx"
+          echo "xcode: $(xcodebuild -version | tr '\n' ' ')"
+          echo "sdk: $SDK"
+          echo "--- \$SDK/usr/lib/swift (swift_time/swiftmath entries) ---"
+          ls "$SDK/usr/lib/swift" 2>/dev/null | grep -E 'swift_(time|math|errno|signal|stdio|unistd)|swiftsys_time|swift_Builtin_float' || echo "none found in SDK"
+          echo "--- host /usr/lib/swift ---"
+          ls /usr/lib/swift 2>/dev/null | grep -E 'libswift|\.tbd' | head -20 || echo "none found on host"
+          echo "--- toolchain $TOOLCHAIN ---"
+          ls "$TOOLCHAIN" 2>/dev/null | head -20 || echo "toolchain dir missing"
+
       - name: Publish AOT
         run: >-
           dotnet publish src/AegisVault.App/AegisVault.App.csproj

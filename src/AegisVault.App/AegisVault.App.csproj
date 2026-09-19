@@ -65,6 +65,18 @@
                  Condition="Exists('$(_MacSdkPath)/usr/lib/swift')" />
       <LinkerArg Include="-L$(_MacToolchainSwiftPath)"
                  Condition="Exists('$(_MacToolchainSwiftPath)')" />
+      <!-- Apple's ld resolves autolinked entries such as "-lswift_time" through
+           the sysroot, so an explicit -L alone is not enough: without it the
+           lookup lands in the host /usr/lib/swift (which newer systems no
+           longer populate) instead of the SDK (dotnet/runtime#126893). -->
+      <LinkerArg Include="-Wl,-syslibroot,$(_MacSdkPath)"
+                 Condition="Exists('$(_MacSdkPath)')" />
+      <!-- Newer Xcode SDKs dropped the Swift compatibility stubs entirely. The
+           macOS 12+ runtime still provides these force-load shims from the
+           shared cache, so let them stay unresolved at link time instead of
+           failing the build (dotnet/runtime#125858). Remove once the ILCompiler
+           link integration handles this on its own. -->
+      <LinkerArg Include="-Wl,-undefined,dynamic_lookup" />
     </ItemGroup>
     <Warning Text="AddMacOsSwiftLibraryPaths: no Swift library search path found (sdk='$(_MacSdkPath)', toolchain='$(_MacToolchainSwiftPath)')"
              Condition="!Exists('$(_MacSdkPath)/usr/lib/swift') And !Exists('$(_MacToolchainSwiftPath)')" />
