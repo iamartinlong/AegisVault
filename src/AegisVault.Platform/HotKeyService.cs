@@ -28,6 +28,7 @@ public sealed class HotKeyService : IDisposable
     private nint _hwnd;
     private uint _threadId;
     private volatile bool _registered;
+    private volatile bool _cancelled;
 
     public bool IsSupported => OperatingSystem.IsWindows();
 
@@ -38,12 +39,13 @@ public sealed class HotKeyService : IDisposable
 
     public bool TryRegister(int modifiers, int virtualKey)
     {
-        if (!IsSupported || _registered || _thread is not null || _disposed != 0)
+        if (!IsSupported || _registered || _thread is not null || _disposed != 0 || _active is not null)
         {
             return false;
         }
 
         _active = this;
+        _cancelled = false;
         using var ready = new ManualResetEventSlim(false);
         _thread = new Thread(() => RunMessageLoop((uint)modifiers, (uint)virtualKey, ready))
         {
@@ -51,7 +53,21 @@ public sealed class HotKeyService : IDisposable
             Name = "AegisVault.HotKey",
         };
         _thread.Start();
-        ready.Wait(TimeSpan.FromSeconds(2));
+
+        if (!ready.Wait(TimeSpan.FromSeconds(2)))
+        {
+            // The message thread did not come up in time. Flag it so it tears
+            // down as soon as it does instead of leaving a hidden window and a
+            // live registration behind.
+            _cancelled = true;
+            if (ReferenceEquals(_active, this))
+            {
+                _active = null;
+            }
+
+            return false;
+        }
+
         return _registered;
     }
 
@@ -62,9 +78,16 @@ public sealed class HotKeyService : IDisposable
             return;
         }
 
+        _cancelled = true;
+
         if (OperatingSystem.IsWindows() && _hwnd != 0)
         {
-            UnregisterHotKey(_hwnd, _id);
+            if (_registered)
+            {
+                UnregisterHotKey(_hwnd, _id);
+                _registered = false;
+            }
+
             PostMessageW(_hwnd, WmClose, 0, 0);
             if (_threadId != 0)
             {
@@ -111,9 +134,15 @@ public sealed class HotKeyService : IDisposable
                 return;
             }
 
+            if (_cancelled)
+            {
+                ready.Set();
+                return;
+            }
+
             _registered = RegisterHotKey(_hwnd, _id, modifiers, virtualKey);
             ready.Set();
-            if (!_registered)
+            if (!_registered || _cancelled)
             {
                 return;
             }
@@ -129,6 +158,37 @@ public sealed class HotKeyService : IDisposable
         finally
         {
             ready.Set();
+            Cleanup();
+        }
+    }
+
+    /// <summary>Releases the registration and the hidden window (thread exit path).</summary>
+    private void Cleanup()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var hwnd = _hwnd;
+        _hwnd = 0;
+        if (hwnd == 0)
+        {
+            _registered = false;
+            return;
+        }
+
+        if (_registered)
+        {
+            UnregisterHotKey(hwnd, _id);
+            _registered = false;
+        }
+
+        DestroyWindow(hwnd);
+
+        if (ReferenceEquals(_active, this))
+        {
+            _active = null;
         }
     }
 
@@ -178,6 +238,10 @@ public sealed class HotKeyService : IDisposable
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool UnregisterHotKey(nint hWnd, uint id);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool DestroyWindow(nint hWnd);
 
     [DllImport("user32.dll")]
     private static extern int GetMessageW(out NativeMessage lpMsg, uint hWnd, uint wMsgFilterMin, uint wMsgFilterMax);
