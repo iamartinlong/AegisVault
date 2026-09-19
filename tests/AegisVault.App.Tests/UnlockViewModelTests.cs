@@ -364,6 +364,18 @@ public sealed class UnlockViewModelTests : IDisposable
         var withDefaultVault = new UnlockViewModel(_vaultPath);
         withDefaultVault.ApplyPreferences(new AppPreferences());
         Assert.False(withDefaultVault.IsFirstRun);
+
+        // A usable recent vault also means "not first run": the welcome block
+        // and the recent-vault shortcuts must not show up together.
+        var withRecentVault = new UnlockViewModel(emptyDefault);
+        withRecentVault.ApplyPreferences(new AppPreferences { RecentVaultPaths = [_vaultPath] });
+        Assert.False(withRecentVault.IsFirstRun);
+        Assert.NotEmpty(withRecentVault.RecentVaultItems);
+
+        var withStaleRecentVault = new UnlockViewModel(emptyDefault);
+        withStaleRecentVault.ApplyPreferences(
+            new AppPreferences { RecentVaultPaths = [Path.Combine(_directory, "gone.aegis")] });
+        Assert.True(withStaleRecentVault.IsFirstRun);
         return null;
     });
 

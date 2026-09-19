@@ -153,12 +153,18 @@ public partial class UnlockViewModel : ObservableObject
         ArgumentNullException.ThrowIfNull(preferences);
 
         var recent = preferences.LastVaultPath;
-        _isFirstRun = !File.Exists(recent) && !File.Exists(_defaultVaultPath);
-        OnPropertyChanged(nameof(IsFirstRun));
 
+        // A usable recent vault means this is not a first run: showing the
+        // welcome block next to the recent-vault shortcuts looked like a
+        // contradiction (the shortcuts are right there).
         RecentVaultItems = BuildRecentVaults(preferences);
         OnPropertyChanged(nameof(RecentVaultItems));
         OnPropertyChanged(nameof(HasRecentVaultItems));
+
+        var hasKnownVault = RecentVaultItems.Count > 0 ||
+                            (!string.IsNullOrWhiteSpace(recent) && File.Exists(recent));
+        _isFirstRun = !hasKnownVault && !File.Exists(_defaultVaultPath);
+        OnPropertyChanged(nameof(IsFirstRun));
 
         if (!string.IsNullOrWhiteSpace(recent) && File.Exists(recent))
         {
