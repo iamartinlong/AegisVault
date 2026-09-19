@@ -70,11 +70,32 @@ public static partial class WindowsSecureInput
             Marshal.FreeHGlobal(captionPointer);
             Marshal.FreeHGlobal(messagePointer);
 
-            if (outputBuffer != IntPtr.Zero)
-            {
-                Marshal.FreeCoTaskMem(outputBuffer);
-            }
+            // The packed credential buffer holds the password; wipe it before
+            // handing the memory back.
+            FreeBuffer(outputBuffer, outputSize);
         }
+    }
+
+    /// <summary>Zeros the buffer contents (used before freeing credential memory).</summary>
+    internal static void ZeroBuffer(IntPtr buffer, uint size)
+    {
+        if (buffer == IntPtr.Zero || size == 0)
+        {
+            return;
+        }
+
+        Marshal.Copy(new byte[size], 0, buffer, (int)size);
+    }
+
+    private static void FreeBuffer(IntPtr buffer, uint size)
+    {
+        if (buffer == IntPtr.Zero)
+        {
+            return;
+        }
+
+        ZeroBuffer(buffer, size);
+        Marshal.FreeCoTaskMem(buffer);
     }
 
     private static string? UnpackPassword(IntPtr authBuffer, uint authBufferSize)
@@ -118,6 +139,7 @@ public static partial class WindowsSecureInput
         {
             CryptographicOperations.ZeroMemory(password);
             CryptographicOperations.ZeroMemory(userName);
+            CryptographicOperations.ZeroMemory(domain);
         }
     }
 
