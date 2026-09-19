@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 using System.Text;
 
 namespace AegisVault.Platform;
@@ -17,10 +19,14 @@ public static class WindowActivation
 
     /// <summary>
     /// Finds a visible top-level window whose title matches
-    /// <paramref name="title"/> and activates it. Returns false when no such
-    /// window exists (e.g. the first instance is still starting up).
+    /// <paramref name="title"/> and is owned by this executable, then activates
+    /// it. Returns false when no such window exists (e.g. the first instance is
+    /// still starting up).
     /// </summary>
     public static bool TryActivateByTitle(string title)
+        => TryActivateByTitle(title, Environment.ProcessPath);
+
+    internal static bool TryActivateByTitle(string title, string? expectedExecutablePath)
     {
         if (!OperatingSystem.IsWindows() || string.IsNullOrWhiteSpace(title))
         {
@@ -29,7 +35,7 @@ public static class WindowActivation
 
         try
         {
-            var handle = FindWindowByTitle(title);
+            var handle = FindWindowByTitle(title, expectedExecutablePath);
             if (handle == IntPtr.Zero)
             {
                 return false;
@@ -56,7 +62,51 @@ public static class WindowActivation
         => !string.IsNullOrWhiteSpace(windowTitle) &&
            string.Equals(windowTitle.Trim(), expectedTitle.Trim(), StringComparison.Ordinal);
 
-    private static IntPtr FindWindowByTitle(string title)
+    /// <summary>
+    /// Whether two executable paths point at the same file (Windows paths are
+    /// case-insensitive).
+    /// </summary>
+    internal static bool IsSameExecutablePath(string? candidate, string? expected)
+    {
+        if (string.IsNullOrWhiteSpace(candidate) || string.IsNullOrWhiteSpace(expected))
+        {
+            return false;
+        }
+
+        try
+        {
+            var left = Path.GetFullPath(candidate.Trim());
+            var right = Path.GetFullPath(expected.Trim());
+            return string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    [SupportedOSPlatform("windows")]
+    private static bool IsOwnedByExecutable(uint processId, string? expectedExecutablePath)
+    {
+        if (processId == 0 || string.IsNullOrEmpty(expectedExecutablePath))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var process = Process.GetProcessById((int)processId);
+            return IsSameExecutablePath(process.MainModule?.FileName, expectedExecutablePath);
+        }
+        catch (Exception)
+        {
+            // Access denied (elevated/other user) or the process just exited:
+            // treat it as "not ours" instead of guessing.
+            return false;
+        }
+    }
+
+    private static IntPtr FindWindowByTitle(string title, string? expectedExecutablePath)
     {
         var found = IntPtr.Zero;
         var expected = title.Trim();
@@ -78,6 +128,13 @@ public static class WindowActivation
             // Prefer a real top-level window; skip message-only helpers.
             GetWindowThreadProcessId(handle, out var processId);
             if (processId == 0)
+            {
+                return true;
+            }
+
+            // The title alone can be spoofed by any process; only activate a
+            // window that belongs to the same executable.
+            if (OperatingSystem.IsWindows() && !IsOwnedByExecutable(processId, expectedExecutablePath))
             {
                 return true;
             }

@@ -1,3 +1,6 @@
+using System.Runtime.Versioning;
+using System.Security.AccessControl;
+using System.Security.Principal;
 using System.Threading;
 
 namespace AegisVault.Platform;
@@ -37,7 +40,7 @@ public sealed class SingleInstanceGuard : IDisposable
             ? WindowsMutexName
             : "AegisVault.SingleInstance";
 
-        var mutex = new Mutex(initiallyOwned: false, name, out _);
+        var mutex = CreateMutex(name);
         bool isOwner;
         try
         {
@@ -50,6 +53,47 @@ public sealed class SingleInstanceGuard : IDisposable
         }
 
         return new SingleInstanceGuard(mutex, isOwner);
+    }
+
+    /// <summary>
+    /// Creates the named mutex. On Windows the ACL is restricted to the current
+    /// user so another account in the same session cannot hold it and block
+    /// every start of the app (denial of service).
+    /// </summary>
+    private static Mutex CreateMutex(string name)
+    {
+        var mutex = new Mutex(initiallyOwned: false, name, out _);
+        if (!OperatingSystem.IsWindows())
+        {
+            return mutex;
+        }
+
+        try
+        {
+            RestrictToCurrentUser(mutex);
+        }
+        catch (Exception)
+        {
+            // ACL setup is best effort (existing mutex, missing privileges):
+            // the guard itself keeps working.
+        }
+
+        return mutex;
+    }
+
+    [SupportedOSPlatform("windows")]
+    private static void RestrictToCurrentUser(Mutex mutex)
+    {
+        var security = new MutexSecurity();
+        var user = WindowsIdentity.GetCurrent().User;
+        if (user is null)
+        {
+            return;
+        }
+
+        security.AddAccessRule(new MutexAccessRule(user, MutexRights.FullControl, AccessControlType.Allow));
+        security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
+        mutex.SetAccessControl(security);
     }
 
     /// <summary>
