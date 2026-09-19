@@ -156,6 +156,18 @@ public sealed class MainWindowTests
     });
 
     [Fact]
+    public Task TotpSeedEditorIsMaskedUntilRevealed() => Headless.Run(() =>
+    {
+        var window = new MainWindow();
+
+        var box = window.FindControl<AtomUI.Desktop.Controls.LineEdit>("TotpSecretBox");
+
+        Assert.NotNull(box);
+        Assert.NotEqual('\0', box!.PasswordChar);
+        Assert.False(box.RevealPassword);
+    });
+
+    [Fact]
     public Task ClosingClearsACopiedSecret() => Headless.RunAsync<object?>(async () =>
     {
         var fake = new FakeClipboardAccess();

@@ -1027,7 +1027,20 @@
 
                                     <StackPanel Spacing="6">
                                         <TextBlock Classes="field" Text="{loc:Str Main_TotpSecret}" />
-                                        <atom:LineEdit Text="{Binding EditTotpSecret}" />
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <atom:LineEdit Grid.Column="0"
+                                                           Name="TotpSecretBox"
+                                                           AutomationProperties.AutomationId="TotpSecretBox"
+                                                           Text="{Binding EditTotpSecret}"
+                                                           PasswordChar="●"
+                                                           RevealPassword="{Binding IsTotpSecretRevealed}" />
+                                            <atom:Button Grid.Column="1"
+                                                         ButtonType="Text"
+                                                         AutomationProperties.AutomationId="RevealTotpSecret"
+                                                         Icon="{antd:AntDesignIconProvider EyeOutlined}"
+                                                         ToolTip.Tip="{loc:Str Common_Reveal}"
+                                                         Command="{Binding ToggleTotpRevealCommand}" />
+                                        </Grid>
                                     </StackPanel>
 
                                     <StackPanel Spacing="6">

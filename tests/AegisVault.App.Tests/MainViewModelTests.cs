@@ -136,6 +136,21 @@ public sealed class MainViewModelTests : IDisposable
     });
 
     [Fact]
+    public Task ToggleTotpRevealFlipsTheFlag() => Headless.Run(() =>
+    {
+        using var vault = CreateVaultWithEntries();
+        using var viewModel = new MainViewModel(vault);
+
+        Assert.False(viewModel.IsTotpSecretRevealed);
+
+        viewModel.ToggleTotpRevealCommand.Execute(null);
+        Assert.True(viewModel.IsTotpSecretRevealed);
+
+        viewModel.ToggleTotpRevealCommand.Execute(null);
+        Assert.False(viewModel.IsTotpSecretRevealed);
+    });
+
+    [Fact]
     public Task DebouncedSearchWaitsForTheTypingPause() => Headless.Run(() =>
     {
         using var vault = CreateVaultWithEntries();

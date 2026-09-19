@@ -238,6 +238,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private string editTotpSecret = string.Empty;
 
+    /// <summary>The editor masks the TOTP seed until the user reveals it.</summary>
+    [ObservableProperty]
+    private bool isTotpSecretRevealed;
+
     [ObservableProperty]
     private string editPhone = string.Empty;
 
@@ -692,6 +696,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     [RelayCommand]
     private void ToggleApiKeyReveal() => IsApiKeyRevealed = !IsApiKeyRevealed;
+
+    [RelayCommand]
+    private void ToggleTotpReveal() => IsTotpSecretRevealed = !IsTotpSecretRevealed;
 
     /// <summary>Copies an explicit value (used by the extra credential rows).</summary>
     [RelayCommand]
@@ -1256,6 +1263,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         IsPasswordRevealed = false;
         IsSecretRevealed = false;
         IsApiKeyRevealed = false;
+        IsTotpSecretRevealed = false;
         OnPropertyChanged(nameof(PasswordPreview));
         OnPropertyChanged(nameof(SecretPreview));
         OnPropertyChanged(nameof(ApiKeyPreview));
