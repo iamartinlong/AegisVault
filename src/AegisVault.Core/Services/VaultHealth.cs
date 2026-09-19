@@ -15,15 +15,16 @@ public sealed record VaultHealthReport(
 
     public bool HasIssues => WeakCount > 0 || ReusedCount > 0;
 
+    private int? _issueCount;
+
     /// <summary>Distinct entries with any issue (weak or reused — no double counting).</summary>
-    public int IssueCount
+    public int IssueCount => _issueCount ??= ComputeIssueCount();
+
+    private int ComputeIssueCount()
     {
-        get
-        {
-            var ids = new HashSet<Guid>(WeakEntryIds);
-            ids.UnionWith(ReusedEntryIds);
-            return ids.Count;
-        }
+        var ids = new HashSet<Guid>(WeakEntryIds);
+        ids.UnionWith(ReusedEntryIds);
+        return ids.Count;
     }
 
     /// <summary>0–100; distinct entries with a weak or reused password drag it down.</summary>
