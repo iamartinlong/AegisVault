@@ -1,3 +1,4 @@
+using System.Globalization;
 using Avalonia;
 
 namespace AegisVault.App.Services;
@@ -21,8 +22,8 @@ public static class BallPlacement
 
         var parts = value.Split(',', StringSplitOptions.TrimEntries);
         if (parts.Length != 2 ||
-            !int.TryParse(parts[0], out var x) ||
-            !int.TryParse(parts[1], out var y))
+            !int.TryParse(parts[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var x) ||
+            !int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var y))
         {
             return false;
         }

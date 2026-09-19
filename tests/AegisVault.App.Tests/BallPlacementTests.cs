@@ -1,3 +1,4 @@
+using System.Globalization;
 using Avalonia;
 using AegisVault.App.Services;
 using Xunit;
@@ -6,6 +7,27 @@ namespace AegisVault.App.Tests;
 
 public sealed class BallPlacementTests
 {
+    [Fact]
+    public void ParsingIsCultureInvariant()
+    {
+        var original = CultureInfo.CurrentCulture;
+        try
+        {
+            // A culture with non-ASCII digits must not change how the stored
+            // placement is parsed.
+            CultureInfo.CurrentCulture = new CultureInfo("ar-SA");
+
+            Assert.True(BallPlacement.TryParse("12,34", out var position));
+            Assert.Equal(new PixelPoint(12, 34), position);
+
+            Assert.False(BallPlacement.TryParse("١٢,٣٤", out _));
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = original;
+        }
+    }
+
     [Theory]
     [InlineData("120,340", 120, 340)]
     [InlineData("-40,  12 ", -40, 12)]
