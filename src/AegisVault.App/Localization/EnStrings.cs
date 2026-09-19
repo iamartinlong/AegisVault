@@ -40,6 +40,7 @@ internal static class EnStrings
         ["Unlock_ErrorPasswordRequired"] = "Enter your master password.",
         ["Unlock_ErrorPasswordTooShort"] = "The master password must be at least 8 characters.",
         ["Unlock_ErrorPathRequired"] = "Choose where to save the vault.",
+        ["Unlock_ErrorRememberDeviceFailed"] = "The vault is open, but this device could not be remembered (you can retry from Settings).",
         ["Unlock_ErrorUnsupportedVersion"] = "This vault was created by a newer version of AegisVault. Please update the app.",
         ["Unlock_ErrorVaultNotFound"] = "Vault file not found. Check the path or switch to “Create a new vault”.",
         ["Unlock_ErrorWrongPassword"] = "Incorrect master password.",

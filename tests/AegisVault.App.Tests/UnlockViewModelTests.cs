@@ -1,3 +1,4 @@
+using AegisVault.App.Localization;
 using AegisVault.App.ViewModels;
 using AegisVault.Core.Models;
 using AegisVault.Core.Services;
@@ -94,6 +95,77 @@ public sealed class UnlockViewModelTests : IDisposable
         Assert.Equal("主密码错误。", model.ErrorMessage);
         return null;
     });
+
+    [Fact]
+    public Task NewerSchemaShowsUnsupportedVersionMessage() => Headless.RunAsync<object?>(async () =>
+    {
+        using (var vault = VaultService.CreateNew(_vaultPath, "master password"u8, FastOptions))
+        {
+        }
+
+        using (var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={_vaultPath}"))
+        {
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = "PRAGMA user_version = 99;";
+            command.ExecuteNonQuery();
+        }
+
+        var model = new UnlockViewModel
+        {
+            VaultPath = _vaultPath,
+            MasterPassword = "master password",
+        };
+
+        await model.UnlockCommand.ExecuteAsync(null);
+
+        // Same copy as a newer header version, not "corrupted"/"could not open".
+        Assert.Equal(Loc.T("Unlock_ErrorUnsupportedVersion"), model.ErrorMessage);
+        return null;
+    });
+
+    [Fact]
+    public Task RememberDeviceFailureIsReportedButTheVaultOpens() => Headless.RunAsync<object?>(async () =>
+    {
+        using (VaultService.CreateNew(_vaultPath, "master password"u8, FastOptions))
+        {
+        }
+
+        var model = new UnlockViewModel
+        {
+            VaultPath = _vaultPath,
+            MasterPassword = "master password",
+            RememberDevice = true,
+            DeviceKeyProtector = new ThrowingKeyProtector(),
+        };
+        VaultService? opened = null;
+        model.VaultOpened += vault => opened = vault;
+
+        try
+        {
+            await model.UnlockCommand.ExecuteAsync(null);
+
+            Assert.NotNull(opened);
+            Assert.True(model.RememberDeviceFailed);
+        }
+        finally
+        {
+            opened?.Dispose();
+        }
+
+        return null;
+    });
+
+    private sealed class ThrowingKeyProtector : IKeyProtector
+    {
+        public string Id => "throwing";
+
+        public bool IsAvailable => true;
+
+        public byte[] Protect(ReadOnlySpan<byte> data) => throw new InvalidOperationException("no key store");
+
+        public byte[] Unprotect(ReadOnlySpan<byte> data) => throw new InvalidOperationException("no key store");
+    }
 
     [Fact]
     public Task MissingFileShowsFriendlyError() => Headless.RunAsync<object?>(async () =>

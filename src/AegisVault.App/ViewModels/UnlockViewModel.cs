@@ -48,6 +48,9 @@ public partial class UnlockViewModel : ObservableObject
     [ObservableProperty]
     private bool rememberDevice;
 
+    /// <summary>True when the vault opened but the device key could not be stored.</summary>
+    public bool RememberDeviceFailed { get; private set; }
+
     [ObservableProperty]
     private string? errorMessage;
 
@@ -382,6 +385,12 @@ public partial class UnlockViewModel : ObservableObject
                 System.Security.Cryptography.CryptographicOperations.ZeroMemory(passwordBytes);
             }
         }
+        catch (UnsupportedVaultVersionException)
+        {
+            // Same message as the header-version guard: the vault belongs to a
+            // newer build, whatever part of it carries the newer version.
+            ErrorMessage = Loc.T("Unlock_ErrorUnsupportedVersion");
+        }
         catch (Exception)
         {
             ErrorMessage = Loc.T("Unlock_ErrorOpenFailed");
@@ -463,8 +472,12 @@ public partial class UnlockViewModel : ObservableObject
         {
             vault.RememberDevice(protector);
         }
-        catch (Exception)
+        catch (Exception exception)
         {
+            // The vault is open; the caller surfaces this as a status hint
+            // instead of silently pretending the device was remembered.
+            RememberDeviceFailed = true;
+            System.Diagnostics.Trace.TraceWarning($"Remembering this device failed: {exception.Message}");
         }
     }
 

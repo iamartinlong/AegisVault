@@ -40,6 +40,7 @@ internal static class ZhStrings
         ["Unlock_ErrorPasswordRequired"] = "请输入主密码。",
         ["Unlock_ErrorPasswordTooShort"] = "主密码至少需要 8 个字符。",
         ["Unlock_ErrorPathRequired"] = "请选择密码库保存位置。",
+        ["Unlock_ErrorRememberDeviceFailed"] = "密码库已打开，但「记住此设备」未成功（可稍后在设置中重试）。",
         ["Unlock_ErrorUnsupportedVersion"] = "该密码库由更高版本的 AegisVault 创建，请升级应用。",
         ["Unlock_ErrorVaultNotFound"] = "找不到密码库文件，请检查路径，或切换到“创建新密码库”。",
         ["Unlock_ErrorWrongPassword"] = "主密码错误。",

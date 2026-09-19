@@ -312,6 +312,13 @@ public partial class App : Application
         viewModel.ThemePreference = _preferences.Theme;
         viewModel.LanguagePreference = _preferences.Language;
         viewModel.AttachAppearanceCallbacks(ApplyTheme, ApplyLanguage);
+
+        // "Remember this device" is best effort; tell the user when it failed
+        // instead of leaving them with a silently missing device key.
+        if (unlockWindow?.DataContext is ViewModels.UnlockViewModel { RememberDeviceFailed: true })
+        {
+            viewModel.StatusMessage = Loc.T("Unlock_ErrorRememberDeviceFailed");
+        }
         viewModel.StartupGuideDismissed = _preferences.StartupGuideDismissed;
         viewModel.AttachStartupGuideCallback(() =>
         {
