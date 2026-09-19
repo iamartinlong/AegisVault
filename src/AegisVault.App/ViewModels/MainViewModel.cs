@@ -673,7 +673,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         var updated = SelectedEntry with
         {
             IsFavorite = !SelectedEntry.IsFavorite,
-            UpdatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = _timeProvider.GetUtcNow(),
         };
 
         if (!_vault.UpdateEntry(updated))
@@ -1348,7 +1348,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
         try
         {
-            var now = DateTimeOffset.UtcNow;
+            var now = _timeProvider.GetUtcNow();
             TotpCode = TotpService.GenerateCode(EditTotpSecret, now);
             TotpRemaining = TotpService.GetRemainingSeconds(now);
         }
@@ -1362,5 +1362,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private static bool Contains(string? value, string query)
         => value is not null && value.Contains(query, StringComparison.OrdinalIgnoreCase);
     private static List<string> ParseTags(string text)
-        => [.. text.Split([',', '，'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Distinct()];
+        => [.. text.Split([',', '，'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Distinct(StringComparer.OrdinalIgnoreCase)];
 }

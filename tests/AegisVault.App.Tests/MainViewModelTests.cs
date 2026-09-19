@@ -136,6 +136,41 @@ public sealed class MainViewModelTests : IDisposable
     });
 
     [Fact]
+    public Task ToggleFavoriteUsesTheInjectedClock() => Headless.Run(() =>
+    {
+        var now = new DateTimeOffset(2026, 9, 18, 10, 30, 0, TimeSpan.Zero);
+        using var vault = CreateVaultWithEntries();
+        using var viewModel = new MainViewModel(vault, timeProvider: new FixedTimeProvider(now));
+
+        viewModel.SelectedEntry = vault.Entries.Single(entry => entry.Title == "GitHub");
+        viewModel.ToggleFavoriteCommand.Execute(null);
+
+        // The view model's working copy uses the injected clock (the vault
+        // re-stamps on persist, which is a separate concern).
+        Assert.NotNull(viewModel.SelectedEntry);
+        Assert.Equal(now, viewModel.SelectedEntry!.UpdatedAt);
+    });
+
+    [Fact]
+    public Task TagsAreDeduplicatedIgnoringCase() => Headless.Run(() =>
+    {
+        using var vault = VaultService.CreateNew(_vaultPath, Password, FastOptions);
+        using var viewModel = new MainViewModel(vault);
+
+        viewModel.AddEntryCommand.Execute(null);
+        viewModel.EditTitle = "Tagged";
+        viewModel.EditTags = "Work, work, WORK";
+        viewModel.SaveEntryCommand.Execute(null);
+
+        Assert.Single(vault.Entries.Single(entry => entry.Title == "Tagged").Tags);
+    });
+
+    private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => now;
+    }
+
+    [Fact]
     public Task ToggleTotpRevealFlipsTheFlag() => Headless.Run(() =>
     {
         using var vault = CreateVaultWithEntries();
