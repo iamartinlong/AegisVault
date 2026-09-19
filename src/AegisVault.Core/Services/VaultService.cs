@@ -308,16 +308,25 @@ public sealed class VaultService : IDisposable
         return true;
     }
 
-    /// <summary>Creates a category. Names are trimmed, non-empty and unique (case-insensitive).</summary>
-    public Category AddCategory(string name, string? color = null)
+    /// <summary>
+    /// Creates a category. Names are trimmed, non-empty and unique among the
+    /// siblings under <paramref name="parentId"/> (case-insensitive).
+    /// </summary>
+    public Category AddCategory(string name, string? color = null, Guid? parentId = null)
     {
         ThrowIfDisposed();
         EnsureUnlocked();
 
         var normalized = NormalizeCategoryName(name);
-        EnsureUniqueCategoryName(normalized, excludeId: null);
+        EnsureCategoryParent(parentId, movingId: null);
+        EnsureUniqueCategoryName(normalized, excludeId: null, parentId);
 
-        var category = new Category { Name = normalized, Color = CategoryColors.Normalize(color) };
+        var category = new Category
+        {
+            Name = normalized,
+            Color = CategoryColors.Normalize(color),
+            ParentId = parentId,
+        };
         _categories.Add(category);
         SortCategories();
         PersistCategories();
@@ -336,7 +345,7 @@ public sealed class VaultService : IDisposable
         }
 
         var normalized = NormalizeCategoryName(name);
-        EnsureUniqueCategoryName(normalized, excludeId: id);
+        EnsureUniqueCategoryName(normalized, excludeId: id, _categories[index].ParentId);
 
         _categories[index] = _categories[index] with { Name = normalized };
         SortCategories();
@@ -363,6 +372,14 @@ public sealed class VaultService : IDisposable
 
     /// <summary>Deletes a category; its entries become uncategorized.</summary>
     public bool DeleteCategory(Guid id)
+        => DeleteCategory(id, CategoryDeleteMode.PromoteChildren);
+
+    /// <summary>
+    /// Deletes a category. Entries assigned to it become uncategorized; children
+    /// are either lifted to the deleted category's parent, deleted with it, or
+    /// block the deletion (<see cref="CategoryDeleteMode"/>).
+    /// </summary>
+    public bool DeleteCategory(Guid id, CategoryDeleteMode mode)
     {
         ThrowIfDisposed();
         EnsureUnlocked();
@@ -373,7 +390,39 @@ public sealed class VaultService : IDisposable
             return false;
         }
 
-        _categories.RemoveAt(index);
+        var parentId = _categories[index].ParentId;
+        var children = _categories.Where(category => category.ParentId == id).ToList();
+        if (children.Count > 0 && mode == CategoryDeleteMode.Deny)
+        {
+            throw new InvalidOperationException("The category still has child categories.");
+        }
+
+        if (mode == CategoryDeleteMode.Cascade)
+        {
+            foreach (var child in children)
+            {
+                DeleteCategory(child.Id, CategoryDeleteMode.Cascade);
+            }
+        }
+        else
+        {
+            for (var i = 0; i < _categories.Count; i++)
+            {
+                if (_categories[i].ParentId == id)
+                {
+                    _categories[i] = _categories[i] with { ParentId = parentId };
+                }
+            }
+        }
+
+        var current = _categories.FindIndex(category => category.Id == id);
+        if (current < 0)
+        {
+            return false;
+        }
+
+        _categories.RemoveAt(current);
+        SortCategories();
         PersistCategories();
 
         for (var i = 0; i < _entries.Count; i++)
@@ -709,6 +758,196 @@ public sealed class VaultService : IDisposable
     private void SortCategories()
         => _categories.Sort(static (a, b) => string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase));
 
+    /// <summary>
+    /// Ids of a category and everything nested under it. Used by the UI to filter
+    /// whole branches and by <see cref="MoveCategory"/> to reject moving a node
+    /// into its own subtree.
+    /// </summary>
+    public IReadOnlySet<Guid> GetCategorySubtree(Guid id)
+    {
+        ThrowIfDisposed();
+        EnsureUnlocked();
+
+        var subtree = new HashSet<Guid> { id };
+        var pending = new Queue<Guid>();
+        pending.Enqueue(id);
+        while (pending.Count > 0)
+        {
+            var current = pending.Dequeue();
+            foreach (var category in _categories)
+            {
+                if (category.ParentId == current && subtree.Add(category.Id))
+                {
+                    pending.Enqueue(category.Id);
+                }
+            }
+        }
+
+        return subtree;
+    }
+
+    /// <summary>
+    /// Re-parents a category (or lifts it to the top level when
+    /// <paramref name="parentId"/> is <c>null</c>).
+    /// </summary>
+    public bool MoveCategory(Guid id, Guid? parentId)
+    {
+        ThrowIfDisposed();
+        EnsureUnlocked();
+
+        var index = _categories.FindIndex(category => category.Id == id);
+        if (index < 0)
+        {
+            return false;
+        }
+
+        if (parentId is { } target && GetCategorySubtree(id).Contains(target))
+        {
+            throw new ArgumentException("A category cannot be moved into itself or its own subtree.", nameof(parentId));
+        }
+
+        EnsureCategoryParent(parentId, movingId: id);
+
+        if (_categories[index].ParentId == parentId)
+        {
+            return true;
+        }
+
+        _categories[index] = _categories[index] with { ParentId = parentId };
+        SortCategories();
+        PersistCategories();
+        return true;
+    }
+
+    /// <summary>
+    /// Moves everything from <paramref name="sourceId"/> into
+    /// <paramref name="targetId"/> and deletes the source: entries are re-assigned
+    /// and child categories are re-parented.
+    /// </summary>
+    public bool MergeCategories(Guid sourceId, Guid targetId)
+    {
+        ThrowIfDisposed();
+        EnsureUnlocked();
+
+        if (sourceId == targetId)
+        {
+            throw new ArgumentException("A category cannot be merged into itself.", nameof(targetId));
+        }
+
+        var sourceIndex = _categories.FindIndex(category => category.Id == sourceId);
+        if (sourceIndex < 0)
+        {
+            return false;
+        }
+
+        if (_categories.FindIndex(category => category.Id == targetId) < 0)
+        {
+            return false;
+        }
+
+        if (GetCategorySubtree(sourceId).Contains(targetId))
+        {
+            throw new ArgumentException("A category cannot be merged into its own subtree.", nameof(targetId));
+        }
+
+        var targetParent = _categories[sourceIndex].ParentId;
+        _categories.RemoveAt(sourceIndex);
+
+        for (var i = 0; i < _categories.Count; i++)
+        {
+            if (_categories[i].ParentId == sourceId)
+            {
+                _categories[i] = _categories[i] with { ParentId = targetId };
+            }
+        }
+
+        SortCategories();
+        PersistCategories();
+        ReassignEntriesToCategory(sourceId, targetId);
+        return true;
+
+        void ReassignEntriesToCategory(Guid from, Guid to)
+        {
+            for (var i = 0; i < _entries.Count; i++)
+            {
+                if (_entries[i].CategoryId != from)
+                {
+                    continue;
+                }
+
+                var item = _entries[i] with { CategoryId = to, UpdatedAt = DateTimeOffset.UtcNow };
+                Persist(item);
+                _entries[i] = item;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Validates a prospective parent: it must exist, and the deepest branch
+    /// below <paramref name="movingId"/> must still fit inside the depth cap.
+    /// </summary>
+    private void EnsureCategoryParent(Guid? parentId, Guid? movingId)
+    {
+        if (parentId is not { } target)
+        {
+            return;
+        }
+
+        if (movingId == target)
+        {
+            throw new ArgumentException("A category cannot be its own parent.", nameof(parentId));
+        }
+
+        if (_categories.All(category => category.Id != target))
+        {
+            throw new ArgumentException("The parent category does not exist.", nameof(parentId));
+        }
+
+        var parentDepth = CategoryDepth(target);
+        var subtreeHeight = movingId is { } id ? CategorySubtreeHeight(id) : 1;
+        if (parentDepth + subtreeHeight > ModelMigrations.MaxCategoryDepth)
+        {
+            throw new ArgumentException(
+                $"A category tree may not be deeper than {ModelMigrations.MaxCategoryDepth} levels.",
+                nameof(parentId));
+        }
+    }
+
+    private int CategoryDepth(Guid id)
+    {
+        var depth = 1;
+        var current = _categories.FirstOrDefault(category => category.Id == id);
+        var guard = 0;
+        while (current?.ParentId is { } parentId && guard++ < _categories.Count)
+        {
+            depth++;
+            var parent = _categories.FirstOrDefault(category => category.Id == parentId);
+            if (parent is null)
+            {
+                break;
+            }
+
+            current = parent;
+        }
+
+        return depth;
+    }
+
+    /// <summary>Number of levels the branch below (and including) a node occupies.</summary>
+    private int CategorySubtreeHeight(Guid id)
+    {
+        var height = 1;
+        foreach (var category in _categories)
+        {
+            if (category.ParentId == id)
+            {
+                height = Math.Max(height, 1 + CategorySubtreeHeight(category.Id));
+            }
+        }
+
+        return height;
+    }
+
     private static string NormalizeCategoryName(string name)
     {
         var trimmed = name?.Trim() ?? string.Empty;
@@ -720,10 +959,11 @@ public sealed class VaultService : IDisposable
         return trimmed;
     }
 
-    private void EnsureUniqueCategoryName(string name, Guid? excludeId)
+    private void EnsureUniqueCategoryName(string name, Guid? excludeId, Guid? parentId)
     {
         if (_categories.Any(category =>
                 category.Id != excludeId &&
+                category.ParentId == parentId &&
                 string.Equals(category.Name, name, StringComparison.OrdinalIgnoreCase)))
         {
             throw new ArgumentException($"A category named '{name}' already exists.", nameof(name));
