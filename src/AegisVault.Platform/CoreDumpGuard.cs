@@ -3,8 +3,17 @@ using System.Runtime.InteropServices;
 namespace AegisVault.Platform;
 
 /// <summary>
-/// Best-effort process hardening: prevents the OS from writing core dumps
-/// that could contain decrypted key material.
+/// Best-effort process hardening against crash artifacts that could contain
+/// decrypted key material.
+/// <para>
+/// Linux/macOS: sets <c>RLIMIT_CORE</c> to 0 (both soft and hard limit, so the
+/// process cannot raise it again).
+/// </para>
+/// <para>
+/// Windows: only suppresses the OS error dialogs via <c>SetErrorMode</c>. It
+/// does <b>not</b> disable WER LocalDumps or dumps written by other tooling —
+/// this is a UX hardening, not a dump guarantee.
+/// </para>
 /// </summary>
 public static partial class CoreDumpGuard
 {
