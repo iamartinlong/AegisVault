@@ -7,6 +7,19 @@
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4)
 ![Avalonia](https://img.shields.io/badge/Avalonia-12.1-8A2BE2)
 
+## 下载
+
+到 **[Releases](https://github.com/iamartinlong/AegisVault/releases/latest)** 获取最新构建：
+
+| 平台 | 文件（`<版本>` 为 tag 名，如 `v0.2.0`） |
+|---|---|
+| Windows x64 | `AegisVault-win-x64-<版本>.zip` |
+| Linux x64 | `AegisVault-linux-x64-<版本>.tar.gz` |
+| macOS（Apple 芯片） | `AegisVault-osx-arm64-<版本>.tar.gz` |
+| macOS（Intel） | `AegisVault-osx-x64-<版本>.tar.gz` |
+
+单文件、免安装、无需 .NET 运行时（NativeAOT）。压缩包内含 `LICENSE`、`THIRD-PARTY-NOTICES.md` 与 `SHA256SUMS-<rid>` 校验文件。macOS 构建未签名/未公证，首次运行需在「系统设置 → 隐私与安全性」放行；Linux 上需 `chmod +x`。
+
 ## 界面预览
 
 | 主界面（浅色 · 中文） | 主界面（深色 · English） |
@@ -57,7 +70,7 @@
 | 存储 | SQLite（Microsoft.Data.Sqlite 10.0.12 + SQLitePCLRaw 2.1.12 / SQLite 3.53.3） |
 | 密码学 | libsodium（Sodium.Core，Argon2id）+ BCL AES-256-GCM |
 | 平台安全 | Windows DPAPI / CredUI（macOS Keychain、Linux libsecret 预留接口） |
-| 测试 | xUnit（358 项：Core / Platform / Headless UI） |
+| 测试 | xUnit（438 项：Core / Platform / Headless UI） |
 
 ## 快速开始
 
@@ -70,7 +83,7 @@ dotnet build -c Release
 # 运行（开发）
 dotnet run --project src/AegisVault.App
 
-# 测试（358 项）
+# 测试（438 项）
 dotnet test -c Release
 
 # NativeAOT 单文件发布（示例：Windows x64）
@@ -125,6 +138,7 @@ DEK(随机 32B) ──AES-256-GCM(每条目随机 nonce)──▶ 条目密文�
 
 - [x] M0–M7：工程基线、密码学内核、加密存储、核心服务、UI、桌面集成、安全硬化、CI/CD
 - [x] P0–P3：解锁重构、三栏主窗口、快速访问/热键/悬浮球/防截屏、健康面板、CSV 导入、i18n 中英
+- [x] **v0.2.0 发布**：Windows / Linux / macOS（x64 与 arm64）四平台 NativeAOT 单文件产物
 - [ ] 自动填充（增强复制流 → 浏览器扩展）
 - [ ] macOS Keychain / Linux libsecret 完整实现
 - [ ] 附件、多库管理与同步
