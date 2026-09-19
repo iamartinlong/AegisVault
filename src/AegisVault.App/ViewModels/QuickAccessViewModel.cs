@@ -139,6 +139,7 @@ public partial class QuickAccessViewModel : ObservableObject, IDisposable
                 Contains(entry.Title, query) ||
                 Contains(entry.Username, query) ||
                 Contains(entry.Url, query) ||
+                (entry.Urls?.Any(url => Contains(url, query)) ?? false) ||
                 entry.Tags.Any(tag => Contains(tag, query)))
             {
                 FilteredEntries.Add(entry);

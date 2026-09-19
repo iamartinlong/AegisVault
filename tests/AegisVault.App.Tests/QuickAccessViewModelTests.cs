@@ -82,6 +82,25 @@ public sealed class QuickAccessViewModelTests : IDisposable
     }
 
     [Fact]
+    public void SearchesEntriesWhoseUrlsLiveInTheCollection()
+    {
+        var (vault, main) = CreateMain(new PasswordEntry
+        {
+            Title = "Legacy",
+            Url = string.Empty,
+            Urls = ["https://gist.github.com"],
+        });
+        using var _ = vault;
+        using var __ = main;
+        var viewModel = new QuickAccessViewModel(main);
+
+        viewModel.SearchText = "gist";
+
+        Assert.Single(viewModel.FilteredEntries);
+        Assert.Equal("Legacy", viewModel.FilteredEntries[0].Title);
+    }
+
+    [Fact]
     public void ActivateSelectsEntryInMainAndRaisesHide()
     {
         var (vault, main) = CreateMain(
