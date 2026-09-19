@@ -79,6 +79,23 @@ public sealed class VaultHealthTests
         Assert.Equal(0, report.HealthScore);
     }
 
+    [Fact]
+    public void FairScoresAreNotReportedAsWeak()
+    {
+        var now = DateTimeOffset.UtcNow;
+
+        // Score 2 is the "Fair" bucket; only VeryWeak/Weak (0/1) count as weak.
+        Assert.Equal(PasswordStrengthLabel.Fair, PasswordStrengthEstimator.Evaluate("Tr0ub4dor&3").Label);
+
+        var report = VaultHealth.Analyze(
+        [
+            new PasswordEntry { Title = "Fair", Password = "Tr0ub4dor&3", UpdatedAt = now },
+            new PasswordEntry { Title = "Weak", Password = "abcdefgh", UpdatedAt = now },
+        ]);
+
+        Assert.Equal(1, report.WeakCount);
+    }
+
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => now;

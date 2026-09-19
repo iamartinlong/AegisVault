@@ -40,8 +40,12 @@ public sealed record VaultHealthReport(
 /// </summary>
 public static class VaultHealth
 {
-    /// <summary>Scores of 0–2 (VeryWeak/Weak) count as weak.</summary>
-    public const int WeakScoreThreshold = 2;
+    /// <summary>
+    /// Scores of 0–1 (VeryWeak/Weak) count as weak. Score 2 is the "Fair"
+    /// bucket (e.g. <c>Tr0ub4dor&amp;3</c>, ~71 bits of entropy) and must not be
+    /// reported as weak — the threshold follows the label buckets.
+    /// </summary>
+    public const int WeakScoreThreshold = 1;
 
     private static readonly TimeSpan OldAge = TimeSpan.FromDays(365);
 
