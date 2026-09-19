@@ -92,7 +92,7 @@ public sealed class UnlockViewModelTests : IDisposable
 
         await model.UnlockCommand.ExecuteAsync(null);
 
-        Assert.Equal("主密码错误。", model.ErrorMessage);
+        Assert.Equal(Localization.Loc.T("Unlock_ErrorWrongPassword"), model.PasswordError);
         return null;
     });
 
@@ -178,7 +178,7 @@ public sealed class UnlockViewModelTests : IDisposable
 
         await model.UnlockCommand.ExecuteAsync(null);
 
-        Assert.Equal("找不到密码库文件，请检查路径，或切换到“创建新密码库”。", model.ErrorMessage);
+        Assert.Equal(Localization.Loc.T("Unlock_ErrorVaultNotFound"), model.PathError);
         return null;
     });
 
@@ -195,7 +195,7 @@ public sealed class UnlockViewModelTests : IDisposable
 
         await model.CreateCommand.ExecuteAsync(null);
 
-        Assert.Equal("两次输入的密码不一致。", model.ErrorMessage);
+        Assert.Equal(Localization.Loc.T("Unlock_ErrorConfirmMismatch"), model.ConfirmPasswordError);
         Assert.False(File.Exists(_vaultPath));
         return null;
     });
@@ -272,8 +272,7 @@ public sealed class UnlockViewModelTests : IDisposable
 
         await model.CreateCommand.ExecuteAsync(null);
 
-        Assert.NotNull(model.ErrorMessage);
-        Assert.Contains("已存在", model.ErrorMessage);
+        Assert.Equal(Localization.Loc.T("Unlock_ErrorFileExists"), model.NewVaultPathError);
         return null;
     });
 
@@ -282,9 +281,9 @@ public sealed class UnlockViewModelTests : IDisposable
     {
         var errors = UnlockViewModel.ValidateOpen(null, "   ");
 
-        Assert.NotNull(errors);
-        Assert.Contains(Localization.Loc.T("Unlock_ErrorPasswordRequired"), errors);
-        Assert.Contains(Localization.Loc.T("Unlock_ErrorPathRequired"), errors);
+        Assert.Equal(Localization.Loc.T("Unlock_ErrorPasswordRequired"), errors.Password);
+        Assert.Null(errors.Confirm);
+        Assert.Equal(Localization.Loc.T("Unlock_ErrorPathRequired"), errors.Path);
     }
 
     [Fact]
@@ -292,7 +291,10 @@ public sealed class UnlockViewModelTests : IDisposable
     {
         File.WriteAllText(_vaultPath, "exists");
 
-        Assert.Null(UnlockViewModel.ValidateOpen("secret", _vaultPath));
+        var errors = UnlockViewModel.ValidateOpen("secret", _vaultPath);
+
+        Assert.Null(errors.Password);
+        Assert.Null(errors.Path);
     }
 
     [Fact]
@@ -300,11 +302,33 @@ public sealed class UnlockViewModelTests : IDisposable
     {
         var errors = UnlockViewModel.ValidateCreate("short", "different", "   ");
 
-        Assert.NotNull(errors);
-        Assert.Contains(Localization.Loc.T("Unlock_ErrorPasswordTooShort"), errors);
-        Assert.Contains(Localization.Loc.T("Unlock_ErrorConfirmMismatch"), errors);
-        Assert.Contains(Localization.Loc.T("Unlock_ErrorPathRequired"), errors);
+        Assert.Equal(Localization.Loc.T("Unlock_ErrorPasswordTooShort"), errors.Password);
+        Assert.Equal(Localization.Loc.T("Unlock_ErrorConfirmMismatch"), errors.Confirm);
+        Assert.Equal(Localization.Loc.T("Unlock_ErrorPathRequired"), errors.Path);
     }
+
+    [Fact]
+    public void ValidationErrorsLandOnTheirOwnFields() => Headless.Run(() =>
+    {
+        var model = new UnlockViewModel
+        {
+            MasterPassword = string.Empty,
+            VaultPath = Path.Combine(_directory, "missing.aegis"),
+        };
+
+        model.UnlockCommand.Execute(null);
+
+        // The password prompt belongs under the password box; the missing-file
+        // problem under the path box; nothing in the shared bottom line.
+        Assert.Equal(Localization.Loc.T("Unlock_ErrorPasswordRequired"), model.PasswordError);
+        Assert.Equal(Localization.Loc.T("Unlock_ErrorVaultNotFound"), model.PathError);
+        Assert.Null(model.ErrorMessage);
+
+        // Editing one field clears only its own error.
+        model.MasterPassword = "secret";
+        Assert.Null(model.PasswordError);
+        Assert.NotNull(model.PathError);
+    });
 
     [Fact]
     public Task EditingAFieldClearsTheError() => Headless.RunAsync<object?>(async () =>
@@ -316,21 +340,24 @@ public sealed class UnlockViewModelTests : IDisposable
         };
 
         await model.UnlockCommand.ExecuteAsync(null);
-        Assert.NotNull(model.ErrorMessage);
+        Assert.NotNull(model.PasswordError);
+        Assert.NotNull(model.PathError);
 
+        // Editing a field clears only its own error.
         model.MasterPassword = "correct horse";
-        Assert.Null(model.ErrorMessage);
+        Assert.Null(model.PasswordError);
+        Assert.NotNull(model.PathError);
 
         await model.UnlockCommand.ExecuteAsync(null);
-        Assert.NotNull(model.ErrorMessage);
+        Assert.NotNull(model.PathError);
 
         model.VaultPath = _vaultPath;
-        Assert.Null(model.ErrorMessage);
+        Assert.Null(model.PathError);
 
         model.NewVaultPath = Path.Combine(_directory, "elsewhere");
-        Assert.Null(model.ErrorMessage);
+        Assert.Null(model.NewVaultPathError);
         model.ConfirmPassword = "something";
-        Assert.Null(model.ErrorMessage);
+        Assert.Null(model.ConfirmPasswordError);
         return null;
     });
 
@@ -419,12 +446,13 @@ public sealed class UnlockViewModelTests : IDisposable
         var model = new UnlockViewModel();
 
         Assert.False(model.TryAcceptDroppedFile(Path.Combine(_directory, "notes.txt")));
-        Assert.Equal(Localization.Loc.T("Unlock_ErrorNotVaultFile"), model.ErrorMessage);
+        Assert.Equal(Localization.Loc.T("Unlock_ErrorNotVaultFile"), model.PathError);
 
         var vault = Path.Combine(_directory, "dropped.aegis");
         Assert.True(model.TryAcceptDroppedFile($"  {vault}  "));
         Assert.Equal(vault, model.VaultPath);
         Assert.Equal(UnlockViewModel.OpenMode, model.ModeIndex);
+        Assert.Null(model.PathError);
         Assert.Null(model.ErrorMessage);
     }
 }

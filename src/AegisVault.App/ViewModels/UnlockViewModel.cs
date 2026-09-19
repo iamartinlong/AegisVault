@@ -8,6 +8,12 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace AegisVault.App.ViewModels;
 
+/// <summary>
+/// Per-field validation results; <c>null</c> means that field has no problem.
+/// Every field is evaluated in one pass so all problems show up together.
+/// </summary>
+public sealed record UnlockFormErrors(string? Password, string? Confirm, string? Path);
+
 /// <summary>One row of the "recent vaults" shortcut list on the open page.</summary>
 public sealed record RecentVaultItem(string Path, string FileName)
 {
@@ -53,6 +59,22 @@ public partial class UnlockViewModel : ObservableObject
 
     [ObservableProperty]
     private string? errorMessage;
+
+    /// <summary>Error shown under the master-password box (both tabs).</summary>
+    [ObservableProperty]
+    private string? passwordError;
+
+    /// <summary>Error shown under the confirm-password box (create tab).</summary>
+    [ObservableProperty]
+    private string? confirmPasswordError;
+
+    /// <summary>Error shown under the vault-file box (open tab).</summary>
+    [ObservableProperty]
+    private string? pathError;
+
+    /// <summary>Error shown under the save-location box (create tab).</summary>
+    [ObservableProperty]
+    private string? newVaultPathError;
 
     [ObservableProperty]
     private bool isBusy;
@@ -121,17 +143,27 @@ public partial class UnlockViewModel : ObservableObject
             ? null
             : PasswordStrengthEstimator.Evaluate(value);
 
+        PasswordError = null;
         ErrorMessage = null;
         OnPropertyChanged(nameof(MasterPasswordStrengthSummary));
         OnPropertyChanged(nameof(MasterPasswordStrengthPercent));
     }
 
-    partial void OnConfirmPasswordChanged(string value) => ErrorMessage = null;
+    partial void OnConfirmPasswordChanged(string value)
+    {
+        ConfirmPasswordError = null;
+        ErrorMessage = null;
+    }
 
-    partial void OnVaultPathChanged(string value) => ErrorMessage = null;
+    partial void OnVaultPathChanged(string value)
+    {
+        PathError = null;
+        ErrorMessage = null;
+    }
 
     partial void OnNewVaultPathChanged(string value)
     {
+        NewVaultPathError = null;
         ErrorMessage = null;
         OnPropertyChanged(nameof(NewVaultPathHint));
     }
@@ -140,6 +172,15 @@ public partial class UnlockViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(IsCreateMode));
         OnPropertyChanged(nameof(BusyText));
+        ClearErrors();
+    }
+
+    private void ClearErrors()
+    {
+        PasswordError = null;
+        ConfirmPasswordError = null;
+        PathError = null;
+        NewVaultPathError = null;
         ErrorMessage = null;
     }
 
@@ -192,65 +233,65 @@ public partial class UnlockViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Collects every problem with the "open" form in one pass (null when the
-    /// form is valid). Pure so the aggregation is unit-testable.
+    /// Checks both fields of the "open" form in one pass. Pure so the
+    /// aggregation is unit-testable.
     /// </summary>
-    public static string? ValidateOpen(string? password, string? path)
+    public static UnlockFormErrors ValidateOpen(string? password, string? path)
     {
-        var errors = new List<string>();
+        var passwordError = string.IsNullOrEmpty(password)
+            ? Loc.T("Unlock_ErrorPasswordRequired")
+            : null;
 
-        if (string.IsNullOrEmpty(password))
-        {
-            errors.Add(Loc.T("Unlock_ErrorPasswordRequired"));
-        }
-
+        string? pathError = null;
         var trimmed = path?.Trim() ?? string.Empty;
         if (trimmed.Length == 0)
         {
-            errors.Add(Loc.T("Unlock_ErrorPathRequired"));
+            pathError = Loc.T("Unlock_ErrorPathRequired");
         }
         else if (!File.Exists(trimmed))
         {
-            errors.Add(Loc.T("Unlock_ErrorVaultNotFound"));
+            pathError = Loc.T("Unlock_ErrorVaultNotFound");
         }
 
-        return errors.Count == 0 ? null : string.Join(Environment.NewLine, errors);
+        return new UnlockFormErrors(passwordError, null, pathError);
     }
 
-    /// <summary>Collects every problem with the "create" form in one pass.</summary>
-    public static string? ValidateCreate(string? password, string? confirmPassword, string? path)
+    /// <summary>Checks every field of the "create" form in one pass.</summary>
+    public static UnlockFormErrors ValidateCreate(string? password, string? confirmPassword, string? path)
     {
-        var errors = new List<string>();
         var passwordValue = password ?? string.Empty;
 
+        string? passwordError = null;
+        string? confirmError = null;
         if (passwordValue.Length == 0)
         {
-            errors.Add(Loc.T("Unlock_ErrorPasswordRequired"));
+            passwordError = Loc.T("Unlock_ErrorPasswordRequired");
         }
         else
         {
             if (passwordValue.Length < MinimumPasswordLength)
             {
-                errors.Add(Loc.T("Unlock_ErrorPasswordTooShort"));
+                passwordError = Loc.T("Unlock_ErrorPasswordTooShort");
             }
 
             if (!string.Equals(passwordValue, confirmPassword, StringComparison.Ordinal))
             {
-                errors.Add(Loc.T("Unlock_ErrorConfirmMismatch"));
+                confirmError = Loc.T("Unlock_ErrorConfirmMismatch");
             }
         }
 
+        string? pathError = null;
         var normalized = NormalizeVaultPath(path);
         if (normalized.Length == 0)
         {
-            errors.Add(Loc.T("Unlock_ErrorPathRequired"));
+            pathError = Loc.T("Unlock_ErrorPathRequired");
         }
         else if (File.Exists(normalized))
         {
-            errors.Add(Loc.T("Unlock_ErrorFileExists"));
+            pathError = Loc.T("Unlock_ErrorFileExists");
         }
 
-        return errors.Count == 0 ? null : string.Join(Environment.NewLine, errors);
+        return new UnlockFormErrors(passwordError, confirmError, pathError);
     }
 
     /// <summary>Applies a dropped ".aegis" file: fills the path and clears errors.</summary>
@@ -259,7 +300,7 @@ public partial class UnlockViewModel : ObservableObject
         var trimmed = path?.Trim() ?? string.Empty;
         if (trimmed.Length == 0 || !trimmed.EndsWith(".aegis", StringComparison.OrdinalIgnoreCase))
         {
-            ErrorMessage = Loc.T("Unlock_ErrorNotVaultFile");
+            PathError = Loc.T("Unlock_ErrorNotVaultFile");
             return false;
         }
 
@@ -342,9 +383,11 @@ public partial class UnlockViewModel : ObservableObject
 
         var path = VaultPath.Trim();
         var errors = ValidateOpen(MasterPassword, path);
-        if (errors is not null)
+        PasswordError = errors.Password;
+        PathError = errors.Path;
+        ErrorMessage = null;
+        if (errors.Password is not null || errors.Path is not null)
         {
-            ErrorMessage = errors;
             return;
         }
 
@@ -376,7 +419,7 @@ public partial class UnlockViewModel : ObservableObject
                         VaultOpened?.Invoke(vault!);
                         break;
                     case VaultUnlockStatus.WrongPassword:
-                        ErrorMessage = Loc.T("Unlock_ErrorWrongPassword");
+                        PasswordError = Loc.T("Unlock_ErrorWrongPassword");
                         break;
                     case VaultUnlockStatus.UnsupportedVersion:
                         ErrorMessage = Loc.T("Unlock_ErrorUnsupportedVersion");
@@ -416,9 +459,12 @@ public partial class UnlockViewModel : ObservableObject
         }
 
         var errors = ValidateCreate(MasterPassword, ConfirmPassword, NewVaultPath);
-        if (errors is not null)
+        PasswordError = errors.Password;
+        ConfirmPasswordError = errors.Confirm;
+        NewVaultPathError = errors.Path;
+        ErrorMessage = null;
+        if (errors.Password is not null || errors.Confirm is not null || errors.Path is not null)
         {
-            ErrorMessage = errors;
             return;
         }
 

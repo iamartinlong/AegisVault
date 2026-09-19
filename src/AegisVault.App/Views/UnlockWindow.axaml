@@ -10,9 +10,7 @@
         Icon="/Assets/app.png"
         Title="AegisVault"
         Width="560"
-        MinHeight="480"
-        MaxHeight="820"
-        SizeToContent="Height"
+        Height="800"
         CanResize="False"
         WindowStartupLocation="CenterScreen"
         DragDrop.AllowDrop="True"
@@ -20,16 +18,24 @@
         Background="{atom:SharedTokenResource ColorBgContainer}"
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaTitleBarHeightHint="40">
+    <Window.Styles>
+        <!-- Field-level validation messages sit directly under their input. -->
+        <Style Selector="TextBlock.field-error">
+            <Setter Property="Foreground" Value="{atom:SharedTokenResource ColorError}" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+    </Window.Styles>
     <Grid RowDefinitions="40,*">
         <controls:AegisTitleBar Grid.Row="0" Title="AegisVault" ShowIcon="True" />
 
         <Border Grid.Row="1" Padding="24,20,24,24">
             <Border MaxWidth="460"
                     HorizontalAlignment="Center"
-                    VerticalAlignment="Top"
+                    VerticalAlignment="Stretch"
                     Padding="28,24">
-                <StackPanel Spacing="16">
-                    <StackPanel Spacing="8">
+                <Grid RowDefinitions="Auto,Auto,*,Auto,Auto,Auto" RowSpacing="16">
+                    <StackPanel Grid.Row="0" Spacing="8">
                         <Border Width="52" Height="52"
                                 CornerRadius="14"
                                 HorizontalAlignment="Center"
@@ -59,14 +65,14 @@
                                    TextWrapping="Wrap" />
                     </StackPanel>
 
-                    <atom:Segmented HorizontalAlignment="Stretch"
+                    <atom:Segmented Grid.Row="1"
+                                    HorizontalAlignment="Stretch"
                                     SelectedIndex="{Binding ModeIndex, Mode=TwoWay}">
                         <atom:SegmentedItem Content="{loc:Str Unlock_TabOpen}" />
                         <atom:SegmentedItem Content="{loc:Str Unlock_TabCreate}" />
                     </atom:Segmented>
 
-                    <ScrollViewer MinHeight="440"
-                                  MaxHeight="440"
+                    <ScrollViewer Grid.Row="2"
                                   VerticalScrollBarVisibility="Auto">
                         <StackPanel Margin="0,0,16,0" Spacing="14">
                             <StackPanel Spacing="14" IsVisible="{Binding !IsCreateMode}">
@@ -99,6 +105,9 @@
                                                      Content="{loc:Str Common_Browse}"
                                                      Click="OnBrowseExistingClicked" />
                                     </Grid>
+                                    <TextBlock Classes="field-error"
+                                               Text="{Binding PathError}"
+                                               IsVisible="{Binding PathError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                                 </StackPanel>
 
                                 <StackPanel Spacing="6">
@@ -115,6 +124,9 @@
                                                      IsVisible="{Binding SecureInputAvailable}"
                                                      Click="OnSecureInputClicked" />
                                     </Grid>
+                                    <TextBlock Classes="field-error"
+                                               Text="{Binding PasswordError}"
+                                               IsVisible="{Binding PasswordError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                                 </StackPanel>
 
                                 <atom:CheckBox IsChecked="{Binding RememberDevice, Mode=TwoWay}"
@@ -150,6 +162,9 @@
                                                      Content="{loc:Str Unlock_ChooseLocation}"
                                                      Click="OnBrowseCreateClicked" />
                                     </Grid>
+                                    <TextBlock Classes="field-error"
+                                               Text="{Binding NewVaultPathError}"
+                                               IsVisible="{Binding NewVaultPathError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                                     <TextBlock Text="{Binding NewVaultPathHint}"
                                                FontSize="12"
                                                Opacity="0.6"
@@ -162,6 +177,9 @@
                                                    PasswordChar="●"
                                                    IsEnableRevealButton="True"
                                                    Text="{Binding MasterPassword, Mode=TwoWay}" />
+                                    <TextBlock Classes="field-error"
+                                               Text="{Binding PasswordError}"
+                                               IsVisible="{Binding PasswordError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                                     <TextBlock Text="{loc:Str Unlock_PasswordHint}"
                                                FontSize="12"
                                                Opacity="0.6"
@@ -180,6 +198,9 @@
                                     <atom:LineEdit PasswordChar="●"
                                                    IsEnableRevealButton="True"
                                                    Text="{Binding ConfirmPassword, Mode=TwoWay}" />
+                                    <TextBlock Classes="field-error"
+                                               Text="{Binding ConfirmPasswordError}"
+                                               IsVisible="{Binding ConfirmPasswordError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                                 </StackPanel>
 
                                 <atom:CheckBox IsChecked="{Binding RememberDevice, Mode=TwoWay}"
@@ -209,14 +230,16 @@
                         </StackPanel>
                     </ScrollViewer>
 
-                    <TextBlock Text="{Binding ErrorMessage}"
+                    <TextBlock Grid.Row="3"
+                               Text="{Binding ErrorMessage}"
                                Foreground="{atom:SharedTokenResource ColorError}"
                                TextWrapping="Wrap"
                                MinHeight="20" />
-                    <TextBlock Text="{Binding BusyText}"
+                    <TextBlock Grid.Row="4"
+                               Text="{Binding BusyText}"
                                IsVisible="{Binding IsBusy}"
                                Opacity="0.6" />
-                    <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
+                    <StackPanel Grid.Row="5" Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
                         <atom:Button ButtonType="Primary"
                                      Content="{loc:Str Unlock_CreateVault}"
                                      Command="{Binding CreateCommand}"
@@ -228,7 +251,7 @@
                                      IsVisible="{Binding !IsCreateMode}"
                                      IsDefault="True" />
                     </StackPanel>
-                </StackPanel>
+                </Grid>
             </Border>
         </Border>
     </Grid>
