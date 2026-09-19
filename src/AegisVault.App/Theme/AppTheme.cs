@@ -20,6 +20,10 @@ public static class AppTheme
 {
     private const string ThemeId = "DaybreakBlue";
 
+    /// <summary>Serializes theme transitions; only the newest request is applied.</summary>
+    private static readonly SemaphoreSlim ApplyGate = new(1, 1);
+    private static int _applyRevision;
+
     /// <summary>Ink Green suite, light appearance.</summary>
     private static readonly (string Key, string Value)[] LightTokens =
     [
@@ -130,13 +134,44 @@ public static class AppTheme
                 return;
             }
 
-            _ = manager.ApplyThemeAsync(
-                new ThemeRequest(ThemeId, BuildConfig(desiredDark), ThemeTransitionReason.UserRequest),
-                CancellationToken.None);
+            _ = ApplyQueuedAsync(manager, BuildConfig(desiredDark), Interlocked.Increment(ref _applyRevision));
         }
         catch (Exception)
         {
             // Theme switching is best effort; the initial theme is already applied.
+        }
+    }
+
+    /// <summary>
+    /// Applies the theme serially and only for the newest request: rapid menu
+    /// clicks could otherwise finish out of order and leave the wrong
+    /// appearance on screen.
+    /// </summary>
+    private static async Task ApplyQueuedAsync(IThemeManager manager, ThemeConfig config, int revision)
+    {
+        try
+        {
+            await ApplyGate.WaitAsync();
+            try
+            {
+                if (Volatile.Read(ref _applyRevision) != revision)
+                {
+                    // A newer click superseded this one while waiting.
+                    return;
+                }
+
+                await manager.ApplyThemeAsync(
+                    new ThemeRequest(ThemeId, config, ThemeTransitionReason.UserRequest),
+                    CancellationToken.None);
+            }
+            finally
+            {
+                ApplyGate.Release();
+            }
+        }
+        catch (Exception)
+        {
+            // Best effort: the previous appearance stays in place.
         }
     }
 }
