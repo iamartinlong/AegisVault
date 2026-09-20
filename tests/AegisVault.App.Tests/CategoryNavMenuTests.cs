@@ -146,4 +146,25 @@ public sealed class CategoryNavMenuTests
 
         Assert.Same(child, menu.SelectedItem);
     });
+
+    [Fact]
+    public Task OpenNodesRotateTheirArrow() => Headless.Run(() =>
+    {
+        var child = Node("Child");
+        var parent = Node("Parent", child);
+
+        var (window, menu) = ShowMenu(parent);
+
+        var header = Header(Row(menu, parent));
+        var arrow = header.GetVisualDescendants().OfType<Control>()
+            .First(candidate => candidate.Name == "RowArrow");
+
+        var closedState = arrow.RenderTransform;
+        Assert.NotNull(closedState);
+
+        Click(window, header, header.Bounds.Width - 4);
+
+        Assert.NotNull(arrow.RenderTransform);
+        Assert.NotSame(closedState, arrow.RenderTransform);
+    });
 }

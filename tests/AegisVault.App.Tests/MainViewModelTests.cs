@@ -552,7 +552,7 @@ public sealed class MainViewModelTests : IDisposable
 
         using var viewModel = new MainViewModel(vault);
 
-        var rootNode = Assert.Single(viewModel.CategoryNodes.Where(node => node.IsUserCategory));
+        var rootNode = Assert.Single(viewModel.CategoryNodes, node => node.IsUserCategory);
         Assert.Equal("Work", rootNode.Item.DisplayName);
         Assert.Equal(3, rootNode.Item.Count);
         Assert.True(rootNode.Item.HasChildren);
@@ -589,7 +589,7 @@ public sealed class MainViewModelTests : IDisposable
         var root = vault.AddCategory("Work");
 
         using var viewModel = new MainViewModel(vault);
-        var rootNode = Assert.Single(viewModel.CategoryNodes.Where(node => node.IsUserCategory));
+        var rootNode = Assert.Single(viewModel.CategoryNodes, node => node.IsUserCategory);
         Assert.Equal(0, rootNode.Item.Count);
 
         // Entry edits refresh the row data in place: the node instance survives so
@@ -598,7 +598,7 @@ public sealed class MainViewModelTests : IDisposable
         vault.AddEntry(new PasswordEntry { Title = "Later", CategoryId = root.Id });
         viewModel.ReloadFromVault();
 
-        Assert.Same(rootNode, Assert.Single(viewModel.CategoryNodes.Where(node => node.IsUserCategory)));
+        Assert.Same(rootNode, Assert.Single(viewModel.CategoryNodes, node => node.IsUserCategory));
         Assert.Equal(1, rootNode.Item.Count);
     });
 
@@ -623,7 +623,7 @@ public sealed class MainViewModelTests : IDisposable
         // Merging folds the child back into its parent and drops the source.
         Assert.True(viewModel.TryMergeCategory(servers.CategoryId!.Value, work.CategoryId!.Value, out var mergeError));
         Assert.Null(mergeError);
-        Assert.Single(viewModel.CategoryNodes.Where(node => node.IsUserCategory));
+        Assert.Single(viewModel.CategoryNodes, node => node.IsUserCategory);
         Assert.Empty(viewModel.CategoryNodes[0].Entries);
         Assert.DoesNotContain(viewModel.Categories, category => category.DisplayName == "Servers");
     });

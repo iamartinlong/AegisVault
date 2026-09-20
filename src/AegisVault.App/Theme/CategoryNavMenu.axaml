@@ -5,6 +5,7 @@
                     xmlns:conv="using:AegisVault.App.Converters">
 
     <conv:CategoryIndentConverter x:Key="CategoryIndentConverter" />
+    <conv:ExpandArrowTransformConverter x:Key="ExpandArrowTransformConverter" />
 
     <!--
         The category sidebar owns the inline NavMenu row template. AtomUI's stock
@@ -47,7 +48,8 @@
                                             VerticalAlignment="Center"
                                             Margin="4,0,0,0"
                                             FontSize="10"
-                                            IsVisible="{TemplateBinding HasSubMenu}" />
+                                            IsVisible="{TemplateBinding HasSubMenu}"
+                                            RenderTransform="{Binding IsSubMenuOpen, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource ExpandArrowTransformConverter}}" />
                     </Grid>
                 </Border>
             </ControlTemplate>
@@ -64,9 +66,6 @@
         </Style>
         <Style Selector="^:disabled /template/ ContentPresenter#RowContent">
             <Setter Property="Opacity" Value="0.45" />
-        </Style>
-        <Style Selector="^[IsSubMenuOpen=True] /template/ antd|RightOutlined#RowArrow">
-            <Setter Property="RenderTransform" Value="rotate(90deg)" />
         </Style>
     </ControlTheme>
 

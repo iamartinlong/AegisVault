@@ -1120,15 +1120,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
         CategoryNodes.Clear();
         CategoryOpenPaths.Clear();
 
-        // Roots are expanded before the nodes are added, so the NavMenu creates
-        // their containers already open.
-        var roots = SortedChildrenOf(null);
-        foreach (var root in roots)
-        {
-            CategoryOpenPaths.Add(TreeNodePath.Empty.Append(CategoryKeyPrefix + root.Id.ToString("D")));
-        }
-
-        foreach (var category in roots)
+        // Every branch starts expanded, matching the flat list this tree replaces;
+        // paths are filled before the nodes are added so the NavMenu creates the
+        // containers already open.
+        AddOpenPaths(null, TreeNodePath.Empty);
+        foreach (var category in SortedChildrenOf(null))
         {
             CategoryNodes.Add(BuildCategoryNode(category, depth: 1));
         }
@@ -1155,8 +1151,17 @@ public partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    private CategoryItem RowItemFor(Category category, int depth, bool hasChildren)
-        => Categories.First(candidate => candidate.CategoryId == category.Id) with
+    private void AddOpenPaths(Guid? parentId, TreeNodePath parentPath)
+    {
+        foreach (var category in SortedChildrenOf(parentId))
+        {
+            var path = parentPath.Append(CategoryKeyPrefix + category.Id.ToString("D"));
+            CategoryOpenPaths.Add(path);
+            AddOpenPaths(category.Id, path);
+        }
+    }
+
+    private CategoryItem RowItemFor(Category category, int depth, bool hasChildren)        => Categories.First(candidate => candidate.CategoryId == category.Id) with
         {
             Depth = depth,
             HasChildren = hasChildren,
