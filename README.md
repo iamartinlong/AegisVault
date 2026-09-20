@@ -20,6 +20,8 @@
 
 单文件、免安装、无需 .NET 运行时（NativeAOT）。压缩包内含 `LICENSE`、`THIRD-PARTY-NOTICES.md` 与 `SHA256SUMS-<rid>` 校验文件。macOS 构建未签名/未公证，首次运行需在「系统设置 → 隐私与安全性」放行；Linux 上需 `chmod +x`。
 
+各版本变更与**升级须知**（含库格式兼容性）见 **[CHANGELOG.md](CHANGELOG.md)**。
+
 ## 界面预览
 
 | 主界面（浅色 · 中文） | 主界面（深色 · English） |

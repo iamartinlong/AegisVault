@@ -65,3 +65,8 @@ dotnet test  -c Release --no-build                  # 期望：全部通过
 - 小步提交；信息 `feat|fix|style|docs|chore(范围): 描述`
 - 提交前 `git status` 复核（无 docs/、库文件、偏好文件、调试钩子混入）
 - 已知问题与待办以 `docs/交接文档.md` 为准（公开仓库里没有这些文档）
+
+## 发版（tag 前必做）
+- 在 `CHANGELOG.md` 新增 `## [vX.Y.Z] - YYYY-MM-DD` 段落，**段落名必须与 tag 完全一致**；涉及落盘格式（库头/条目负载/设置负载/明文偏好）必须写「升级须知」（旧版本能否读新库）
+- `CHANGELOG.md` 是发布说明的**唯一真源**：`release.yml` 有守卫（缺段落直接失败），GitHub Release 正文取自该段落（不再用 `generate_release_notes`）
+- 打 tag 前跑门禁（0 警告 + 全量测试）；tag 需人工批准
