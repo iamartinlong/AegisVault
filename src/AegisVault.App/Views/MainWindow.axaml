@@ -52,6 +52,7 @@
                                  Click="OnCategoryActionsClicked" />
                 </StackPanel>
                 <TextBlock Grid.Column="3"
+                           AutomationProperties.AutomationId="CategoryCountText"
                            Text="{Binding Item.Count}"
                            FontSize="11"
                            Opacity="0.5"
@@ -195,9 +196,13 @@
                             </Grid>
                             <!-- Categories render as a nested, collapsible tree; the row template is the
                                  implicit CategoryNavNode template above and the app owns the inline
-                                 NavMenu header template in Theme/CategoryNavMenu.axaml. -->
+                                 NavMenu header template in Theme/CategoryNavMenu.axaml. The NavMenu
+                                 stretches (its Inline theme defaults to left-aligned) and drops the
+                                 menu content padding so row backgrounds span the sidebar width. -->
                             <atom:NavMenu AutomationProperties.AutomationId="CategoryTree"
                                           Mode="Inline"
+                                          HorizontalAlignment="Stretch"
+                                          Padding="0"
                                           Background="Transparent"
                                           IsItemBackgroundEnabled="False"
                                           DefaultOpenPaths="{Binding CategoryOpenPaths}"

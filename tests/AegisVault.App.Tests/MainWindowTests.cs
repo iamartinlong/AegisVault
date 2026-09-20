@@ -257,6 +257,72 @@ public sealed class MainWindowTests
         }
     });
 
+    [Fact]
+    public Task CategoryRowsSpanTheSidebarAndKeepCountsAligned() => Headless.Run(() =>
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "aegis-ui-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            using var vault = Core.Services.VaultService.CreateNew(
+                Path.Combine(directory, "vault.aegis"),
+                "master password"u8.ToArray(),
+                new Core.Services.VaultOptions
+                {
+                    Kdf = new Core.Models.KdfParameters
+                    {
+                        Algorithm = Core.Models.KdfParameters.AlgorithmArgon2id,
+                        Iterations = 3,
+                        MemoryBytes = 8L * 1024 * 1024,
+                    },
+                });
+
+            // A parent (with a child) next to a leaf, plus an uncategorized entry so
+            // the pseudo row is present as well.
+            var root = vault.AddCategory("Work");
+            vault.AddCategory("Servers", parentId: root.Id);
+            vault.AddCategory("Personal");
+            vault.AddEntry(new Core.Models.PasswordEntry { Title = "Loose" });
+
+            using var viewModel = new ViewModels.MainViewModel(vault);
+            var window = new MainWindow { DataContext = viewModel };
+            window.Show();
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+
+            var tree = window.GetVisualDescendants().OfType<AtomUI.Desktop.Controls.NavMenu>().First(
+                candidate => (candidate.GetValue(AutomationProperties.AutomationIdProperty) as string) == "CategoryTree");
+
+            // Row backgrounds span the whole menu (the Inline theme left-aligns by default).
+            var headers = tree.GetVisualDescendants().OfType<AtomUI.Desktop.Controls.BaseNavMenuItemHeader>().ToList();
+            Assert.Equal(4, headers.Count);
+            var frames = headers
+                .Select(header => header.GetVisualDescendants().OfType<Control>().First(candidate => candidate.Name == "Frame"))
+                .ToList();
+            Assert.All(frames, frame => Assert.Equal(tree.Bounds.Width, frame.Bounds.Width, 0.5));
+
+            // The count sits at the same right edge on a parent row, a leaf row and
+            // the uncategorized row: the reserved arrow column must not shift it.
+            var countRightEdges = tree.GetVisualDescendants().OfType<Control>()
+                .Where(candidate => (candidate.GetValue(AutomationProperties.AutomationIdProperty) as string) == "CategoryCountText")
+                .Select(count => Math.Round(count.TranslatePoint(new Point(count.Bounds.Width, 0), tree)!.Value.X, 1))
+                .Distinct()
+                .ToList();
+            Assert.Single(countRightEdges);
+
+            window.Close();
+        }
+        finally
+        {
+            try
+            {
+                Directory.Delete(directory, recursive: true);
+            }
+            catch (IOException)
+            {
+            }
+        }
+    });
+
     private static List<AtomUIMenuItem> ReadRadioItems(
         AtomUI.Desktop.Controls.DropdownButton button,
         string groupName)
