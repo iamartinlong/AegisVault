@@ -36,6 +36,7 @@
                          VerticalAlignment="Center"
                          Fill="{Binding Item, Converter={StaticResource CategoryDotConverter}}" />
                 <TextBlock Grid.Column="1"
+                           AutomationProperties.AutomationId="CategoryNameText"
                            Text="{Binding Item.DisplayName}"
                            FontSize="13"
                            TextTrimming="CharacterEllipsis"

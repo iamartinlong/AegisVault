@@ -309,6 +309,22 @@ public sealed class MainWindowTests
                 .ToList();
             Assert.Single(countRightEdges);
 
+            // Nesting indents the row content by one step per level (AtomUI's Level
+            // is zero based, so the top level stays flush with the other lists).
+            double NameLeft(string displayName)
+            {
+                var name = tree.GetVisualDescendants().OfType<Control>()
+                    .First(candidate =>
+                        (candidate.GetValue(AutomationProperties.AutomationIdProperty) as string) == "CategoryNameText" &&
+                        candidate.DataContext is ViewModels.CategoryNavNode node &&
+                        node.Item.DisplayName == displayName);
+                return Math.Round(name.TranslatePoint(new Point(0, 0), tree)!.Value.X, 1);
+            }
+
+            var topLevel = NameLeft("Work");
+            Assert.Equal(topLevel + 16, NameLeft("Servers"));
+            Assert.Equal(topLevel, NameLeft("Personal"));
+
             window.Close();
         }
         finally
