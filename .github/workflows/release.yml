@@ -94,7 +94,15 @@ jobs:
           cp LICENSE THIRD-PARTY-NOTICES.md "$PUBLISH_DIR/"
           OUT_NAME="AegisVault-${{ matrix.rid }}-${{ github.ref_name }}"
           if [ "${{ runner.os }}" = "Windows" ]; then
-            7z a "artifacts/${OUT_NAME}.zip" "$PUBLISH_DIR"/* > /dev/null
+            # REL-1: 7z keeps the paths it is given, so packing "$PUBLISH_DIR"/*
+            # nested the whole workspace path (v0.2.0/v0.3.0 zips extracted to
+            # src/.../publish/). Use bsdtar with -C, the same idiom as the
+            # tar.gz branch, and assert the entries stayed flat.
+            tar -a -c -f "$GITHUB_WORKSPACE/artifacts/${OUT_NAME}.zip" -C "$PUBLISH_DIR" .
+            if tar -t -f "$GITHUB_WORKSPACE/artifacts/${OUT_NAME}.zip" | grep -q "$PUBLISH_DIR"; then
+              echo "::error::${OUT_NAME}.zip still contains the workspace path"
+              exit 1
+            fi
           else
             tar -czf "artifacts/${OUT_NAME}.tar.gz" -C "$PUBLISH_DIR" .
           fi
