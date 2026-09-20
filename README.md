@@ -11,7 +11,7 @@
 
 到 **[Releases](https://github.com/iamartinlong/AegisVault/releases/latest)** 获取最新构建：
 
-| 平台 | 文件（`<版本>` 为 tag 名，如 `v0.2.0`） |
+| 平台 | 文件（`<版本>` 为 tag 名，如 `v0.3.0`） |
 |---|---|
 | Windows x64 | `AegisVault-win-x64-<版本>.zip` |
 | Linux x64 | `AegisVault-linux-x64-<版本>.tar.gz` |
@@ -139,6 +139,7 @@ DEK(随机 32B) ──AES-256-GCM(每条目随机 nonce)──▶ 条目密文�
 - [x] M0–M7：工程基线、密码学内核、加密存储、核心服务、UI、桌面集成、安全硬化、CI/CD
 - [x] P0–P3：解锁重构、三栏主窗口、快速访问/热键/悬浮球/防截屏、健康面板、CSV 导入、i18n 中英
 - [x] **v0.2.0 发布**：Windows / Linux / macOS（x64 与 arm64）四平台 NativeAOT 单文件产物
+- [x] **v0.3.0 发布**：树形分类（最多 4 级、整枝筛选）、中文界面标题「玄钥」、分类结构不变量修复（移动/合并/删除提升/加载期同父重名）
 - [ ] 自动填充（增强复制流 → 浏览器扩展）
 - [ ] macOS Keychain / Linux libsecret 完整实现
 - [ ] 附件、多库管理与同步
