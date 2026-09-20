@@ -349,6 +349,10 @@ public partial class MainWindow : Window
 
         var flyout = new MenuFlyout();
 
+        var newChild = new AtomUIMenuItem { Header = Loc.T("Main_CategoryNewChild") };
+        newChild.Click += async (_, _) => await CreateChildCategoryAsync(id, node.Item);
+        flyout.Items.Add(newChild);
+
         var rename = new AtomUIMenuItem { Header = Loc.T("Main_RenameCategoryTooltip") };
         rename.Click += async (_, _) => await RenameCategoryAsync(id, node.Item);
         flyout.Items.Add(rename);
@@ -371,6 +375,33 @@ public partial class MainWindow : Window
         flyout.Items.Add(delete);
 
         flyout.ShowAt(button);
+    }
+
+    private async Task CreateChildCategoryAsync(Guid parentId, CategoryItem parent)
+    {
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        try
+        {
+            var dialog = new TextPromptWindow(
+                Loc.Format("Main_CategoryNewChildTitle", parent.DisplayName),
+                Loc.T("Main_CategoryNameLabel"),
+                string.Empty,
+                name => viewModel.ValidateCategoryName(name, excludeId: null, parentId),
+                initialColor: null,
+                showColorPicker: true);
+            var result = await dialog.ShowDialog<string?>(this);
+            if (!string.IsNullOrEmpty(result))
+            {
+                viewModel.TryCreateCategory(result, out _, CategoryPalette.ToStorage(dialog.SelectedColor), parentId);
+            }
+        }
+        catch (Exception)
+        {
+        }
     }
 
     private async Task RenameCategoryAsync(Guid id, CategoryItem item)

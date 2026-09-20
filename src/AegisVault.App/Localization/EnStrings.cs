@@ -95,6 +95,8 @@ internal static class EnStrings
         ["Main_DeleteCategoryWithChildren"] = "Delete category “{0}”? Its {1} child categories will move up one level.",
         ["Main_DeleteCategoryEntries"] = "The {0} entries in this branch will become uncategorized.",
         ["Main_CategoryActionsTooltip"] = "Category actions",
+        ["Main_CategoryNewChild"] = "New child category",
+        ["Main_CategoryNewChildTitle"] = "New child category under “{0}”",
         ["Main_CategoryMoveTo"] = "Move to…",
         ["Main_CategoryMoveAction"] = "Move",
         ["Main_CategoryMoveMessage"] = "Choose the new location of “{0}”:",

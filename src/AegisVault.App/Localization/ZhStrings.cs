@@ -95,6 +95,8 @@ internal static class ZhStrings
         ["Main_DeleteCategoryWithChildren"] = "删除分类“{0}”？其 {1} 个子分类将上移一层。",
         ["Main_DeleteCategoryEntries"] = "该分支下的 {0} 个条目将变为未分类。",
         ["Main_CategoryActionsTooltip"] = "分类操作",
+        ["Main_CategoryNewChild"] = "新建子分类",
+        ["Main_CategoryNewChildTitle"] = "在“{0}”下新建子分类",
         ["Main_CategoryMoveTo"] = "移动到…",
         ["Main_CategoryMoveAction"] = "移动",
         ["Main_CategoryMoveMessage"] = "选择“{0}”的新位置：",
