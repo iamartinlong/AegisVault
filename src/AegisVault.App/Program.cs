@@ -6,8 +6,12 @@ namespace AegisVault.App;
 
 internal static class Program
 {
-    /// <summary>Window title of the running instance a second launch activates.</summary>
-    internal const string WindowTitle = "AegisVault";
+    /// <summary>
+    /// Window titles a second launch activates. The title bar follows the UI
+    /// language, so both the neutral product name and the localized one are
+    /// accepted (see <c>App_Title</c>).
+    /// </summary>
+    internal static readonly string[] WindowTitles = ["AegisVault", Localization.Loc.Get(Localization.Loc.Chinese, "App_Title")];
 
     /// <summary>
     /// Held for the whole process lifetime. The restart flow releases it early
@@ -26,7 +30,7 @@ internal static class Program
             // Another instance owns the vault: bring its window forward and exit.
             // The window may not exist yet when both launches race; the second
             // process still exits so no duplicate session ever starts.
-            WindowActivation.TryActivateByTitle(WindowTitle);
+            WindowActivation.TryActivateByAnyTitle(WindowTitles);
             return;
         }
 

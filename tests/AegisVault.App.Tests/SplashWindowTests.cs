@@ -24,7 +24,7 @@ public sealed class SplashWindowTests
             var subtitle = window.FindControl<TextBlock>("SubtitleText");
             Assert.NotNull(title);
             Assert.NotNull(subtitle);
-            Assert.Equal("AegisVault", title!.Text);
+            Assert.Equal(Localization.Loc.T("App_Title"), title!.Text);
             Assert.Equal(Localization.Loc.T("Unlock_Subtitle"), subtitle!.Text);
         }
         finally

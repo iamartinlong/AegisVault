@@ -91,7 +91,7 @@ public partial class UnlockWindow : Window
             }
 
             var parentHandle = TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
-            var password = WindowsSecureInput.PromptForPassword("AegisVault", Loc.T("Unlock_SecureInputTitle"), parentHandle);
+            var password = WindowsSecureInput.PromptForPassword(Loc.T("App_Title"), Loc.T("Unlock_SecureInputTitle"), parentHandle);
             if (!string.IsNullOrEmpty(password))
             {
                 viewModel.MasterPassword = password;

@@ -5,6 +5,9 @@ internal static class ZhStrings
 {
     internal static readonly Dictionary<string, string> Table = new(StringComparer.Ordinal)
     {
+        // App
+        ["App_Title"] = "玄钥",
+
         // Common
         ["Common_Browse"] = "浏览…",
         ["Common_Cancel"] = "取消",

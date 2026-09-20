@@ -8,7 +8,7 @@
         x:Class="AegisVault.App.Views.UnlockWindow"
         x:DataType="vm:UnlockViewModel"
         Icon="/Assets/app.png"
-        Title="AegisVault"
+        Title="{loc:Str App_Title}"
         Width="560"
         Height="800"
         CanResize="False"
@@ -27,7 +27,7 @@
         </Style>
     </Window.Styles>
     <Grid RowDefinitions="40,*">
-        <controls:AegisTitleBar Grid.Row="0" Title="AegisVault" ShowIcon="True" />
+        <controls:AegisTitleBar Grid.Row="0" Title="{loc:Str App_Title}" ShowIcon="True" />
 
         <Border Grid.Row="1" Padding="24,20,24,24">
             <Border MaxWidth="460"
@@ -53,7 +53,7 @@
                                          Foreground="{atom:SharedTokenResource ColorPrimary}"
                                          Icon="{antd:AntDesignIconProvider SafetyCertificateFilled}" />
                         </Border>
-                        <TextBlock Text="AegisVault"
+                        <TextBlock Text="{loc:Str App_Title}"
                                    FontSize="24"
                                    FontWeight="SemiBold"
                                    HorizontalAlignment="Center" />

@@ -422,7 +422,7 @@ public sealed class MainViewModelTests : IDisposable
         using var viewModel = new MainViewModel(vault);
         var window = new MainWindow { DataContext = viewModel };
 
-        Assert.Equal("AegisVault", window.Title);
+        Assert.Equal(Loc.T("App_Title"), window.Title);
     });
 
     [Fact]

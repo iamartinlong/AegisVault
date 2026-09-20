@@ -5,6 +5,9 @@ internal static class EnStrings
 {
     internal static readonly Dictionary<string, string> Table = new(StringComparer.Ordinal)
     {
+        // App
+        ["App_Title"] = "AegisVault",
+
         // Common
         ["Common_Browse"] = "Browse…",
         ["Common_Cancel"] = "Cancel",

@@ -10,7 +10,7 @@
         x:Class="AegisVault.App.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Icon="/Assets/app.png"
-        Title="AegisVault"
+        Title="{loc:Str App_Title}"
         Width="1180" Height="760"
         MinWidth="980" MinHeight="620"
         WindowStartupLocation="CenterScreen"
@@ -147,7 +147,7 @@
         <Grid RowDefinitions="40,*">
             <!-- ==================== Title bar ==================== -->
             <controls:AegisTitleBar Grid.Row="0"
-                                    Title="AegisVault"
+                                    Title="{loc:Str App_Title}"
                                     ShowIcon="True"
                                     ShowMinimize="True"
                                     ShowMaximize="True" />

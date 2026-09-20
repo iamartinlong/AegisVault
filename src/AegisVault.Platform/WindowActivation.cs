@@ -26,16 +26,27 @@ public static class WindowActivation
     public static bool TryActivateByTitle(string title)
         => TryActivateByTitle(title, Environment.ProcessPath);
 
+    /// <summary>
+    /// Same as <see cref="TryActivateByTitle(string)"/>, but accepts any of
+    /// <paramref name="titles"/>. The title bar follows the UI language, so a
+    /// second launch has to match both the localized and the neutral name.
+    /// </summary>
+    public static bool TryActivateByAnyTitle(IReadOnlyList<string> titles)
+        => TryActivateByAnyTitle(titles, Environment.ProcessPath);
+
     internal static bool TryActivateByTitle(string title, string? expectedExecutablePath)
+        => TryActivateByAnyTitle([title], expectedExecutablePath);
+
+    internal static bool TryActivateByAnyTitle(IReadOnlyList<string> titles, string? expectedExecutablePath)
     {
-        if (!OperatingSystem.IsWindows() || string.IsNullOrWhiteSpace(title))
+        if (!OperatingSystem.IsWindows() || titles is null || titles.Count == 0)
         {
             return false;
         }
 
         try
         {
-            var handle = FindWindowByTitle(title, expectedExecutablePath);
+            var handle = FindWindowByTitle(titles, expectedExecutablePath);
             if (handle == IntPtr.Zero)
             {
                 return false;
@@ -61,6 +72,20 @@ public static class WindowActivation
     internal static bool IsTitleMatch(string? windowTitle, string expectedTitle)
         => !string.IsNullOrWhiteSpace(windowTitle) &&
            string.Equals(windowTitle.Trim(), expectedTitle.Trim(), StringComparison.Ordinal);
+
+    /// <summary>Whether a window title matches any of the accepted titles.</summary>
+    internal static bool IsAnyTitleMatch(string? windowTitle, IReadOnlyList<string> expectedTitles)
+    {
+        foreach (var title in expectedTitles)
+        {
+            if (!string.IsNullOrWhiteSpace(title) && IsTitleMatch(windowTitle, title))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     /// <summary>
     /// Whether two executable paths point at the same file (Windows paths are
@@ -106,10 +131,9 @@ public static class WindowActivation
         }
     }
 
-    private static IntPtr FindWindowByTitle(string title, string? expectedExecutablePath)
+    private static IntPtr FindWindowByTitle(IReadOnlyList<string> titles, string? expectedExecutablePath)
     {
         var found = IntPtr.Zero;
-        var expected = title.Trim();
 
         _ = EnumWindows((handle, _) =>
         {
@@ -120,7 +144,7 @@ public static class WindowActivation
 
             var buffer = new StringBuilder(256);
             _ = GetWindowTextW(handle, buffer, buffer.Capacity);
-            if (!IsTitleMatch(buffer.ToString(), expected))
+            if (!IsAnyTitleMatch(buffer.ToString(), titles))
             {
                 return true;
             }

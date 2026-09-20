@@ -3,7 +3,7 @@
         xmlns:loc="using:AegisVault.App.Localization"
         x:Class="AegisVault.App.Views.SplashWindow"
         Icon="/Assets/app.png"
-        Title="AegisVault"
+        Title="{loc:Str App_Title}"
         Width="420"
         SizeToContent="Height"
         CanResize="False"
@@ -41,7 +41,7 @@
                 </Grid>
             </Border>
 
-            <TextBlock Text="AegisVault"
+            <TextBlock Text="{loc:Str App_Title}"
                        x:Name="TitleText"
                        FontSize="20"
                        FontWeight="SemiBold"

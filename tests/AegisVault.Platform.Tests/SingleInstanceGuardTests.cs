@@ -41,6 +41,19 @@ public sealed class SingleInstanceGuardTests
     }
 
     [Fact]
+    public void AnyTitleMatchAcceptsTheLocalizedProductName()
+    {
+        // The window title follows the UI language ("玄钥" in Chinese).
+        var titles = new[] { "AegisVault", "\u7384\u94a5" };
+
+        Assert.True(WindowActivation.IsAnyTitleMatch("AegisVault", titles));
+        Assert.True(WindowActivation.IsAnyTitleMatch(" \u7384\u94a5 ", titles));
+        Assert.False(WindowActivation.IsAnyTitleMatch("Some Other App", titles));
+        Assert.False(WindowActivation.IsAnyTitleMatch(null, titles));
+        Assert.False(WindowActivation.IsAnyTitleMatch("AegisVault", []));
+    }
+
+    [Fact]
     public void ActivatingAnUnknownTitleFails()
     {
         var activated = WindowActivation.TryActivateByTitle("AegisVault-No-Such-Window-Title");

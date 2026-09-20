@@ -224,7 +224,7 @@ public partial class App : Application
             var trayIcon = new TrayIcon
             {
                 Icon = new WindowIcon(AssetLoader.Open(new Uri("avares://AegisVault.App/Assets/tray.png"))),
-                ToolTipText = "AegisVault",
+                ToolTipText = Loc.T("App_Title"),
             };
             trayIcon.Clicked += OnTrayClicked;
 
