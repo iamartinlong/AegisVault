@@ -104,9 +104,10 @@ internal static class ModelMigrations
 
     /// <summary>
     /// Normalizes a category list into a well-formed tree. A category must never
-    /// be lost: dangling parents, self-parents and cycles become roots, and
-    /// anything deeper than <see cref="MaxCategoryDepth"/> is lifted to the
-    /// deepest allowed level.
+    /// be lost: dangling parents, self-parents and cycles become roots, anything
+    /// deeper than <see cref="MaxCategoryDepth"/> is lifted to the deepest allowed
+    /// level, and duplicate sibling names are renamed ("Name (2)") because two
+    /// categories under the same parent must stay distinguishable.
     /// </summary>
     public static List<Category> NormalizeCategoryTree(IReadOnlyList<Category>? categories)
     {
@@ -136,7 +137,43 @@ internal static class ModelMigrations
             }
         }
 
+        DeduplicateSiblingNames(normalized);
         return normalized;
+    }
+
+    /// <summary>
+    /// Renames the later siblings of a duplicate name (case-insensitive) so that
+    /// every parent owns uniquely named children. Empty names are left alone.
+    /// </summary>
+    private static void DeduplicateSiblingNames(List<Category> categories)
+    {
+        var usedNames = new Dictionary<Guid, HashSet<string>>();
+        for (var index = 0; index < categories.Count; index++)
+        {
+            var category = categories[index];
+            if (category.Name.Length == 0)
+            {
+                continue;
+            }
+
+            var parentKey = category.ParentId ?? Guid.Empty;
+            if (!usedNames.TryGetValue(parentKey, out var names))
+            {
+                names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                usedNames[parentKey] = names;
+            }
+
+            var uniqueName = category.Name;
+            for (var suffix = 2; !names.Add(uniqueName); suffix++)
+            {
+                uniqueName = $"{category.Name} ({suffix})";
+            }
+
+            if (!string.Equals(uniqueName, category.Name, StringComparison.Ordinal))
+            {
+                categories[index] = category with { Name = uniqueName };
+            }
+        }
     }
 
     private static (Guid? ParentId, int Depth) ResolveParent(

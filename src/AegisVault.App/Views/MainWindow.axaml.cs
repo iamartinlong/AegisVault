@@ -396,7 +396,11 @@ public partial class MainWindow : Window
             var result = await dialog.ShowDialog<string?>(this);
             if (!string.IsNullOrEmpty(result))
             {
-                viewModel.TryCreateCategory(result, out _, CategoryPalette.ToStorage(dialog.SelectedColor), parentId);
+                if (!viewModel.TryCreateCategory(result, out var error, CategoryPalette.ToStorage(dialog.SelectedColor), parentId) &&
+                    error is not null)
+                {
+                    viewModel.StatusMessage = error;
+                }
             }
         }
         catch (Exception)
@@ -441,16 +445,30 @@ public partial class MainWindow : Window
 
         try
         {
-            var dialog = new CategoryParentWindow(
-                Loc.T("Main_CategoryMoveTo"),
-                Loc.Format("Main_CategoryMoveMessage", item.DisplayName),
-                viewModel.BuildParentChoices(id),
-                item.ParentId,
-                Loc.T("Main_CategoryMoveAction"),
-                Loc.T("Main_Cancel"));
-            if (await dialog.ShowDialog<bool>(this))
+            var message = Loc.Format("Main_CategoryMoveMessage", item.DisplayName);
+            while (true)
             {
-                viewModel.TryMoveCategory(id, dialog.SelectedParentId, out _);
+                var dialog = new CategoryParentWindow(
+                    Loc.T("Main_CategoryMoveTo"),
+                    message,
+                    viewModel.BuildParentChoices(id),
+                    item.ParentId,
+                    Loc.T("Main_CategoryMoveAction"),
+                    Loc.T("Main_Cancel"));
+                if (!await dialog.ShowDialog<bool>(this))
+                {
+                    return;
+                }
+
+                if (viewModel.TryMoveCategory(id, dialog.SelectedParentId, out var error))
+                {
+                    return;
+                }
+
+                // Keep the picker open so the reason (duplicate name, depth cap)
+                // stays visible and the user can pick another target right away.
+                message = Loc.Format("Main_CategoryMoveMessage", item.DisplayName) +
+                          Environment.NewLine + Environment.NewLine + error;
             }
         }
         catch (Exception)
@@ -478,16 +496,28 @@ public partial class MainWindow : Window
                 return;
             }
 
-            var dialog = new CategoryParentWindow(
-                Loc.T("Main_MergeCategory"),
-                Loc.Format("Main_CategoryMergeMessage", item.DisplayName),
-                choices,
-                null,
-                Loc.T("Main_CategoryMergeAction"),
-                Loc.T("Main_Cancel"));
-            if (await dialog.ShowDialog<bool>(this) && dialog.SelectedParentId is { } targetId)
+            var message = Loc.Format("Main_CategoryMergeMessage", item.DisplayName);
+            while (true)
             {
-                viewModel.TryMergeCategory(id, targetId, out _);
+                var dialog = new CategoryParentWindow(
+                    Loc.T("Main_MergeCategory"),
+                    message,
+                    choices,
+                    null,
+                    Loc.T("Main_CategoryMergeAction"),
+                    Loc.T("Main_Cancel"));
+                if (!await dialog.ShowDialog<bool>(this) || dialog.SelectedParentId is not { } targetId)
+                {
+                    return;
+                }
+
+                if (viewModel.TryMergeCategory(id, targetId, out var error))
+                {
+                    return;
+                }
+
+                message = Loc.Format("Main_CategoryMergeMessage", item.DisplayName) +
+                          Environment.NewLine + Environment.NewLine + error;
             }
         }
         catch (Exception)

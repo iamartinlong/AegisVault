@@ -261,4 +261,31 @@ public sealed class ModelMigrationsTests
         Assert.Single(categories);
         Assert.Equal("First", categories[0].Name);
     }
+
+    [Fact]
+    public void CategoryTreeNormalizationRenamesDuplicateSiblingNames()
+    {
+        var parentId = Guid.NewGuid();
+        var otherParentId = Guid.NewGuid();
+        var firstChildId = Guid.NewGuid();
+        var clashingChildId = Guid.NewGuid();
+        var unrelatedChildId = Guid.NewGuid();
+
+        var categories = ModelMigrations.NormalizeCategoryTree(
+        [
+            new Category { Id = parentId, Name = "Work" },
+            new Category { Id = otherParentId, Name = "Home" },
+            new Category { Id = firstChildId, Name = "Shared", ParentId = parentId },
+            new Category { Id = clashingChildId, Name = "shared", ParentId = parentId },
+            new Category { Id = unrelatedChildId, Name = "Shared", ParentId = otherParentId },
+        ]);
+
+        // Nothing is dropped: the clash is renamed, and case-insensitive.
+        Assert.Equal(5, categories.Count);
+        Assert.Equal("Shared", categories.Single(category => category.Id == firstChildId).Name);
+        Assert.Equal("shared (2)", categories.Single(category => category.Id == clashingChildId).Name);
+
+        // The same name under a different parent is not a conflict.
+        Assert.Equal("Shared", categories.Single(category => category.Id == unrelatedChildId).Name);
+    }
 }

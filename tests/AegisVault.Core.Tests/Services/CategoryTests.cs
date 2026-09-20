@@ -306,11 +306,11 @@ public sealed class CategoryTests : IDisposable
         using var vault = VaultService.CreateNew(Path.Combine(_directory, "names.aegis"), Password, FastOptions);
         vault.AddCategory("Work");
 
-        Assert.Throws<ArgumentException>(() => vault.AddCategory("   "));
-        Assert.Throws<ArgumentException>(() => vault.AddCategory("work"));
+        Assert.Throws<CategoryValidationException>(() => vault.AddCategory("   "));
+        Assert.Throws<CategoryValidationException>(() => vault.AddCategory("work"));
 
         var personal = vault.AddCategory("Personal");
-        Assert.Throws<ArgumentException>(() => vault.RenameCategory(personal.Id, "WORK"));
+        Assert.Throws<CategoryValidationException>(() => vault.RenameCategory(personal.Id, "WORK"));
 
         // Renaming to its own name is allowed.
         Assert.True(vault.RenameCategory(personal.Id, "Personal"));
@@ -350,14 +350,14 @@ public sealed class CategoryTests : IDisposable
         var home = vault.AddCategory("Home");
 
         vault.AddCategory("Servers", parentId: work.Id);
-        Assert.Throws<ArgumentException>(() => vault.AddCategory("servers", parentId: work.Id));
+        Assert.Throws<CategoryValidationException>(() => vault.AddCategory("servers", parentId: work.Id));
 
         // Same name under a different parent is allowed.
         var homeServers = vault.AddCategory("Servers", parentId: home.Id);
         Assert.Equal(home.Id, homeServers.ParentId);
 
         // Top-level names stay unique against other top-level names only.
-        Assert.Throws<ArgumentException>(() => vault.AddCategory("work"));
+        Assert.Throws<CategoryValidationException>(() => vault.AddCategory("work"));
         vault.AddCategory("Work", parentId: work.Id);
     }
 
@@ -414,9 +414,10 @@ public sealed class CategoryTests : IDisposable
         Assert.Equal(servers.Id, vault.Categories.Single(c => c.Id == production.Id).ParentId);
 
         // Into itself, into its own subtree, or under a missing parent.
-        Assert.Throws<ArgumentException>(() => vault.MoveCategory(servers.Id, servers.Id));
-        Assert.Throws<ArgumentException>(() => vault.MoveCategory(home.Id, production.Id));
-        Assert.Throws<ArgumentException>(() => vault.MoveCategory(servers.Id, Guid.NewGuid()));
+        Assert.Throws<CategoryValidationException>(() => vault.MoveCategory(servers.Id, servers.Id));
+        Assert.Throws<CategoryValidationException>(() => vault.MoveCategory(home.Id, production.Id));
+        var missing = Assert.Throws<CategoryValidationException>(() => vault.MoveCategory(servers.Id, Guid.NewGuid()));
+        Assert.Equal(CategoryValidationError.ParentMissing, missing.Error);
 
         // Lifting back to the top level.
         Assert.True(vault.MoveCategory(production.Id, null));
@@ -427,14 +428,17 @@ public sealed class CategoryTests : IDisposable
     public void MoveCategoryRefusesToExceedTheDepthCap()
     {
         using var vault = VaultService.CreateNew(Path.Combine(_directory, "depth.aegis"), Password, FastOptions);
+        var branch = vault.AddCategory("Branch");
+        vault.AddCategory("Leaf", parentId: branch.Id);
+
         var level1 = vault.AddCategory("L1");
         var level2 = vault.AddCategory("L2", parentId: level1.Id);
         var level3 = vault.AddCategory("L3", parentId: level2.Id);
-        vault.AddCategory("L4", parentId: level3.Id);
 
-        // L1 already carries a four level branch, so nesting it under L3 would
-        // need six levels.
-        Assert.Throws<ArgumentException>(() => vault.MoveCategory(level1.Id, level3.Id));
+        // L3 already sits at depth 3 while the branch is two levels tall, so
+        // nesting it there would need five levels.
+        var tooDeep = Assert.Throws<CategoryValidationException>(() => vault.MoveCategory(branch.Id, level3.Id));
+        Assert.Equal(CategoryValidationError.DepthExceeded, tooDeep.Error);
     }
 
     [Fact]
@@ -446,8 +450,10 @@ public sealed class CategoryTests : IDisposable
         var leaf = vault.AddCategory("Production", parentId: middle.Id);
         var entry = vault.AddEntry(new PasswordEntry { Title = "Host", CategoryId = middle.Id });
 
-        Assert.True(vault.DeleteCategory(middle.Id));
+        var result = vault.DeleteCategory(middle.Id, CategoryDeleteMode.PromoteChildren);
 
+        Assert.True(result.Removed);
+        Assert.Empty(result.Renamed);
         Assert.Equal(root.Id, vault.Categories.Single(c => c.Id == leaf.Id).ParentId);
         Assert.Null(vault.Entries.Single(e => e.Id == entry.Id).CategoryId);
     }
@@ -463,7 +469,7 @@ public sealed class CategoryTests : IDisposable
         Assert.Throws<InvalidOperationException>(() => vault.DeleteCategory(root.Id, CategoryDeleteMode.Deny));
         Assert.Equal(3, vault.Categories.Count);
 
-        Assert.True(vault.DeleteCategory(root.Id, CategoryDeleteMode.Cascade));
+        Assert.True(vault.DeleteCategory(root.Id, CategoryDeleteMode.Cascade).Removed);
         Assert.Empty(vault.Categories);
         Assert.DoesNotContain(vault.Categories, category => category.Id == grandChild.Id);
     }
@@ -483,7 +489,112 @@ public sealed class CategoryTests : IDisposable
         Assert.Equal(target.Id, vault.Categories.Single(c => c.Id == child.Id).ParentId);
         Assert.Equal(target.Id, vault.Entries.Single(e => e.Id == entry.Id).CategoryId);
 
-        Assert.Throws<ArgumentException>(() => vault.MergeCategories(target.Id, target.Id));
+        Assert.Throws<CategoryValidationException>(() => vault.MergeCategories(target.Id, target.Id));
         Assert.False(vault.MergeCategories(Guid.NewGuid(), target.Id));
+    }
+
+    [Fact]
+    public void MoveCategoryRejectsASiblingNameCollision()
+    {
+        using var vault = VaultService.CreateNew(Path.Combine(_directory, "move-name.aegis"), Password, FastOptions);
+        var left = vault.AddCategory("Left");
+        var right = vault.AddCategory("Right");
+        var shared = vault.AddCategory("Shared", parentId: left.Id);
+        var otherShared = vault.AddCategory("Shared", parentId: right.Id);
+
+        // Staying under the same parent is always legal.
+        Assert.True(vault.MoveCategory(shared.Id, left.Id));
+
+        var collision = Assert.Throws<CategoryValidationException>(() => vault.MoveCategory(shared.Id, right.Id));
+        Assert.Equal(CategoryValidationError.NameDuplicate, collision.Error);
+        Assert.Equal(left.Id, vault.Categories.Single(category => category.Id == shared.Id).ParentId);
+
+        // The comparison is case-insensitive, exactly like create/rename.
+        Assert.True(vault.RenameCategory(otherShared.Id, "sHaReD"));
+        Assert.Throws<CategoryValidationException>(() => vault.MoveCategory(shared.Id, right.Id));
+
+        Assert.True(vault.RenameCategory(otherShared.Id, "Other"));
+        Assert.True(vault.MoveCategory(shared.Id, right.Id));
+        Assert.Equal(right.Id, vault.Categories.Single(category => category.Id == shared.Id).ParentId);
+    }
+
+    [Fact]
+    public void MergeCategoriesRejectsNameCollisionsAndDepthOverflow()
+    {
+        using var vault = VaultService.CreateNew(Path.Combine(_directory, "merge-guards.aegis"), Password, FastOptions);
+        var source = vault.AddCategory("Servers");
+        var target = vault.AddCategory("Work");
+        var sourceChild = vault.AddCategory("Production", parentId: source.Id);
+        var targetChild = vault.AddCategory("Production", parentId: target.Id);
+
+        var collision = Assert.Throws<CategoryValidationException>(() => vault.MergeCategories(source.Id, target.Id));
+        Assert.Equal(CategoryValidationError.NameDuplicate, collision.Error);
+
+        // A rejected merge must not leave a half-applied tree behind.
+        Assert.Contains(vault.Categories, category => category.Id == source.Id);
+        Assert.Equal(source.Id, vault.Categories.Single(category => category.Id == sourceChild.Id).ParentId);
+        Assert.Equal(target.Id, vault.Categories.Single(category => category.Id == targetChild.Id).ParentId);
+
+        // Renaming the clash away makes the same merge legal.
+        Assert.True(vault.RenameCategory(targetChild.Id, "Legacy"));
+        Assert.True(vault.MergeCategories(source.Id, target.Id));
+        Assert.Equal(target.Id, vault.Categories.Single(category => category.Id == sourceChild.Id).ParentId);
+    }
+
+    [Fact]
+    public void MergeCategoriesRefusesToExceedTheDepthCap()
+    {
+        using var vault = VaultService.CreateNew(Path.Combine(_directory, "merge-depth.aegis"), Password, FastOptions);
+        var source = vault.AddCategory("Servers");
+        vault.AddCategory("Production", parentId: source.Id);
+
+        var level1 = vault.AddCategory("L1");
+        var level2 = vault.AddCategory("L2", parentId: level1.Id);
+        var level3 = vault.AddCategory("L3", parentId: level2.Id);
+        var level4 = vault.AddCategory("L4", parentId: level3.Id);
+
+        // L4 already sits at the cap, so adopting the source's child needs five.
+        var overflow = Assert.Throws<CategoryValidationException>(() => vault.MergeCategories(source.Id, level4.Id));
+        Assert.Equal(CategoryValidationError.DepthExceeded, overflow.Error);
+        Assert.Contains(vault.Categories, category => category.Id == source.Id);
+    }
+
+    [Fact]
+    public void DeleteCategoryRenamesPromotedChildrenInsteadOfDuplicatingNames()
+    {
+        var path = Path.Combine(_directory, "delete-rename.aegis");
+        Guid renamedId;
+        Guid rootId;
+
+        using (var vault = VaultService.CreateNew(path, Password, FastOptions))
+        {
+            var root = vault.AddCategory("Work");
+            var parent = vault.AddCategory("Legacy", parentId: root.Id);
+            var child = vault.AddCategory("Servers", parentId: parent.Id);
+            vault.AddCategory("Servers", parentId: root.Id);
+
+            var result = vault.DeleteCategory(parent.Id, CategoryDeleteMode.PromoteChildren);
+
+            Assert.True(result.Removed);
+            var rename = Assert.Single(result.Renamed);
+            Assert.Equal(child.Id, rename.Id);
+            Assert.Equal("Servers", rename.From);
+            Assert.Equal("Servers (2)", rename.To);
+
+            var promoted = vault.Categories.Single(category => category.Id == child.Id);
+            Assert.Equal(root.Id, promoted.ParentId);
+            Assert.Equal("Servers (2)", promoted.Name);
+
+            renamedId = child.Id;
+            rootId = root.Id;
+        }
+
+        using (var vault = VaultService.Open(path))
+        {
+            Assert.Equal(VaultUnlockStatus.Success, vault.Unlock(Password));
+            var promoted = vault.Categories.Single(category => category.Id == renamedId);
+            Assert.Equal(rootId, promoted.ParentId);
+            Assert.Equal("Servers (2)", promoted.Name);
+        }
     }
 }

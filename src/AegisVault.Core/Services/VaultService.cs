@@ -372,14 +372,16 @@ public sealed class VaultService : IDisposable
 
     /// <summary>Deletes a category; its entries become uncategorized.</summary>
     public bool DeleteCategory(Guid id)
-        => DeleteCategory(id, CategoryDeleteMode.PromoteChildren);
+        => DeleteCategory(id, CategoryDeleteMode.PromoteChildren).Removed;
 
     /// <summary>
     /// Deletes a category. Entries assigned to it become uncategorized; children
     /// are either lifted to the deleted category's parent, deleted with it, or
-    /// block the deletion (<see cref="CategoryDeleteMode"/>).
+    /// block the deletion (<see cref="CategoryDeleteMode"/>). Promoted children
+    /// whose name is already taken at the destination are renamed (never lost,
+    /// never duplicated) and reported in <see cref="CategoryDeleteResult.Renamed"/>.
     /// </summary>
-    public bool DeleteCategory(Guid id, CategoryDeleteMode mode)
+    public CategoryDeleteResult DeleteCategory(Guid id, CategoryDeleteMode mode)
     {
         ThrowIfDisposed();
         EnsureUnlocked();
@@ -387,7 +389,7 @@ public sealed class VaultService : IDisposable
         var index = _categories.FindIndex(category => category.Id == id);
         if (index < 0)
         {
-            return false;
+            return new CategoryDeleteResult(false, []);
         }
 
         var parentId = _categories[index].ParentId;
@@ -397,6 +399,7 @@ public sealed class VaultService : IDisposable
             throw new InvalidOperationException("The category still has child categories.");
         }
 
+        var renames = new List<CategoryRename>();
         if (mode == CategoryDeleteMode.Cascade)
         {
             foreach (var child in children)
@@ -406,19 +409,38 @@ public sealed class VaultService : IDisposable
         }
         else
         {
+            // Names already taken at the destination, including the ones claimed
+            // by children promoted earlier in this loop.
+            var taken = new HashSet<string>(
+                _categories
+                    .Where(category => category.ParentId == parentId && category.Id != id)
+                    .Select(category => category.Name),
+                StringComparer.OrdinalIgnoreCase);
+
             for (var i = 0; i < _categories.Count; i++)
             {
-                if (_categories[i].ParentId == id)
+                if (_categories[i].ParentId != id)
                 {
-                    _categories[i] = _categories[i] with { ParentId = parentId };
+                    continue;
                 }
+
+                var child = _categories[i];
+                var name = child.Name;
+                if (!taken.Add(name))
+                {
+                    name = MakeUniqueCategoryName(child.Name, taken);
+                    taken.Add(name);
+                    renames.Add(new CategoryRename(child.Id, child.Name, name));
+                }
+
+                _categories[i] = child with { ParentId = parentId, Name = name };
             }
         }
 
         var current = _categories.FindIndex(category => category.Id == id);
         if (current < 0)
         {
-            return false;
+            return new CategoryDeleteResult(false, []);
         }
 
         _categories.RemoveAt(current);
@@ -437,7 +459,7 @@ public sealed class VaultService : IDisposable
             _entries[i] = item;
         }
 
-        return true;
+        return new CategoryDeleteResult(true, renames);
     }
 
     /// <summary>Encrypts a settings payload with the session key.</summary>
@@ -803,7 +825,10 @@ public sealed class VaultService : IDisposable
 
         if (parentId is { } target && GetCategorySubtree(id).Contains(target))
         {
-            throw new ArgumentException("A category cannot be moved into itself or its own subtree.", nameof(parentId));
+            throw new CategoryValidationException(
+                CategoryValidationError.SelfOrSubtree,
+                "A category cannot be moved into itself or its own subtree.",
+                nameof(parentId));
         }
 
         EnsureCategoryParent(parentId, movingId: id);
@@ -812,6 +837,10 @@ public sealed class VaultService : IDisposable
         {
             return true;
         }
+
+        // Moving into another parent must not create a duplicate sibling name
+        // (excludeId keeps "stay where you are" legal).
+        EnsureUniqueCategoryName(_categories[index].Name, excludeId: id, parentId);
 
         _categories[index] = _categories[index] with { ParentId = parentId };
         SortCategories();
@@ -831,7 +860,10 @@ public sealed class VaultService : IDisposable
 
         if (sourceId == targetId)
         {
-            throw new ArgumentException("A category cannot be merged into itself.", nameof(targetId));
+            throw new CategoryValidationException(
+                CategoryValidationError.SelfOrSubtree,
+                "A category cannot be merged into itself.",
+                nameof(targetId));
         }
 
         var sourceIndex = _categories.FindIndex(category => category.Id == sourceId);
@@ -847,10 +879,31 @@ public sealed class VaultService : IDisposable
 
         if (GetCategorySubtree(sourceId).Contains(targetId))
         {
-            throw new ArgumentException("A category cannot be merged into its own subtree.", nameof(targetId));
+            throw new CategoryValidationException(
+                CategoryValidationError.SelfOrSubtree,
+                "A category cannot be merged into its own subtree.",
+                nameof(targetId));
         }
 
-        var targetParent = _categories[sourceIndex].ParentId;
+        // The source's children are re-parented onto the target: they must still
+        // fit inside the depth cap and must not collide with the target's own
+        // children (or with each other).
+        var movingChildren = _categories.Where(category => category.ParentId == sourceId).ToList();
+        var takenNames = new HashSet<string>(
+            _categories.Where(category => category.ParentId == targetId).Select(category => category.Name),
+            StringComparer.OrdinalIgnoreCase);
+        foreach (var child in movingChildren)
+        {
+            EnsureCategoryParent(targetId, movingId: child.Id);
+            if (!takenNames.Add(child.Name))
+            {
+                throw new CategoryValidationException(
+                    CategoryValidationError.NameDuplicate,
+                    $"A category named '{child.Name}' already exists under the target category.",
+                    nameof(targetId));
+            }
+        }
+
         _categories.RemoveAt(sourceIndex);
 
         for (var i = 0; i < _categories.Count; i++)
@@ -895,19 +948,26 @@ public sealed class VaultService : IDisposable
 
         if (movingId == target)
         {
-            throw new ArgumentException("A category cannot be its own parent.", nameof(parentId));
+            throw new CategoryValidationException(
+                CategoryValidationError.SelfOrSubtree,
+                "A category cannot be its own parent.",
+                nameof(parentId));
         }
 
         if (_categories.All(category => category.Id != target))
         {
-            throw new ArgumentException("The parent category does not exist.", nameof(parentId));
+            throw new CategoryValidationException(
+                CategoryValidationError.ParentMissing,
+                "The parent category does not exist.",
+                nameof(parentId));
         }
 
         var parentDepth = CategoryDepth(target);
         var subtreeHeight = movingId is { } id ? CategorySubtreeHeight(id) : 1;
         if (parentDepth + subtreeHeight > ModelMigrations.MaxCategoryDepth)
         {
-            throw new ArgumentException(
+            throw new CategoryValidationException(
+                CategoryValidationError.DepthExceeded,
                 $"A category tree may not be deeper than {ModelMigrations.MaxCategoryDepth} levels.",
                 nameof(parentId));
         }
@@ -953,7 +1013,10 @@ public sealed class VaultService : IDisposable
         var trimmed = name?.Trim() ?? string.Empty;
         if (trimmed.Length == 0)
         {
-            throw new ArgumentException("Category name must not be empty.", nameof(name));
+            throw new CategoryValidationException(
+                CategoryValidationError.NameEmpty,
+                "Category name must not be empty.",
+                nameof(name));
         }
 
         return trimmed;
@@ -966,7 +1029,27 @@ public sealed class VaultService : IDisposable
                 category.ParentId == parentId &&
                 string.Equals(category.Name, name, StringComparison.OrdinalIgnoreCase)))
         {
-            throw new ArgumentException($"A category named '{name}' already exists.", nameof(name));
+            throw new CategoryValidationException(
+                CategoryValidationError.NameDuplicate,
+                $"A category named '{name}' already exists.",
+                nameof(name));
+        }
+    }
+
+    /// <summary>
+    /// Builds a name that is free among <paramref name="taken"/> by appending
+    /// " (2)", " (3)"… to the original. Used when children are promoted into a
+    /// parent that already uses their name, so no category is ever lost.
+    /// </summary>
+    private static string MakeUniqueCategoryName(string name, IReadOnlySet<string> taken)
+    {
+        for (var suffix = 2; ; suffix++)
+        {
+            var candidate = $"{name} ({suffix})";
+            if (!taken.Contains(candidate))
+            {
+                return candidate;
+            }
         }
     }
 

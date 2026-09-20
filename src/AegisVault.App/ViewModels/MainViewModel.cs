@@ -1312,17 +1312,58 @@ public partial class MainViewModel : ObservableObject, IDisposable
             return false;
         }
 
-        var category = _vault.AddCategory(name!.Trim(), color, parentId);
+        var category = AddCategorySafely(name!.Trim(), color, parentId, ref error);
+        if (category is null)
+        {
+            return false;
+        }
+
         RefreshCategoryViews();
         SelectedCategoryChoice = CategoryChoices.First(choice => choice.Id == category.Id);
         StatusMessage = Loc.T("Main_StatusCategoryCreated");
         return true;
     }
 
+    /// <summary>Adds a category, turning a Core rejection into a localized reason.</summary>
+    private Category? AddCategorySafely(string name, string? color, Guid? parentId, ref string? error)
+    {
+        try
+        {
+            return _vault.AddCategory(name, color, parentId);
+        }
+        catch (CategoryValidationException exception)
+        {
+            error = LocalizeCategoryError(exception.Error);
+            return null;
+        }
+        catch (ArgumentException)
+        {
+            error = Loc.T("Main_CategoryOperationFailed");
+            return null;
+        }
+    }
+
     /// <summary>Moves a category to another parent (null = top level).</summary>
     public bool TryMoveCategory(Guid id, Guid? parentId, out string? error)
     {
         error = null;
+
+        var category = _vault.Categories.FirstOrDefault(candidate => candidate.Id == id);
+        if (category is null)
+        {
+            error = Loc.T("Main_CategoryMissing");
+            return false;
+        }
+
+        // Same rule as create/rename: a parent may not end up with two children
+        // called the same. Checked here so the dialog can stay open with a
+        // localized reason instead of surfacing Core's English message.
+        error = ValidateCategoryName(category.Name, excludeId: id, parentId);
+        if (error is not null)
+        {
+            return false;
+        }
+
         try
         {
             if (_vault.MoveCategory(id, parentId))
@@ -1335,9 +1376,14 @@ public partial class MainViewModel : ObservableObject, IDisposable
             error = Loc.T("Main_CategoryMissing");
             return false;
         }
-        catch (ArgumentException exception)
+        catch (CategoryValidationException exception)
         {
-            error = exception.Message;
+            error = LocalizeCategoryError(exception.Error);
+            return false;
+        }
+        catch (ArgumentException)
+        {
+            error = Loc.T("Main_CategoryOperationFailed");
             return false;
         }
     }
@@ -1350,6 +1396,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         {
             if (!_vault.MergeCategories(sourceId, targetId))
             {
+                error = Loc.T("Main_CategoryMissing");
                 return false;
             }
 
@@ -1357,12 +1404,27 @@ public partial class MainViewModel : ObservableObject, IDisposable
             StatusMessage = Loc.T("Main_StatusCategoryMerged");
             return true;
         }
-        catch (ArgumentException exception)
+        catch (CategoryValidationException exception)
         {
-            error = exception.Message;
+            error = LocalizeCategoryError(exception.Error);
+            return false;
+        }
+        catch (ArgumentException)
+        {
+            error = Loc.T("Main_CategoryOperationFailed");
             return false;
         }
     }
+
+    /// <summary>Maps a language-neutral Core rejection to user-facing text.</summary>
+    private static string LocalizeCategoryError(CategoryValidationError error) => error switch
+    {
+        CategoryValidationError.NameEmpty => Loc.T("Main_CategoryNameRequired"),
+        CategoryValidationError.NameDuplicate => Loc.T("Main_CategoryNameDuplicate"),
+        CategoryValidationError.ParentMissing => Loc.T("Main_CategoryMissing"),
+        CategoryValidationError.DepthExceeded => Loc.T("Main_CategoryTooDeep"),
+        _ => Loc.T("Main_CategoryOperationFailed"),
+    };
 
     /// <summary>Selects a category in the sidebar tree by id.</summary>
     public void SelectCategoryNode(Guid categoryId)
@@ -1415,7 +1477,17 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     public void DeleteCategory(Guid id, CategoryDeleteMode mode)
     {
-        if (!_vault.DeleteCategory(id, mode))
+        CategoryDeleteResult result;
+        try
+        {
+            result = _vault.DeleteCategory(id, mode);
+        }
+        catch (InvalidOperationException)
+        {
+            return;
+        }
+
+        if (!result.Removed)
         {
             return;
         }
@@ -1427,9 +1499,13 @@ public partial class MainViewModel : ObservableObject, IDisposable
             SelectedCategory = Categories[0];
         }
 
-        StatusMessage = mode == CategoryDeleteMode.Cascade
-            ? Loc.T("Main_StatusCategoryBranchDeleted")
-            : Loc.T("Main_StatusCategoryDeleted");
+        // Promoted children that clashed keep their data but change name; say so
+        // instead of silently renaming something the user named.
+        StatusMessage = result.Renamed.Count > 0
+            ? Loc.Format("Main_StatusCategoryPromoted", string.Join(", ", result.Renamed.Select(rename => rename.To)))
+            : mode == CategoryDeleteMode.Cascade
+                ? Loc.T("Main_StatusCategoryBranchDeleted")
+                : Loc.T("Main_StatusCategoryDeleted");
     }
 
     /// <summary>Child categories and entries a delete would touch.</summary>

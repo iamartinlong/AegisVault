@@ -629,6 +629,74 @@ public sealed class MainViewModelTests : IDisposable
     });
 
     [Fact]
+    public Task CategoryTreeReportsLocalizedNameClashOnMoveAndMerge() => Headless.Run(() =>
+    {
+        using var vault = CreateVaultWithEntries();
+        using var viewModel = new MainViewModel(vault);
+
+        viewModel.TryCreateCategory("Left", out _);
+        viewModel.TryCreateCategory("Right", out _);
+        var left = viewModel.Categories.Single(category => category.DisplayName == "Left");
+        var right = viewModel.Categories.Single(category => category.DisplayName == "Right");
+        viewModel.TryCreateCategory("Shared", out _, parentId: left.CategoryId);
+        viewModel.TryCreateCategory("Shared", out _, parentId: right.CategoryId);
+        var leftShared = viewModel.Categories.Single(category =>
+            category.DisplayName == "Shared" && category.ParentId == left.CategoryId);
+
+        var statusBefore = viewModel.StatusMessage;
+
+        // Moving would give "Right" two children called "Shared".
+        Assert.False(viewModel.TryMoveCategory(leftShared.CategoryId!.Value, right.CategoryId, out var moveError));
+        Assert.Equal(Loc.T("Main_CategoryNameDuplicate"), moveError);
+        Assert.Equal(statusBefore, viewModel.StatusMessage);
+        Assert.Equal(left.CategoryId, viewModel.Categories.Single(category => category.CategoryId == leftShared.CategoryId).ParentId);
+
+        // Merging "Left" into "Right" would do the same thing to its child.
+        Assert.False(viewModel.TryMergeCategory(left.CategoryId!.Value, right.CategoryId!.Value, out var mergeError));
+        Assert.Equal(Loc.T("Main_CategoryNameDuplicate"), mergeError);
+        Assert.Contains(viewModel.Categories, category => category.CategoryId == left.CategoryId);
+    });
+
+    [Fact]
+    public Task CategoryTreeReportsLocalizedDepthLimit() => Headless.Run(() =>
+    {
+        using var vault = CreateVaultWithEntries();
+        using var viewModel = new MainViewModel(vault);
+
+        var branch = vault.AddCategory("Branch");
+        vault.AddCategory("Leaf", parentId: branch.Id);
+        var level1 = vault.AddCategory("L1");
+        var level2 = vault.AddCategory("L2", parentId: level1.Id);
+        var level3 = vault.AddCategory("L3", parentId: level2.Id);
+        viewModel.ReloadFromVault();
+
+        Assert.False(viewModel.TryMoveCategory(branch.Id, level3.Id, out var error));
+        Assert.Equal(Loc.T("Main_CategoryTooDeep"), error);
+    });
+
+    [Fact]
+    public Task DeleteCategoryReportsPromotedChildRenames() => Headless.Run(() =>
+    {
+        using var vault = CreateVaultWithEntries();
+        using var viewModel = new MainViewModel(vault);
+
+        viewModel.TryCreateCategory("Work", out _);
+        var work = viewModel.Categories.Single(category => category.DisplayName == "Work");
+        viewModel.TryCreateCategory("Legacy", out _, parentId: work.CategoryId);
+        var legacy = viewModel.Categories.Single(category => category.DisplayName == "Legacy");
+        viewModel.TryCreateCategory("Servers", out _, parentId: legacy.CategoryId);
+        viewModel.TryCreateCategory("Servers", out _, parentId: work.CategoryId);
+
+        viewModel.DeleteCategory(legacy.CategoryId!.Value);
+
+        // The promoted child kept its data but had to give up its name.
+        Assert.Contains("Servers (2)", viewModel.StatusMessage);
+        Assert.Contains(viewModel.Categories, category => category.DisplayName == "Servers (2)");
+        Assert.Contains(viewModel.Categories, category => category.DisplayName == "Servers");
+        Assert.DoesNotContain(viewModel.Categories, category => category.CategoryId == legacy.CategoryId);
+    });
+
+    [Fact]
     public Task NewEntryInheritsSelectedCategory() => Headless.Run(() =>
     {
         using var vault = CreateVaultWithEntries();
