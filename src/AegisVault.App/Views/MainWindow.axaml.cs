@@ -11,6 +11,7 @@ using Avalonia.Controls.Templates;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using AtomUIMenuItem = AtomUI.Desktop.Controls.MenuItem;
+using AtomUIButton = AtomUI.Desktop.Controls.Button;
 using MenuFlyout = AtomUI.Desktop.Controls.MenuFlyout;
 using MenuSeparator = AtomUI.Desktop.Controls.MenuSeparator;
 
@@ -236,7 +237,10 @@ public partial class MainWindow : Window
     }
 
     private void OnRowCopyUsernameClicked(object? sender, RoutedEventArgs e)
-        => InvokeForRow(sender, viewModel => viewModel.CopyUsernameCommand.Execute(null));
+    {
+        CopyFeedback.Flash(sender as AtomUIButton);
+        InvokeForRow(sender, viewModel => viewModel.CopyUsernameCommand.Execute(null));
+    }
 
     private void OnOpenUrlClicked(object? sender, RoutedEventArgs e)
     {
@@ -302,10 +306,23 @@ public partial class MainWindow : Window
     }
 
     private void OnRowCopyPasswordClicked(object? sender, RoutedEventArgs e)
-        => InvokeForRow(sender, viewModel => viewModel.CopyPasswordCommand.Execute(null));
+    {
+        CopyFeedback.Flash(sender as AtomUIButton);
+        InvokeForRow(sender, viewModel => viewModel.CopyPasswordCommand.Execute(null));
+    }
 
     private void OnRowCopyTotpClicked(object? sender, RoutedEventArgs e)
-        => InvokeForRow(sender, viewModel => viewModel.CopyTotpCommand.Execute(null));
+    {
+        CopyFeedback.Flash(sender as AtomUIButton);
+        InvokeForRow(sender, viewModel => viewModel.CopyTotpCommand.Execute(null));
+    }
+
+    /// <summary>
+    /// Copy buttons in the detail panel keep their command (the view-model owns the
+    /// clipboard and the status message) and only add the transient feedback here.
+    /// </summary>
+    private void OnCopyFeedbackClicked(object? sender, RoutedEventArgs e)
+        => CopyFeedback.Flash(sender as AtomUIButton);
 
     private async void OnNewCategoryClicked(object? sender, RoutedEventArgs e)
     {

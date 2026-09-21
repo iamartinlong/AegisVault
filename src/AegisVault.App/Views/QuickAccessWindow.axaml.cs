@@ -1,8 +1,10 @@
+using AegisVault.App.Services;
 using AegisVault.App.ViewModels;
 using AegisVault.Core.Models;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using AtomUIButton = AtomUI.Desktop.Controls.Button;
 
 namespace AegisVault.App.Views;
 
@@ -56,13 +58,22 @@ public partial class QuickAccessWindow : Window
     }
 
     private void OnCopyUsernameClicked(object? sender, RoutedEventArgs e)
-        => InvokeForEntry(sender, (viewModel, entry) => viewModel.CopyUsernameCommand.Execute(entry));
+    {
+        CopyFeedback.Flash(sender as AtomUIButton);
+        InvokeForEntry(sender, (viewModel, entry) => viewModel.CopyUsernameCommand.Execute(entry));
+    }
 
     private void OnCopyPasswordClicked(object? sender, RoutedEventArgs e)
-        => InvokeForEntry(sender, (viewModel, entry) => viewModel.CopyPasswordCommand.Execute(entry));
+    {
+        CopyFeedback.Flash(sender as AtomUIButton);
+        InvokeForEntry(sender, (viewModel, entry) => viewModel.CopyPasswordCommand.Execute(entry));
+    }
 
     private void OnCopyPasswordAndOpenClicked(object? sender, RoutedEventArgs e)
-        => InvokeForEntry(sender, (viewModel, entry) => viewModel.CopyPasswordAndOpenCommand.Execute(entry));
+    {
+        CopyFeedback.Flash(sender as AtomUIButton);
+        InvokeForEntry(sender, (viewModel, entry) => viewModel.CopyPasswordAndOpenCommand.Execute(entry));
+    }
 
     private void InvokeForEntry(object? sender, Action<QuickAccessViewModel, PasswordEntry> action)
     {

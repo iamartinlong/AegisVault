@@ -35,6 +35,25 @@ public sealed class IconStylingTests
         Assert.NotEqual(Colors.Red, ColorOf(icon.Foreground));
     });
 
+    /// <summary>
+    /// The copy/reveal feedback swaps button icons at runtime, so the icons it
+    /// relies on must stay available in the AtomUI catalog across upgrades.
+    /// (AtomUI icons draw through DrawingInstructions and ignore PathIcon.Data,
+    /// so there is no geometry property to assert here.)
+    /// </summary>
+    [Fact]
+    public void CopyFeedbackIconsExistInCatalog()
+    {
+        var names = AntDesignIconCatalog.GetIcons()
+            .Select(candidate => candidate.Name)
+            .ToHashSet(StringComparer.Ordinal);
+
+        Assert.Contains("CopyOutlined", names);
+        Assert.Contains("CheckOutlined", names);
+        Assert.Contains("EyeOutlined", names);
+        Assert.Contains("EyeInvisibleOutlined", names);
+    }
+
     private static Color? ColorOf(IBrush? brush) => brush switch
     {
         SolidColorBrush solid => solid.Color,

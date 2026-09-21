@@ -722,7 +722,8 @@
                                                 <atom:Button ButtonType="Text"
                                                              Icon="{antd:AntDesignIconProvider CopyOutlined}"
                                                              ToolTip.Tip="{loc:Str Common_Copy}"
-                                                             Command="{Binding CopyUsernameCommand}" />
+                                                             Command="{Binding CopyUsernameCommand}"
+                                                             Click="OnCopyFeedbackClicked" />
                                             </StackPanel>
                                         </Grid>
                                     </Border>
@@ -737,13 +738,20 @@
                                                                  VerticalAlignment="Center" />
                                             <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="0">
                                                 <atom:Button ButtonType="Text"
+                                                             IsVisible="{Binding !IsPasswordRevealed}"
                                                              Icon="{antd:AntDesignIconProvider EyeOutlined}"
                                                              ToolTip.Tip="{loc:Str Common_Reveal}"
                                                              Command="{Binding TogglePasswordRevealCommand}" />
                                                 <atom:Button ButtonType="Text"
+                                                             IsVisible="{Binding IsPasswordRevealed}"
+                                                             Icon="{antd:AntDesignIconProvider EyeInvisibleOutlined}"
+                                                             ToolTip.Tip="{loc:Str Common_Hide}"
+                                                             Command="{Binding TogglePasswordRevealCommand}" />
+                                                <atom:Button ButtonType="Text"
                                                              Icon="{antd:AntDesignIconProvider CopyOutlined}"
                                                              ToolTip.Tip="{loc:Str Common_Copy}"
-                                                             Command="{Binding CopyPasswordCommand}" />
+                                                             Command="{Binding CopyPasswordCommand}"
+                                                             Click="OnCopyFeedbackClicked" />
                                             </StackPanel>
                                         </Grid>
                                     </Border>
@@ -774,7 +782,8 @@
                                                          ButtonType="Text"
                                                          Icon="{antd:AntDesignIconProvider CopyOutlined}"
                                                          ToolTip.Tip="{loc:Str Common_Copy}"
-                                                         Command="{Binding CopyTotpCommand}" />
+                                                         Command="{Binding CopyTotpCommand}"
+                                                         Click="OnCopyFeedbackClicked" />
                                         </Grid>
                                     </Border>
 
@@ -819,7 +828,8 @@
                                                          Icon="{antd:AntDesignIconProvider CopyOutlined}"
                                                          ToolTip.Tip="{loc:Str Common_Copy}"
                                                          Command="{Binding CopyValueCommand}"
-                                                         CommandParameter="{Binding EditPhone}" />
+                                                         CommandParameter="{Binding EditPhone}"
+                                                         Click="OnCopyFeedbackClicked" />
                                         </Grid>
                                     </Border>
 
@@ -838,7 +848,8 @@
                                                          Icon="{antd:AntDesignIconProvider CopyOutlined}"
                                                          ToolTip.Tip="{loc:Str Common_Copy}"
                                                          Command="{Binding CopyValueCommand}"
-                                                         CommandParameter="{Binding EditEmail}" />
+                                                         CommandParameter="{Binding EditEmail}"
+                                                         Click="OnCopyFeedbackClicked" />
                                         </Grid>
                                     </Border>
 
@@ -857,7 +868,8 @@
                                                          Icon="{antd:AntDesignIconProvider CopyOutlined}"
                                                          ToolTip.Tip="{loc:Str Common_Copy}"
                                                          Command="{Binding CopyValueCommand}"
-                                                         CommandParameter="{Binding EditAppId}" />
+                                                         CommandParameter="{Binding EditAppId}"
+                                                         Click="OnCopyFeedbackClicked" />
                                         </Grid>
                                     </Border>
 
@@ -874,15 +886,22 @@
                                                                  VerticalAlignment="Center" />
                                             <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="0">
                                                 <atom:Button ButtonType="Text"
+                                                             IsVisible="{Binding !IsSecretRevealed}"
                                                              AutomationProperties.AutomationId="RevealSecret"
                                                              Icon="{antd:AntDesignIconProvider EyeOutlined}"
                                                              ToolTip.Tip="{loc:Str Common_Reveal}"
                                                              Command="{Binding ToggleSecretRevealCommand}" />
                                                 <atom:Button ButtonType="Text"
+                                                             IsVisible="{Binding IsSecretRevealed}"
+                                                             Icon="{antd:AntDesignIconProvider EyeInvisibleOutlined}"
+                                                             ToolTip.Tip="{loc:Str Common_Hide}"
+                                                             Command="{Binding ToggleSecretRevealCommand}" />
+                                                <atom:Button ButtonType="Text"
                                                              Icon="{antd:AntDesignIconProvider CopyOutlined}"
                                                              ToolTip.Tip="{loc:Str Common_Copy}"
                                                              Command="{Binding CopyValueCommand}"
-                                                             CommandParameter="{Binding EditSecret}" />
+                                                             CommandParameter="{Binding EditSecret}"
+                                                             Click="OnCopyFeedbackClicked" />
                                             </StackPanel>
                                         </Grid>
                                     </Border>
@@ -900,15 +919,22 @@
                                                                  VerticalAlignment="Center" />
                                             <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="0">
                                                 <atom:Button ButtonType="Text"
+                                                             IsVisible="{Binding !IsApiKeyRevealed}"
                                                              AutomationProperties.AutomationId="RevealApiKey"
                                                              Icon="{antd:AntDesignIconProvider EyeOutlined}"
                                                              ToolTip.Tip="{loc:Str Common_Reveal}"
                                                              Command="{Binding ToggleApiKeyRevealCommand}" />
                                                 <atom:Button ButtonType="Text"
+                                                             IsVisible="{Binding IsApiKeyRevealed}"
+                                                             Icon="{antd:AntDesignIconProvider EyeInvisibleOutlined}"
+                                                             ToolTip.Tip="{loc:Str Common_Hide}"
+                                                             Command="{Binding ToggleApiKeyRevealCommand}" />
+                                                <atom:Button ButtonType="Text"
                                                              Icon="{antd:AntDesignIconProvider CopyOutlined}"
                                                              ToolTip.Tip="{loc:Str Common_Copy}"
                                                              Command="{Binding CopyValueCommand}"
-                                                             CommandParameter="{Binding EditApiKey}" />
+                                                             CommandParameter="{Binding EditApiKey}"
+                                                             Click="OnCopyFeedbackClicked" />
                                             </StackPanel>
                                         </Grid>
                                     </Border>
@@ -1043,9 +1069,16 @@
                                                            RevealPassword="{Binding IsTotpSecretRevealed}" />
                                             <atom:Button Grid.Column="1"
                                                          ButtonType="Text"
+                                                         IsVisible="{Binding !IsTotpSecretRevealed}"
                                                          AutomationProperties.AutomationId="RevealTotpSecret"
                                                          Icon="{antd:AntDesignIconProvider EyeOutlined}"
                                                          ToolTip.Tip="{loc:Str Common_Reveal}"
+                                                         Command="{Binding ToggleTotpRevealCommand}" />
+                                            <atom:Button Grid.Column="1"
+                                                         ButtonType="Text"
+                                                         IsVisible="{Binding IsTotpSecretRevealed}"
+                                                         Icon="{antd:AntDesignIconProvider EyeInvisibleOutlined}"
+                                                         ToolTip.Tip="{loc:Str Common_Hide}"
                                                          Command="{Binding ToggleTotpRevealCommand}" />
                                         </Grid>
                                     </StackPanel>

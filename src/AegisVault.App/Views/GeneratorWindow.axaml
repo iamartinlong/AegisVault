@@ -112,7 +112,8 @@
                     <atom:Button ButtonType="Default"
                                  Icon="{antd:AntDesignIconProvider CopyOutlined}"
                                  Content="{loc:Str Common_Copy}"
-                                 Command="{Binding CopyPasswordCommand}" />
+                                 Command="{Binding CopyPasswordCommand}"
+                                 Click="OnCopyClicked" />
                     <atom:Button ButtonType="Primary"
                                  Icon="{antd:AntDesignIconProvider CheckOutlined}"
                                  Content="{loc:Str Generator_Use}"
