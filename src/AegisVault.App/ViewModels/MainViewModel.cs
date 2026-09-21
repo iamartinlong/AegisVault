@@ -1053,14 +1053,14 @@ public partial class MainViewModel : ObservableObject, IDisposable
                 ParentId: category.ParentId));
         }
 
-        if (_vault.Categories.Count > 0 && Entries.Any(entry => entry.CategoryId is null))
+        if (HasUncategorizedView)
         {
             Categories.Add(new CategoryItem(
                 CategoryKeyPrefix,
                 Loc.T("Main_Uncategorized"),
                 null,
                 false,
-                Entries.Count(entry => entry.CategoryId is null),
+                UncategorizedCount,
                 CategoryKind.Category));
         }
 
@@ -1129,7 +1129,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
             CategoryNodes.Add(BuildCategoryNode(category, depth: 1));
         }
 
-        if (_vault.Categories.Count > 0 && Entries.Any(entry => entry.CategoryId is null))
+        if (HasUncategorizedView)
         {
             var uncategorized = Categories.First(category =>
                 category.Kind == CategoryKind.Category && category.CategoryId is null);
@@ -1167,13 +1167,32 @@ public partial class MainViewModel : ObservableObject, IDisposable
             HasChildren = hasChildren,
         };
 
-    /// <summary>Identity of the tree shape; entry counts deliberately excluded.</summary>
+    /// <summary>
+    /// Entries that have no category. The "uncategorized" sidebar row is a pseudo
+    /// row derived from entry data, so its count comes from here.
+    /// </summary>
+    private int UncategorizedCount => Entries.Count(entry => entry.CategoryId is null);
+
+    /// <summary>
+    /// Whether the sidebar shows the "uncategorized" pseudo row. Its existence is
+    /// derived from entry data, so this must be the single source of truth for
+    /// every decision about the row — including <see cref="CategoryTreeSignature"/>,
+    /// otherwise the row could never appear/disappear without a full restart.
+    /// </summary>
+    private bool HasUncategorizedView => _vault.Categories.Count > 0 && UncategorizedCount > 0;
+
+    /// <summary>
+    /// Identity of the tree shape; entry counts deliberately excluded. Anything that
+    /// changes the *set* of nodes (not just their data) must be part of this signature,
+    /// because the incremental refresh can only update existing rows.
+    /// </summary>
     private string CategoryTreeSignature()
         => string.Join(
             '|',
             _vault.Categories
                 .OrderBy(category => category.Id)
-                .Select(category => $"{category.Id:D}:{category.ParentId:D}:{category.Name}"));
+                .Select(category => $"{category.Id:D}:{category.ParentId:D}:{category.Name}"))
+           + $"|uncat:{HasUncategorizedView}";
 
     private void RefreshCategoryNodeItems()
     {

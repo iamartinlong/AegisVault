@@ -603,6 +603,56 @@ public sealed class MainViewModelTests : IDisposable
     });
 
     [Fact]
+    public Task CategoryTreeAddsUncategorizedRowWhenEntryLosesCategory() => Headless.Run(() =>
+    {
+        using var vault = VaultService.CreateNew(_vaultPath, Password, FastOptions);
+        var work = vault.AddCategory("Work");
+        var entry = vault.AddEntry(new PasswordEntry { Title = "Only", CategoryId = work.Id });
+
+        using var viewModel = new MainViewModel(vault);
+
+        // Nothing is uncategorized yet, so the pseudo row must not exist.
+        Assert.DoesNotContain(viewModel.CategoryNodes, node => node.Item.Key == "cat:");
+        Assert.DoesNotContain(viewModel.Categories, category => category.Key == "cat:");
+
+        // Clearing the category used to leave the sidebar stale until a restart: the
+        // row's existence comes from entry data, so it must join the tree signature.
+        vault.UpdateEntry(entry with { CategoryId = null });
+        viewModel.ReloadFromVault();
+
+        var uncategorized = Assert.Single(viewModel.CategoryNodes, node => node.Item.Key == "cat:");
+        Assert.Equal(1, uncategorized.Item.Count);
+        Assert.False(uncategorized.IsUserCategory);
+
+        // The row filters the uncategorized entries.
+        viewModel.SelectedCategoryNode = uncategorized;
+        Assert.Equal("Only", Assert.Single(viewModel.FilteredEntries).Title);
+    });
+
+    [Fact]
+    public Task CategoryTreeDropsUncategorizedRowWhenLastEntryLeaves() => Headless.Run(() =>
+    {
+        using var vault = VaultService.CreateNew(_vaultPath, Password, FastOptions);
+        vault.AddCategory("Work");
+        var only = vault.AddEntry(new PasswordEntry { Title = "Unfiled" });
+
+        using var viewModel = new MainViewModel(vault);
+        var uncategorized = Assert.Single(viewModel.CategoryNodes, node => node.Item.Key == "cat:");
+        Assert.Equal(1, uncategorized.Item.Count);
+
+        viewModel.SelectedCategoryNode = uncategorized;
+        Assert.False(viewModel.IsViewAll);
+
+        // Deleting the last uncategorized entry used to leave a stale "1" behind.
+        Assert.True(vault.DeleteEntry(only.Id));
+        viewModel.ReloadFromVault();
+
+        Assert.DoesNotContain(viewModel.CategoryNodes, node => node.Item.Key == "cat:");
+        Assert.DoesNotContain(viewModel.Categories, category => category.Key == "cat:");
+        Assert.True(viewModel.IsViewAll);
+    });
+
+    [Fact]
     public Task CategoryTreeSupportsMoveAndMerge() => Headless.Run(() =>
     {
         using var vault = CreateVaultWithEntries();
