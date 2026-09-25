@@ -445,13 +445,30 @@
                                     Content="{loc:Str Main_CategoryStale}"
                                     Command="{Binding SelectViewCommand}"
                                     CommandParameter="old" />
+                            <atom:Button Classes="chip"
+                                         IsVisible="{Binding IsViewRecycleBin}"
+                                         Icon="{antd:AntDesignIconProvider DeleteOutlined}"
+                                         Content="{loc:Str Main_EmptyRecycleBin}"
+                                         AutomationProperties.AutomationId="EmptyRecycleBinButton"
+                                         Click="OnEmptyRecycleBinClicked" />
                         </StackPanel>
-                        <TextBlock Grid.Column="1"
-                                   Text="{Binding StatusMessage}"
-                                   FontSize="12"
-                                   Opacity="0.6"
-                                   HorizontalAlignment="Center"
-                                   VerticalAlignment="Center" />
+                        <StackPanel Grid.Column="1"
+                                    Orientation="Horizontal"
+                                    Spacing="6"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center">
+                            <TextBlock Text="{Binding StatusMessage}"
+                                       FontSize="12"
+                                       Opacity="0.6"
+                                       VerticalAlignment="Center" />
+                            <atom:Button ButtonType="Text"
+                                         IsVisible="{Binding CanUndoDelete}"
+                                         FontSize="12"
+                                         Foreground="{atom:SharedTokenResource ColorPrimary}"
+                                         Content="{loc:Str Main_UndoDelete}"
+                                         AutomationProperties.AutomationId="UndoDeleteButton"
+                                         Command="{Binding UndoDeleteCommand}" />
+                        </StackPanel>
                         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6">
                             <atom:DropdownButton Name="SortButton"
                                                  AutomationProperties.AutomationId="SortButton"
@@ -567,7 +584,7 @@
                                     VerticalAlignment="Center"
                                     Spacing="12"
                                     MaxWidth="380"
-                                    IsVisible="{Binding IsVaultEmpty}">
+                                    IsVisible="{Binding ShowVaultHero}">
                             <atom:Button ButtonType="Text"
                                          IsHitTestVisible="False"
                                          Focusable="False"
@@ -717,7 +734,8 @@
                                                    FontSize="20"
                                                    FontWeight="SemiBold"
                                                    TextWrapping="Wrap" />
-                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="0">
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="0"
+                                                    IsVisible="{Binding !IsViewRecycleBin}">
                                             <atom:Button ButtonType="Text"
                                                          IsVisible="{Binding EditIsFavorite}"
                                                          Foreground="{atom:SharedTokenResource ColorPrimary}"
@@ -1003,18 +1021,36 @@
                                         </Grid>
                                     </Border>
 
+                                    <TextBlock Text="{Binding DeletedAtDisplay}"
+                                               FontSize="12"
+                                               Opacity="0.6"
+                                               Margin="0,14,0,0"
+                                               IsVisible="{Binding IsViewRecycleBin}" />
+
                                     <StackPanel Orientation="Horizontal"
                                                 Spacing="8"
                                                 HorizontalAlignment="Right"
                                                 Margin="0,14,0,0">
                                         <atom:Button ButtonType="Primary"
+                                                     IsVisible="{Binding !IsViewRecycleBin}"
                                                      Icon="{antd:AntDesignIconProvider EditOutlined}"
                                                      Content="{loc:Str Common_Edit}"
                                                      Command="{Binding BeginEditCommand}" />
                                         <atom:Button ButtonType="Default"
+                                                     IsVisible="{Binding !IsViewRecycleBin}"
                                                      Icon="{antd:AntDesignIconProvider DeleteOutlined}"
                                                      Content="{loc:Str Common_Delete}"
                                                      Click="OnDeleteEntryClicked" />
+                                        <atom:Button ButtonType="Primary"
+                                                     IsVisible="{Binding IsViewRecycleBin}"
+                                                     Icon="{antd:AntDesignIconProvider UndoOutlined}"
+                                                     Content="{loc:Str Main_RestoreEntry}"
+                                                     Command="{Binding RestoreSelectedEntryCommand}" />
+                                        <atom:Button ButtonType="Default"
+                                                     IsVisible="{Binding IsViewRecycleBin}"
+                                                     Icon="{antd:AntDesignIconProvider DeleteOutlined}"
+                                                     Content="{loc:Str Main_DeleteForever}"
+                                                     Click="OnPurgeEntryClicked" />
                                     </StackPanel>
                                 </StackPanel>
 

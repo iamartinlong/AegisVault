@@ -55,6 +55,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private const string FavoritesCategoryKey = "favorites";
     private const string WeakCategoryKey = "weak";
     private const string StaleCategoryKey = "old";
+    private const string RecycleBinCategoryKey = "recycle";
     private const string CategoryKeyPrefix = "cat:";
 
     private readonly VaultService _vault;
@@ -62,8 +63,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private readonly TimeProvider _timeProvider;
     private readonly DispatcherTimer _totpTimer;
     private readonly DispatcherTimer _toastTimer;
+    private readonly DispatcherTimer _undoTimer;
     private readonly DispatcherTimer? _searchTimer;
     private readonly DispatcherTimer? _healthTimer;
+    private Guid? _lastDeletedId;
     private int _healthRevision;
     private bool _disposed;
     private bool _loadingEditor;
@@ -108,6 +111,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
         _toastTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _toastTimer.Tick += (_, _) => OnToastTimerTick();
+
+        // Undo window after a delete; the entry stays in the recycle bin afterwards.
+        _undoTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(8) };
+        _undoTimer.Tick += (_, _) => ClearUndoDelete();
 
         if (_clipboard is not null)
         {
@@ -385,6 +392,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>True when the vault itself has no entries (welcome hero shows).</summary>
     public bool IsVaultEmpty => Entries.Count == 0;
 
+    /// <summary>The welcome hero is suppressed while browsing the recycle bin.</summary>
+    public bool ShowVaultHero => IsVaultEmpty && !IsViewRecycleBin;
+
     /// <summary>True when the vault has entries but none match the current view/search.</summary>
     public bool ShowListEmptyHint => Entries.Count > 0 && FilteredEntries.Count == 0;
 
@@ -475,6 +485,20 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     public bool IsViewStale => SelectedCategory?.Key == StaleCategoryKey;
 
+    public bool IsViewRecycleBin => SelectedCategory?.Key == RecycleBinCategoryKey;
+
+    /// <summary>Number of entries currently in the recycle bin.</summary>
+    public int DeletedCount => _vault.DeletedEntries.Count;
+
+    /// <summary>"Deleted on …" line shown for a recycled entry.</summary>
+    public string DeletedAtDisplay => SelectedEntry?.DeletedAt is { } deletedAt
+        ? Loc.Format("Main_DeletedAtFormat", deletedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm"))
+        : string.Empty;
+
+    /// <summary>True while the delete that just happened can still be undone.</summary>
+    [ObservableProperty]
+    private bool canUndoDelete;
+
     public string FilteredCountText => Loc.Format("Main_EntryCountFormat", FilteredEntries.Count);
 
     partial void OnSortModeChanged(EntrySortMode value)
@@ -502,12 +526,16 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     partial void OnSelectedCategoryChanged(CategoryItem? value)
     {
+        // Switching views always leaves the editor (a recycled entry is not editable).
+        IsEditing = false;
         RefreshCategoryFilter();
         ApplyFilter();
         OnPropertyChanged(nameof(IsViewAll));
         OnPropertyChanged(nameof(IsViewFavorites));
         OnPropertyChanged(nameof(IsViewSecurity));
         OnPropertyChanged(nameof(IsViewStale));
+        OnPropertyChanged(nameof(IsViewRecycleBin));
+        OnPropertyChanged(nameof(ShowVaultHero));
     }
 
     /// <summary>
@@ -534,6 +562,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(HasSelection));
         OnPropertyChanged(nameof(ShowSelectEntryHint));
         OnPropertyChanged(nameof(ShowStartupGuide));
+        OnPropertyChanged(nameof(DeletedAtDisplay));
     }
 
     partial void OnStartupGuideDismissedChanged(bool value)
@@ -732,8 +761,83 @@ public partial class MainViewModel : ObservableObject, IDisposable
             IsEditing = false;
             RefreshCategories();
             ApplyFilter();
-            StatusMessage = Loc.T("Main_StatusDeleted");
+
+            // Keep a short undo window; after it expires the entry is only
+            // reachable from the recycle bin.
+            _lastDeletedId = target.Id;
+            CanUndoDelete = true;
+            _undoTimer.Stop();
+            _undoTimer.Start();
+            StatusMessage = Loc.T("Main_StatusMovedToRecycleBin");
         }
+    }
+
+    /// <summary>Restores the entry deleted moments ago (status-bar undo).</summary>
+    [RelayCommand]
+    private void UndoDelete()
+    {
+        if (_lastDeletedId is { } id && _vault.RestoreEntry(id))
+        {
+            ReloadFromVault();
+            StatusMessage = Loc.T("Main_StatusEntryRestored");
+        }
+
+        ClearUndoDelete();
+    }
+
+    private void ClearUndoDelete()
+    {
+        _undoTimer.Stop();
+        _lastDeletedId = null;
+        CanUndoDelete = false;
+    }
+
+    /// <summary>Restores the entry selected inside the recycle bin.</summary>
+    [RelayCommand]
+    private void RestoreSelectedEntry()
+    {
+        if (SelectedEntry is not { } target || !IsViewRecycleBin)
+        {
+            return;
+        }
+
+        if (_vault.RestoreEntry(target.Id))
+        {
+            ReloadFromVault();
+            StatusMessage = Loc.T("Main_StatusEntryRestored");
+        }
+    }
+
+    /// <summary>
+    /// Permanently deletes the entry selected inside the recycle bin. Called from
+    /// the shell after the user confirms the irreversible action.
+    /// </summary>
+    public bool PurgeSelectedEntry()
+    {
+        if (SelectedEntry is not { } target || !IsViewRecycleBin || !_vault.PurgeEntry(target.Id))
+        {
+            return false;
+        }
+
+        ReloadFromVault();
+        StatusMessage = Loc.T("Main_StatusEntryPurged");
+        return true;
+    }
+
+    /// <summary>
+    /// Empties the recycle bin (called from the shell after confirmation);
+    /// returns how many entries were purged.
+    /// </summary>
+    public int EmptyRecycleBin()
+    {
+        var purged = _vault.EmptyRecycleBin();
+        if (purged > 0)
+        {
+            ReloadFromVault();
+            StatusMessage = Loc.T("Main_StatusRecycleBinEmptied");
+        }
+
+        return purged;
     }
 
     [RelayCommand]
@@ -887,6 +991,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void Lock()
     {
+        ClearUndoDelete();
         _vault.Lock();
         LockRequested?.Invoke();
     }
@@ -912,6 +1017,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _healthTimer?.Stop();
         _totpTimer.Stop();
         _toastTimer.Stop();
+        _undoTimer.Stop();
 
         if (_clipboard is not null)
         {
@@ -1056,6 +1162,17 @@ public partial class MainViewModel : ObservableObject, IDisposable
         if (_health.OldCount > 0)
         {
             Categories.Add(new CategoryItem(StaleCategoryKey, Loc.T("Main_CategoryStale"), null, false, _health.OldCount));
+        }
+
+        // Only offered while the bin has something in it (same rule as weak/stale).
+        if (_vault.DeletedEntries.Count > 0)
+        {
+            Categories.Add(new CategoryItem(
+                RecycleBinCategoryKey,
+                Loc.T("Main_CategoryRecycleBin"),
+                null,
+                false,
+                _vault.DeletedEntries.Count));
         }
 
         var directCounts = new Dictionary<Guid, int>();
@@ -1619,11 +1736,23 @@ public partial class MainViewModel : ObservableObject, IDisposable
         var previousSelection = SelectedEntry;
         var query = SearchText?.Trim() ?? string.Empty;
 
-        var matches = Entries.Where(entry => MatchesCategory(entry) && MatchesSearch(entry, query));
-        var ordered = SortMode == EntrySortMode.RecentlyUpdated
-            ? matches.OrderByDescending(static entry => entry.UpdatedAt)
-            : matches.OrderByDescending(static entry => entry.IsFavorite)
-                .ThenBy(static entry => entry.Title, StringComparer.OrdinalIgnoreCase);
+        // The recycle bin is sourced from the vault's recycled entries rather than
+        // the live list, and always shows the most recently deleted first.
+        IEnumerable<PasswordEntry> ordered;
+        if (IsViewRecycleBin)
+        {
+            ordered = _vault.DeletedEntries
+                .Where(entry => MatchesSearch(entry, query))
+                .OrderByDescending(static entry => entry.DeletedAt);
+        }
+        else
+        {
+            var matches = Entries.Where(entry => MatchesCategory(entry) && MatchesSearch(entry, query));
+            ordered = SortMode == EntrySortMode.RecentlyUpdated
+                ? matches.OrderByDescending(static entry => entry.UpdatedAt)
+                : matches.OrderByDescending(static entry => entry.IsFavorite)
+                    .ThenBy(static entry => entry.Title, StringComparer.OrdinalIgnoreCase);
+        }
 
         // One notification instead of Clear+Add per entry: on large vaults the
         // per-item collection changes dominated every keystroke.
@@ -1641,6 +1770,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(HasFilteredEntries));
         OnPropertyChanged(nameof(FilteredCountText));
         OnPropertyChanged(nameof(IsVaultEmpty));
+        OnPropertyChanged(nameof(ShowVaultHero));
         OnPropertyChanged(nameof(ShowListEmptyHint));
         OnPropertyChanged(nameof(ShowSelectEntryHint));
         OnPropertyChanged(nameof(ShowStartupGuide));

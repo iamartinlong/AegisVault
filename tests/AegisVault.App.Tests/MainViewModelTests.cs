@@ -376,6 +376,106 @@ public sealed class MainViewModelTests : IDisposable
     });
 
     [Fact]
+    public Task DeleteMovesEntryToRecycleBinAndUndoRestoresIt() => Headless.Run(() =>
+    {
+        using var vault = CreateVaultWithEntries();
+        using var viewModel = new MainViewModel(vault);
+
+        viewModel.SelectedEntry = vault.Entries.Single(entry => entry.Title == "GitHub");
+        viewModel.DeleteEntryCommand.Execute(null);
+
+        Assert.Single(viewModel.FilteredEntries);
+        Assert.True(viewModel.CanUndoDelete);
+        Assert.Single(vault.DeletedEntries);
+        Assert.Equal("GitHub", vault.DeletedEntries[0].Title);
+
+        viewModel.UndoDeleteCommand.Execute(null);
+
+        Assert.False(viewModel.CanUndoDelete);
+        Assert.Empty(vault.DeletedEntries);
+        Assert.Equal(2, viewModel.FilteredEntries.Count);
+    });
+
+    [Fact]
+    public Task RecycleBinRowAppearsOnlyWhenNotEmpty() => Headless.Run(() =>
+    {
+        using var vault = CreateVaultWithEntries();
+        using var viewModel = new MainViewModel(vault);
+
+        Assert.DoesNotContain(viewModel.Categories, category => category.Key == "recycle");
+
+        vault.DeleteEntry(vault.Entries.First().Id);
+        viewModel.ReloadFromVault();
+
+        var bin = Assert.Single(viewModel.Categories, category => category.Key == "recycle");
+        Assert.Equal(1, bin.Count);
+
+        viewModel.SelectViewCommand.Execute("recycle");
+
+        Assert.True(viewModel.IsViewRecycleBin);
+        Assert.Equal("GitHub", Assert.Single(viewModel.FilteredEntries).Title);
+    });
+
+    [Fact]
+    public Task RestoreSelectedEntryFromRecycleBin() => Headless.Run(() =>
+    {
+        using var vault = CreateVaultWithEntries();
+        using var viewModel = new MainViewModel(vault);
+
+        vault.DeleteEntry(vault.Entries.First(entry => entry.Title == "Mail").Id);
+        viewModel.ReloadFromVault();
+        viewModel.SelectViewCommand.Execute("recycle");
+
+        var recycled = Assert.Single(viewModel.FilteredEntries);
+        viewModel.SelectedEntry = recycled;
+        Assert.Equal("Mail", recycled.Title);
+
+        viewModel.RestoreSelectedEntryCommand.Execute(null);
+
+        Assert.False(viewModel.IsViewRecycleBin);
+        Assert.Empty(vault.DeletedEntries);
+        Assert.Contains(vault.Entries, entry => entry.Title == "Mail");
+    });
+
+    [Fact]
+    public Task EmptyRecycleBinReturnsToTheLiveView() => Headless.Run(() =>
+    {
+        using var vault = CreateVaultWithEntries();
+        using var viewModel = new MainViewModel(vault);
+
+        vault.DeleteEntry(vault.Entries.First().Id);
+        vault.DeleteEntry(vault.Entries.First().Id);
+        viewModel.ReloadFromVault();
+        viewModel.SelectViewCommand.Execute("recycle");
+        Assert.Equal(2, viewModel.FilteredEntries.Count);
+
+        Assert.Equal(2, viewModel.EmptyRecycleBin());
+
+        Assert.Empty(vault.DeletedEntries);
+        Assert.DoesNotContain(viewModel.Categories, category => category.Key == "recycle");
+        Assert.False(viewModel.IsViewRecycleBin);
+    });
+
+    [Fact]
+    public Task RecycleBinHidesTheWelcomeHeroForAnEmptiedVault() => Headless.Run(() =>
+    {
+        using var vault = VaultService.CreateNew(_vaultPath, Password, FastOptions);
+        var only = vault.AddEntry(new PasswordEntry { Title = "Only" });
+
+        using var viewModel = new MainViewModel(vault);
+        Assert.False(viewModel.IsVaultEmpty);
+        Assert.False(viewModel.ShowVaultHero);
+
+        vault.DeleteEntry(only.Id);
+        viewModel.ReloadFromVault();
+        viewModel.SelectViewCommand.Execute("recycle");
+
+        Assert.True(viewModel.IsVaultEmpty);
+        Assert.False(viewModel.ShowVaultHero);
+        Assert.Equal("Only", Assert.Single(viewModel.FilteredEntries).Title);
+    });
+
+    [Fact]
     public Task ComputesTotpForSelectedEntry() => Headless.Run(() =>
     {
         using var vault = CreateVaultWithEntries();

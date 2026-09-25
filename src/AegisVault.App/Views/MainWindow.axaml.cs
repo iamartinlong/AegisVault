@@ -233,7 +233,9 @@ public partial class MainWindow : Window
         }
         else if (!ctrl && e.Key == Key.Delete && !focusedIsTextBox)
         {
-            _ = ConfirmDeleteEntryAsync();
+            // Soft delete: recoverable from the recycle bin, so no confirmation
+            // (only the irreversible purge/empty actions ask).
+            viewModel.DeleteEntryCommand.Execute(null);
             e.Handled = true;
         }
         else if (e.Key == Key.Escape && viewModel.IsEditing)
@@ -266,10 +268,11 @@ public partial class MainWindow : Window
         }
     }
 
-    private async void OnDeleteEntryClicked(object? sender, RoutedEventArgs e)
-        => await ConfirmDeleteEntryAsync();
+    private void OnDeleteEntryClicked(object? sender, RoutedEventArgs e)
+        => (DataContext as MainViewModel)?.DeleteEntryCommand.Execute(null);
 
-    private async Task ConfirmDeleteEntryAsync()
+    /// <summary>Permanent deletion from the recycle bin — the one that confirms.</summary>
+    private async void OnPurgeEntryClicked(object? sender, RoutedEventArgs e)
     {
         if (DataContext is not MainViewModel viewModel || viewModel.SelectedEntry is not { } entry)
         {
@@ -279,11 +282,33 @@ public partial class MainWindow : Window
         try
         {
             var dialog = new ConfirmWindow(
-                Loc.T("Main_DeleteEntryTitle"),
-                Loc.Format("Main_DeleteEntryMessage", entry.Title));
+                Loc.T("Main_PurgeEntryTitle"),
+                Loc.Format("Main_PurgeEntryMessage", entry.Title));
             if (await dialog.ShowDialog<bool>(this))
             {
-                viewModel.DeleteEntryCommand.Execute(null);
+                viewModel.PurgeSelectedEntry();
+            }
+        }
+        catch (Exception)
+        {
+        }
+    }
+
+    private async void OnEmptyRecycleBinClicked(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        try
+        {
+            var dialog = new ConfirmWindow(
+                Loc.T("Main_EmptyRecycleBinTitle"),
+                Loc.Format("Main_EmptyRecycleBinMessage", viewModel.DeletedCount));
+            if (await dialog.ShowDialog<bool>(this))
+            {
+                viewModel.EmptyRecycleBin();
             }
         }
         catch (Exception)
