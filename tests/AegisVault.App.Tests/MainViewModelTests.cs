@@ -1000,6 +1000,46 @@ public sealed class MainViewModelTests : IDisposable
         Assert.Equal([Loc.English], applied);
     }
 
+    [Fact]
+    public Task SmartViewShortcutIgnoresViewsThatAreNotOffered() => Headless.Run(() =>
+    {
+        using var vault = CreateVaultWithEntries();
+        using var viewModel = new MainViewModel(vault);
+        var before = viewModel.SelectedCategory?.Key;
+
+        // Index 99 is not a smart view; the selection must stay put.
+        viewModel.ShowSmartViewCommand.Execute(99);
+
+        Assert.Equal(before, viewModel.SelectedCategory?.Key);
+    });
+
+    [Fact]
+    public Task SmartViewShortcutSelectsAllAndFavorites() => Headless.Run(() =>
+    {
+        using var vault = CreateVaultWithEntries();
+        using var viewModel = new MainViewModel(vault);
+
+        viewModel.ShowSmartViewCommand.Execute(2);
+        Assert.Equal("favorites", viewModel.SelectedCategory?.Key);
+        Assert.True(viewModel.IsViewFavorites);
+
+        viewModel.ShowSmartViewCommand.Execute(1);
+        Assert.Equal("all", viewModel.SelectedCategory?.Key);
+        Assert.True(viewModel.IsViewAll);
+    });
+
+    [Fact]
+    public Task ClearSearchEmptiesTheQuery() => Headless.Run(() =>
+    {
+        using var vault = CreateVaultWithEntries();
+        using var viewModel = new MainViewModel(vault);
+
+        viewModel.SearchText = "git";
+        viewModel.ClearSearchCommand.Execute(null);
+
+        Assert.Equal(string.Empty, viewModel.SearchText);
+    });
+
     private VaultService CreateVaultWithEntries()
     {
         var vault = VaultService.CreateNew(_vaultPath, Password, FastOptions);

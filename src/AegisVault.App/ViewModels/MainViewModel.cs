@@ -798,6 +798,34 @@ public partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>Clears the search box (Escape).</summary>
+    [RelayCommand]
+    private void ClearSearch() => SearchText = string.Empty;
+
+    /// <summary>
+    /// Smart-view shortcuts (Ctrl+1…4). Views that are not offered right now (the
+    /// security/stale rows only exist while they have entries) are ignored instead
+    /// of falling back to something the user did not ask for.
+    /// </summary>
+    [RelayCommand]
+    private void ShowSmartView(int index)
+    {
+        var key = index switch
+        {
+            1 => AllCategoryKey,
+            2 => FavoritesCategoryKey,
+            3 => WeakCategoryKey,
+            4 => StaleCategoryKey,
+            _ => null,
+        };
+
+        if (key is not null &&
+            SystemCategories.FirstOrDefault(category => category.Key == key) is { } target)
+        {
+            SelectedSystemCategory = target;
+        }
+    }
+
     [RelayCommand]
     private async Task CopyPasswordAsync()
     {

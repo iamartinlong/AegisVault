@@ -220,6 +220,17 @@ public partial class MainWindow : Window
             viewModel.LockCommand.Execute(null);
             e.Handled = true;
         }
+        else if (ctrl && !shift && !alt && e.Key is Key.D1 or Key.D2 or Key.D3 or Key.D4)
+        {
+            viewModel.ShowSmartViewCommand.Execute(e.Key switch
+            {
+                Key.D1 => 1,
+                Key.D2 => 2,
+                Key.D3 => 3,
+                _ => 4,
+            });
+            e.Handled = true;
+        }
         else if (!ctrl && e.Key == Key.Delete && !focusedIsTextBox)
         {
             _ = ConfirmDeleteEntryAsync();
@@ -228,6 +239,11 @@ public partial class MainWindow : Window
         else if (e.Key == Key.Escape && viewModel.IsEditing)
         {
             viewModel.CancelEditCommand.Execute(null);
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Escape && !string.IsNullOrEmpty(viewModel.SearchText))
+        {
+            viewModel.ClearSearchCommand.Execute(null);
             e.Handled = true;
         }
         else

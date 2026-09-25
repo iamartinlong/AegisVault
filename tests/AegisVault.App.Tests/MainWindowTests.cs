@@ -465,6 +465,61 @@ public sealed class MainWindowTests
         }
     });
 
+    [Fact]
+    public Task EscapeClearsTheSearchAndControlDigitsSwitchSmartViews() => Headless.Run(() =>
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "aegis-ui-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            using var vault = Core.Services.VaultService.CreateNew(
+                Path.Combine(directory, "vault.aegis"),
+                "master password"u8.ToArray(),
+                new Core.Services.VaultOptions
+                {
+                    Kdf = new Core.Models.KdfParameters
+                    {
+                        Algorithm = Core.Models.KdfParameters.AlgorithmArgon2id,
+                        Iterations = 3,
+                        MemoryBytes = 8L * 1024 * 1024,
+                    },
+                });
+            vault.AddEntry(new Core.Models.PasswordEntry { Title = "One" });
+
+            using var viewModel = new ViewModels.MainViewModel(vault);
+            var window = new MainWindow { DataContext = viewModel };
+            window.Show();
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+
+            // Escape clears an active search (cancelling an edit keeps priority).
+            viewModel.SearchText = "zzz";
+            window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            Assert.Equal(string.Empty, viewModel.SearchText);
+
+            // Ctrl+1/2 jump to the all/favorites smart views.
+            window.KeyPress(Key.D2, RawInputModifiers.Control, PhysicalKey.Digit2, null);
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            Assert.Equal("favorites", viewModel.SelectedCategory?.Key);
+
+            window.KeyPress(Key.D1, RawInputModifiers.Control, PhysicalKey.Digit1, null);
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            Assert.Equal("all", viewModel.SelectedCategory?.Key);
+
+            window.Close();
+        }
+        finally
+        {
+            try
+            {
+                Directory.Delete(directory, recursive: true);
+            }
+            catch (IOException)
+            {
+            }
+        }
+    });
+
     private static AtomUI.Desktop.Controls.NavMenu CategoryTree(Window window)
         => window.GetVisualDescendants().OfType<AtomUI.Desktop.Controls.NavMenu>()
             .First(candidate => (candidate.GetValue(AutomationProperties.AutomationIdProperty) as string) == "CategoryTree");
