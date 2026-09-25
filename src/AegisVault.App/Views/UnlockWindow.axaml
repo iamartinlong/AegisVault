@@ -10,7 +10,7 @@
         Icon="/Assets/app.png"
         Title="{loc:Str App_Title}"
         Width="560"
-        Height="800"
+        Height="740"
         CanResize="False"
         WindowStartupLocation="CenterScreen"
         DragDrop.AllowDrop="True"
