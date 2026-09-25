@@ -220,6 +220,34 @@ internal sealed class VaultDatabase : IDisposable
         command.ExecuteNonQuery();
     }
 
+    /// <summary>
+    /// Permanently deletes a batch of entries in a single transaction (recycle
+    /// bin purge/empty).
+    /// </summary>
+    public void DeleteEntries(IReadOnlyList<Guid> ids)
+    {
+        if (ids.Count == 0)
+        {
+            return;
+        }
+
+        using var transaction = _connection.BeginTransaction();
+        using var command = _connection.CreateCommand();
+        command.Transaction = transaction;
+
+        var placeholders = new string[ids.Count];
+        for (var i = 0; i < ids.Count; i++)
+        {
+            var name = "$id" + i.ToString(CultureInfo.InvariantCulture);
+            placeholders[i] = name;
+            command.Parameters.AddWithValue(name, ids[i].ToString("D"));
+        }
+
+        command.CommandText = $"DELETE FROM entries WHERE id IN ({string.Join(", ", placeholders)});";
+        command.ExecuteNonQuery();
+        transaction.Commit();
+    }
+
     public List<EntryRecord> ReadEntries()
     {
         using var command = _connection.CreateCommand();

@@ -34,25 +34,38 @@ public sealed class VaultService : IDisposable
     private static byte[] CategoriesAssociatedData(int version)
         => System.Text.Encoding.UTF8.GetBytes($"AegisVault|settings|categories|v{version}");
 
+    /// <summary>
+    /// How long a soft-deleted entry stays in the recycle bin before it is
+    /// purged on unlock.
+    /// </summary>
+    public static readonly TimeSpan RecycleBinRetention = TimeSpan.FromDays(30);
+
     private readonly VaultDatabase _database;
     private readonly List<PasswordEntry> _entries = [];
+    private readonly List<PasswordEntry> _deleted = [];
     private readonly List<Category> _categories = [];
+    private readonly TimeProvider _time;
 
     private VaultHeader _header;
     private SecureBuffer? _dek;
     private bool _disposed;
 
-    private VaultService(VaultDatabase database, VaultHeader header)
+    private VaultService(VaultDatabase database, VaultHeader header, TimeProvider time)
     {
         _database = database;
         _header = header;
+        _time = time;
     }
 
     public bool IsUnlocked => _dek is not null;
 
     public string VaultPath => _database.Path;
 
+    /// <summary>Live entries; soft-deleted ones are exposed via <see cref="DeletedEntries"/>.</summary>
     public IReadOnlyList<PasswordEntry> Entries => _entries;
+
+    /// <summary>Entries currently in the recycle bin (soft-deleted, newest first).</summary>
+    public IReadOnlyList<PasswordEntry> DeletedEntries => _deleted;
 
     public IReadOnlyList<Category> Categories => _categories;
 
@@ -65,8 +78,13 @@ public sealed class VaultService : IDisposable
     public bool CategoriesUnreadable { get; private set; }
 
     /// <summary>Creates a new vault and returns it in the unlocked state.</summary>
-    public static VaultService CreateNew(string path, ReadOnlySpan<byte> password, VaultOptions? options = null)
+    public static VaultService CreateNew(
+        string path,
+        ReadOnlySpan<byte> password,
+        VaultOptions? options = null,
+        TimeProvider? timeProvider = null)
     {
+        var time = timeProvider ?? TimeProvider.System;
         var database = VaultDatabase.OpenOrCreate(path);
         try
         {
@@ -84,7 +102,7 @@ public sealed class VaultService : IDisposable
             var dekBytes = RandomNumberGenerator.GetBytes(KeyEnvelope.DekSize);
             try
             {
-                var now = DateTimeOffset.UtcNow;
+                var now = time.GetUtcNow();
                 var associatedData = VaultHeader.ComputeAssociatedData(VaultHeader.CurrentFormatVersion, kdf, salt);
 
                 var header = new VaultHeader
@@ -101,7 +119,7 @@ public sealed class VaultService : IDisposable
                 var dek = SecureBuffer.From(dekBytes);
                 dek.ProtectReadOnly();
 
-                return new VaultService(database, header) { _dek = dek };
+                return new VaultService(database, header, time) { _dek = dek };
             }
             finally
             {
@@ -116,7 +134,7 @@ public sealed class VaultService : IDisposable
     }
 
     /// <summary>Opens an existing vault file without unlocking it.</summary>
-    public static VaultService Open(string path)
+    public static VaultService Open(string path, TimeProvider? timeProvider = null)
     {
         if (!File.Exists(path))
         {
@@ -129,7 +147,7 @@ public sealed class VaultService : IDisposable
             var header = database.ReadMeta()
                 ?? throw new InvalidDataException("The file is not an AegisVault vault (metadata missing).");
 
-            return new VaultService(database, header);
+            return new VaultService(database, header, timeProvider ?? TimeProvider.System);
         }
         catch
         {
@@ -175,6 +193,7 @@ public sealed class VaultService : IDisposable
     public void Lock()
     {
         _entries.Clear();
+        _deleted.Clear();
         _categories.Clear();
         _dek?.Dispose();
         _dek = null;
@@ -200,7 +219,7 @@ public sealed class VaultService : IDisposable
             Salt = salt,
             WrappedDek = KeyEnvelope.Wrap(kek.ReadOnlySpan, _dek!.ReadOnlySpan, associatedData),
             CreatedAt = _header.CreatedAt,
-            UpdatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = _time.GetUtcNow(),
         };
 
         _database.WriteMeta(updated);
@@ -215,7 +234,7 @@ public sealed class VaultService : IDisposable
         ThrowIfDisposed();
         EnsureUnlocked();
 
-        var now = DateTimeOffset.UtcNow;
+        var now = _time.GetUtcNow();
         var item = entry with
         {
             Id = entry.Id == Guid.Empty ? Guid.NewGuid() : entry.Id,
@@ -240,7 +259,7 @@ public sealed class VaultService : IDisposable
         EnsureUnlocked();
         ArgumentNullException.ThrowIfNull(entries);
 
-        var now = DateTimeOffset.UtcNow;
+        var now = _time.GetUtcNow();
         var items = new List<PasswordEntry>();
         foreach (var entry in entries)
         {
@@ -286,12 +305,17 @@ public sealed class VaultService : IDisposable
             return false;
         }
 
-        var item = entry with { UpdatedAt = DateTimeOffset.UtcNow };
+        var item = entry with { UpdatedAt = _time.GetUtcNow() };
         Persist(item);
         _entries[index] = item;
         return true;
     }
 
+    /// <summary>
+    /// Moves an entry to the recycle bin (soft delete). The payload keeps a
+    /// <c>DeletedAt</c> timestamp and the entry leaves <see cref="Entries"/>;
+    /// <see cref="UpdatedAt"/> is left untouched because deleting is not editing.
+    /// </summary>
     public bool DeleteEntry(Guid id)
     {
         ThrowIfDisposed();
@@ -303,8 +327,112 @@ public sealed class VaultService : IDisposable
             return false;
         }
 
-        _database.DeleteEntry(id);
+        var item = _entries[index] with { DeletedAt = _time.GetUtcNow() };
+        Persist(item);
         _entries.RemoveAt(index);
+        _deleted.Insert(0, item);
+        return true;
+    }
+
+    /// <summary>Restores a soft-deleted entry back to the live list.</summary>
+    public bool RestoreEntry(Guid id)
+    {
+        ThrowIfDisposed();
+        EnsureUnlocked();
+
+        var index = _deleted.FindIndex(existing => existing.Id == id);
+        if (index < 0)
+        {
+            return false;
+        }
+
+        var item = _deleted[index] with { DeletedAt = null };
+        Persist(item);
+        _deleted.RemoveAt(index);
+        _entries.Add(item);
+        return true;
+    }
+
+    /// <summary>Permanently deletes a single recycled entry.</summary>
+    public bool PurgeEntry(Guid id)
+    {
+        ThrowIfDisposed();
+        EnsureUnlocked();
+
+        var index = _deleted.FindIndex(existing => existing.Id == id);
+        if (index < 0)
+        {
+            return false;
+        }
+
+        _database.DeleteEntry(id);
+        _deleted.RemoveAt(index);
+        return true;
+    }
+
+    /// <summary>Permanently deletes every recycled entry; returns how many were removed.</summary>
+    public int EmptyRecycleBin()
+    {
+        ThrowIfDisposed();
+        EnsureUnlocked();
+
+        if (_deleted.Count == 0)
+        {
+            return 0;
+        }
+
+        var count = _deleted.Count;
+        _database.DeleteEntries(_deleted.Select(entry => entry.Id).ToList());
+        _deleted.Clear();
+        return count;
+    }
+
+    /// <summary>
+    /// Permanently deletes recycled entries older than <see cref="RecycleBinRetention"/>.
+    /// Called once on unlock so the bin cannot grow without bound.
+    /// </summary>
+    public int PurgeExpiredDeleted()
+    {
+        ThrowIfDisposed();
+        EnsureUnlocked();
+
+        var cutoff = _time.GetUtcNow() - RecycleBinRetention;
+        var expired = _deleted
+            .Where(entry => entry.DeletedAt is { } deletedAt && deletedAt < cutoff)
+            .ToList();
+        if (expired.Count == 0)
+        {
+            return 0;
+        }
+
+        _database.DeleteEntries(expired.Select(entry => entry.Id).ToList());
+        foreach (var entry in expired)
+        {
+            _deleted.Remove(entry);
+        }
+
+        return expired.Count;
+    }
+
+    /// <summary>
+    /// Records that an entry was viewed. Deliberately does <b>not</b> change
+    /// <see cref="PasswordEntry.UpdatedAt"/> so the "stale" health view and the
+    /// "recently updated" sort stay meaningful.
+    /// </summary>
+    public bool MarkEntryOpened(Guid id)
+    {
+        ThrowIfDisposed();
+        EnsureUnlocked();
+
+        var index = _entries.FindIndex(existing => existing.Id == id);
+        if (index < 0)
+        {
+            return false;
+        }
+
+        var item = _entries[index] with { LastOpenedAt = _time.GetUtcNow() };
+        Persist(item);
+        _entries[index] = item;
         return true;
     }
 
@@ -454,9 +582,23 @@ public sealed class VaultService : IDisposable
                 continue;
             }
 
-            var item = _entries[i] with { CategoryId = null, UpdatedAt = DateTimeOffset.UtcNow };
+            var item = _entries[i] with { CategoryId = null, UpdatedAt = _time.GetUtcNow() };
             Persist(item);
             _entries[i] = item;
+        }
+
+        // Recycled entries must not keep a dangling category either, otherwise a
+        // later restore would point at a category that no longer exists.
+        for (var i = 0; i < _deleted.Count; i++)
+        {
+            if (_deleted[i].CategoryId != id)
+            {
+                continue;
+            }
+
+            var item = _deleted[i] with { CategoryId = null };
+            Persist(item);
+            _deleted[i] = item;
         }
 
         return new CategoryDeleteResult(true, renames);
@@ -928,7 +1070,7 @@ public sealed class VaultService : IDisposable
                     continue;
                 }
 
-                var item = _entries[i] with { CategoryId = to, UpdatedAt = DateTimeOffset.UtcNow };
+                var item = _entries[i] with { CategoryId = to, UpdatedAt = _time.GetUtcNow() };
                 Persist(item);
                 _entries[i] = item;
             }
@@ -1093,13 +1235,37 @@ public sealed class VaultService : IDisposable
         dek.ProtectReadOnly();
 
         _entries.Clear();
-        _entries.AddRange(loaded);
+        _deleted.Clear();
+        foreach (var entry in loaded)
+        {
+            if (entry.DeletedAt is null)
+            {
+                _entries.Add(entry);
+            }
+            else
+            {
+                _deleted.Add(entry);
+            }
+        }
+
+        // Newest deleted first (Nullable.Compare keeps nulls consistent if any slip through).
+        _deleted.Sort((left, right) => Nullable.Compare(right.DeletedAt, left.DeletedAt));
 
         _dek?.Dispose();
         _dek = dek;
 
         // Persist any payload upgrades now that the session key is in place.
         PersistOutdatedEntries(outdated, dek);
+
+        // Drop recycled entries past the retention window. Best effort: a failure
+        // must not block unlocking (they are simply purged on the next unlock).
+        try
+        {
+            PurgeExpiredDeleted();
+        }
+        catch (Exception exception) when (exception is SqliteException or IOException)
+        {
+        }
 
         // Categories are decrypted with the session key, so load them only after
         // the DEK is in place. A payload this application cannot support fails the

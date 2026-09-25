@@ -467,6 +467,144 @@ public sealed class VaultServiceTests : IDisposable
         Assert.Empty(entry.CustomFields);
     }
 
+    [Fact]
+    public void DeleteEntryMovesToRecycleBinAndRestoreBringsItBack()
+    {
+        using var vault = VaultService.CreateNew(_vaultPath, Password, FastOptions);
+        var entry = vault.AddEntry(TestEntry("GitHub"));
+
+        Assert.True(vault.DeleteEntry(entry.Id));
+
+        Assert.Empty(vault.Entries);
+        var recycled = Assert.Single(vault.DeletedEntries);
+        Assert.Equal(entry.Id, recycled.Id);
+        Assert.NotNull(recycled.DeletedAt);
+
+        Assert.True(vault.RestoreEntry(entry.Id));
+        Assert.Empty(vault.DeletedEntries);
+        Assert.Equal(entry.Id, Assert.Single(vault.Entries).Id);
+    }
+
+    [Fact]
+    public void RecycledEntriesSurviveReopen()
+    {
+        Guid id;
+        using (var vault = VaultService.CreateNew(_vaultPath, Password, FastOptions))
+        {
+            id = vault.AddEntry(TestEntry("GitHub")).Id;
+            vault.DeleteEntry(id);
+        }
+
+        using var reopened = VaultService.Open(_vaultPath);
+        Assert.Equal(VaultUnlockStatus.Success, reopened.Unlock(Password));
+
+        Assert.Empty(reopened.Entries);
+        var recycled = Assert.Single(reopened.DeletedEntries);
+        Assert.Equal(id, recycled.Id);
+        Assert.NotNull(recycled.DeletedAt);
+    }
+
+    [Fact]
+    public void PurgeEntryPermanentlyRemovesIt()
+    {
+        using var vault = VaultService.CreateNew(_vaultPath, Password, FastOptions);
+        var entry = vault.AddEntry(TestEntry("GitHub"));
+        vault.DeleteEntry(entry.Id);
+
+        Assert.True(vault.PurgeEntry(entry.Id));
+        Assert.Empty(vault.DeletedEntries);
+        Assert.False(vault.PurgeEntry(entry.Id));
+
+        // Gone for good: unlocking again must not resurrect it.
+        vault.Lock();
+        Assert.Equal(VaultUnlockStatus.Success, vault.Unlock(Password));
+        Assert.Empty(vault.Entries);
+        Assert.Empty(vault.DeletedEntries);
+    }
+
+    [Fact]
+    public void EmptyRecycleBinRemovesAllRecycledEntries()
+    {
+        using var vault = VaultService.CreateNew(_vaultPath, Password, FastOptions);
+        var first = vault.AddEntry(TestEntry("One"));
+        var second = vault.AddEntry(TestEntry("Two"));
+        vault.AddEntry(TestEntry("Keep"));
+        vault.DeleteEntry(first.Id);
+        vault.DeleteEntry(second.Id);
+
+        Assert.Equal(2, vault.EmptyRecycleBin());
+
+        Assert.Empty(vault.DeletedEntries);
+        Assert.Equal("Keep", Assert.Single(vault.Entries).Title);
+        Assert.Equal(0, vault.EmptyRecycleBin());
+    }
+
+    [Fact]
+    public void PurgeExpiredDeletedUsesTheRetentionWindow()
+    {
+        var start = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        var clock = new MutableTimeProvider(start);
+
+        Guid id;
+        using (var vault = VaultService.CreateNew(_vaultPath, Password, FastOptions, clock))
+        {
+            id = vault.AddEntry(TestEntry("GitHub")).Id;
+            vault.DeleteEntry(id);
+        }
+
+        // 29 days later: still inside the 30-day window.
+        clock.Now = start.AddDays(29);
+        using (var vault = VaultService.Open(_vaultPath, clock))
+        {
+            Assert.Equal(VaultUnlockStatus.Success, vault.Unlock(Password));
+            Assert.Single(vault.DeletedEntries);
+        }
+
+        // 31 days later: purged on unlock.
+        clock.Now = start.AddDays(31);
+        using (var vault = VaultService.Open(_vaultPath, clock))
+        {
+            Assert.Equal(VaultUnlockStatus.Success, vault.Unlock(Password));
+            Assert.Empty(vault.DeletedEntries);
+            Assert.Empty(vault.Entries);
+        }
+    }
+
+    [Fact]
+    public void MarkEntryOpenedUpdatesLastOpenedAtWithoutTouchingUpdatedAt()
+    {
+        using var vault = VaultService.CreateNew(_vaultPath, Password, FastOptions);
+        var entry = vault.AddEntry(TestEntry("GitHub"));
+
+        Assert.Null(entry.LastOpenedAt);
+
+        Assert.True(vault.MarkEntryOpened(entry.Id));
+
+        var opened = Assert.Single(vault.Entries);
+        Assert.NotNull(opened.LastOpenedAt);
+        Assert.Equal(entry.UpdatedAt, opened.UpdatedAt);
+    }
+
+    [Fact]
+    public void DeletingCategoryClearsRecycledEntryAssignment()
+    {
+        using var vault = VaultService.CreateNew(_vaultPath, Password, FastOptions);
+        var category = vault.AddCategory("Work");
+        var entry = vault.AddEntry(TestEntry("GitHub") with { CategoryId = category.Id });
+        vault.DeleteEntry(entry.Id);
+
+        vault.DeleteCategory(category.Id, CategoryDeleteMode.Cascade);
+
+        Assert.Null(Assert.Single(vault.DeletedEntries).CategoryId);
+    }
+
+    private sealed class MutableTimeProvider(DateTimeOffset now) : TimeProvider
+    {
+        public DateTimeOffset Now { get; set; } = now;
+
+        public override DateTimeOffset GetUtcNow() => Now;
+    }
+
     private static PasswordEntry TestEntry(string title) => new()
     {
         Title = title,
