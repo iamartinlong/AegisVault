@@ -16,8 +16,11 @@ internal static class EntryRepository
     /// Current entry payload format. History:
     /// v1 = initial payload (collections could be missing),
     /// v2 = collections guaranteed non-null and always written.
+    /// v3 = added scalar credential fields (Phone/AppId/Secret/ApiKey).
+    /// v4 = added the scalar Email field.
+    /// v5 = added DeletedAt/LastOpenedAt (recycle bin + "recent" view).
     /// </summary>
-    public const int EntryFormatVersion = 4;
+    public const int EntryFormatVersion = 5;
 
     public static (byte[] Nonce, byte[] Ciphertext, byte[] Tag) Encrypt(ReadOnlySpan<byte> dek, PasswordEntry entry)
         => Encrypt(dek, entry, EntryFormatVersion);

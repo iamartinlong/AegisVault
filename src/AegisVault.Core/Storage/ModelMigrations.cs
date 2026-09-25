@@ -40,6 +40,15 @@ internal static class ModelMigrations
         // v2 -> v3: added scalar credential fields (Phone/AppId/Secret/ApiKey);
         // older payloads simply lack them and normalize to empty strings.
         // v3 -> v4: added the scalar Email field; same story.
+        // v4 -> v5: added the nullable DeletedAt/LastOpenedAt fields. Older
+        // payloads lack them, so they deserialize as null ("live"/"never
+        // opened"); the branch is written out explicitly because the migration
+        // rules forbid relying on implicit behaviour.
+        if (fromVersion < 5)
+        {
+            entry = entry with { DeletedAt = null, LastOpenedAt = null };
+        }
+
         return Normalize(entry);
     }
 
@@ -60,6 +69,10 @@ internal static class ModelMigrations
         Tags = entry.Tags is null ? [] : entry.Tags,
         Urls = entry.Urls is null ? [] : entry.Urls,
         CustomFields = entry.CustomFields is null ? [] : entry.CustomFields,
+        // Nullable timestamps are valid as null; a default (0001-01-01) value is
+        // never written by this application, so treat it as "not set" defensively.
+        DeletedAt = entry.DeletedAt == default(DateTimeOffset) ? null : entry.DeletedAt,
+        LastOpenedAt = entry.LastOpenedAt == default(DateTimeOffset) ? null : entry.LastOpenedAt,
     };
 
     /// <summary>Fills in defaults for members that older payloads may lack.</summary>

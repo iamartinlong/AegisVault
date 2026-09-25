@@ -166,6 +166,72 @@ public sealed class EntryRepositoryTests
     }
 
     [Fact]
+    public void LegacyV4PayloadLeavesRecycleBinAndRecentUnset()
+    {
+        var dek = RandomNumberGenerator.GetBytes(KeyEnvelope.DekSize);
+        var entry = new PasswordEntry { Title = "LegacyV4", Email = "ops@example.com" };
+
+        // v4 payload as written before DeletedAt/LastOpenedAt existed.
+        var legacyJson = JsonSerializer.SerializeToUtf8Bytes(new
+        {
+            entry.Id,
+            entry.Title,
+            entry.Username,
+            entry.Password,
+            entry.Url,
+            entry.Urls,
+            entry.Notes,
+            entry.TotpSecret,
+            Phone = entry.Phone,
+            Email = entry.Email,
+            entry.AppId,
+            entry.Secret,
+            entry.ApiKey,
+            entry.Tags,
+            entry.CustomFields,
+            entry.IsFavorite,
+            entry.CreatedAt,
+            entry.UpdatedAt,
+        });
+        var (nonce, ciphertext, tag) = AesGcmCipher.Encrypt(
+            dek,
+            legacyJson,
+            EntryRepository.BuildAssociatedData(entry.Id, 4));
+
+        var decrypted = EntryRepository.Decrypt(dek, entry.Id, 4, nonce, ciphertext, tag);
+
+        Assert.Equal("ops@example.com", decrypted.Email);
+        Assert.Null(decrypted.DeletedAt);
+        Assert.Null(decrypted.LastOpenedAt);
+    }
+
+    [Fact]
+    public void CurrentVersionRoundTripsRecycleBinAndRecentTimestamps()
+    {
+        var dek = RandomNumberGenerator.GetBytes(KeyEnvelope.DekSize);
+        var deletedAt = new DateTimeOffset(2026, 9, 25, 10, 30, 0, TimeSpan.Zero);
+        var lastOpenedAt = new DateTimeOffset(2026, 9, 24, 8, 0, 0, TimeSpan.Zero);
+        var entry = new PasswordEntry
+        {
+            Title = "Trashed",
+            DeletedAt = deletedAt,
+            LastOpenedAt = lastOpenedAt,
+        };
+
+        var (nonce, ciphertext, tag) = EntryRepository.Encrypt(dek, entry);
+        var decrypted = EntryRepository.Decrypt(
+            dek,
+            entry.Id,
+            EntryRepository.EntryFormatVersion,
+            nonce,
+            ciphertext,
+            tag);
+
+        Assert.Equal(deletedAt, decrypted.DeletedAt);
+        Assert.Equal(lastOpenedAt, decrypted.LastOpenedAt);
+    }
+
+    [Fact]
     public void CurrentVersionRoundTripsAllCollections()
     {
         var dek = RandomNumberGenerator.GetBytes(KeyEnvelope.DekSize);

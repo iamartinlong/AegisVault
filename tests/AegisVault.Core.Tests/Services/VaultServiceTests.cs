@@ -408,6 +408,8 @@ public sealed class VaultServiceTests : IDisposable
             Assert.Equal("Legacy", entry.Title);
             Assert.Empty(entry.Urls);
             Assert.NotNull(entry.Tags);
+            Assert.Null(entry.DeletedAt);
+            Assert.Null(entry.LastOpenedAt);
 
             using var verify = VaultDatabase.OpenOrCreate(_vaultPath);
             Assert.All(

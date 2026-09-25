@@ -51,6 +51,21 @@ public sealed record PasswordEntry
     public DateTimeOffset UpdatedAt { get; init; } = DateTimeOffset.UtcNow;
 
     /// <summary>
+    /// When the entry was moved to the recycle bin (payload v5); <c>null</c> means
+    /// it is live. Entries with a value are excluded from the live view and are
+    /// purged automatically once they age past the retention window.
+    /// </summary>
+    public DateTimeOffset? DeletedAt { get; init; }
+
+    /// <summary>
+    /// When the entry was last viewed (payload v5); <c>null</c> means never.
+    /// Written by <c>VaultService.MarkEntryOpened</c>, which deliberately does
+    /// <b>not</b> touch <see cref="UpdatedAt"/> so the "stale" health view and the
+    /// "recently updated" sort stay meaningful.
+    /// </summary>
+    public DateTimeOffset? LastOpenedAt { get; init; }
+
+    /// <summary>
     /// Redacts secrets: the compiler-generated record dump (which the UI automation
     /// tree picks up as the list item name) would otherwise expose the password.
     /// </summary>

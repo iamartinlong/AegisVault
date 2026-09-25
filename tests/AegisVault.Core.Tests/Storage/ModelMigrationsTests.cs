@@ -153,6 +153,60 @@ public sealed class ModelMigrationsTests
     }
 
     [Fact]
+    public void UpgradeFromV4LeavesRecycleBinAndRecentUnset()
+    {
+        // Payloads written before v5 have no DeletedAt/LastOpenedAt keys, so they
+        // must come back as "live" and "never opened" without touching the data.
+        var legacy = JsonSerializer.Deserialize(
+            """{"Title":"Legacy","Email":"ops@example.com"}""",
+            VaultJsonContext.Default.PasswordEntry)!;
+
+        var upgraded = ModelMigrations.UpgradeEntry(legacy, 4);
+
+        Assert.Null(upgraded.DeletedAt);
+        Assert.Null(upgraded.LastOpenedAt);
+        Assert.Equal("ops@example.com", upgraded.Email);
+    }
+
+    [Fact]
+    public void RoundTripsRecycleBinAndRecentTimestampsThroughJson()
+    {
+        var deletedAt = new DateTimeOffset(2026, 9, 25, 10, 30, 0, TimeSpan.Zero);
+        var lastOpenedAt = new DateTimeOffset(2026, 9, 24, 8, 0, 0, TimeSpan.Zero);
+        var entry = new PasswordEntry
+        {
+            Title = "Recycled",
+            DeletedAt = deletedAt,
+            LastOpenedAt = lastOpenedAt,
+        };
+
+        var json = JsonSerializer.Serialize(entry, VaultJsonContext.Default.PasswordEntry);
+        var loaded = ModelMigrations.UpgradeEntry(
+            JsonSerializer.Deserialize(json, VaultJsonContext.Default.PasswordEntry)!,
+            EntryRepository.EntryFormatVersion);
+
+        Assert.Equal(deletedAt, loaded.DeletedAt);
+        Assert.Equal(lastOpenedAt, loaded.LastOpenedAt);
+    }
+
+    [Fact]
+    public void NormalizeTreatsDefaultTimestampsAsUnset()
+    {
+        // 0001-01-01 is never written by the application; normalize it to null.
+        var entry = new PasswordEntry
+        {
+            Title = "x",
+            DeletedAt = default(DateTimeOffset),
+            LastOpenedAt = default(DateTimeOffset),
+        };
+
+        var normalized = ModelMigrations.Normalize(entry);
+
+        Assert.Null(normalized.DeletedAt);
+        Assert.Null(normalized.LastOpenedAt);
+    }
+
+    [Fact]
     public void UserConfigNormalizationRestoresMissingGenerator()
     {
         var config = JsonSerializer.Deserialize("{}", VaultJsonContext.Default.UserConfig)!;
