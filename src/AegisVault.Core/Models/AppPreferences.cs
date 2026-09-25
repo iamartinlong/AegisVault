@@ -39,4 +39,15 @@ public sealed record AppPreferences
 
     /// <summary>"left" | "right" while the ball is docked to a screen edge; otherwise null.</summary>
     public string? BallDockedSide { get; init; }
+
+    /// <summary>
+    /// Main window rectangle in screen pixels ("x,y,w,h") while restored, newest
+    /// value written when the window closes or its state changes. Null until the
+    /// window has been placed at least once; a stale rectangle (monitor layout
+    /// changed) is ignored at startup.
+    /// </summary>
+    public string? MainWindowBounds { get; init; }
+
+    /// <summary>Whether the main window was maximized when it last closed.</summary>
+    public bool MainWindowMaximized { get; init; }
 }

@@ -59,6 +59,8 @@ public partial class App : Application
     private bool _startMinimizedOnLaunch;
     private bool _startMinimizedConsumed;
     private SettingsWindow? _settingsWindow;
+    private PixelPoint? _mainWindowPosition;
+    private PixelSize? _mainWindowSize;
 
     public override void Initialize()
     {
@@ -346,6 +348,21 @@ public partial class App : Application
                 }
             };
             desktop.MainWindow = window;
+            // Window.Position only reflects programmatic moves: a title-bar drag is
+            // performed by the platform (extended client area), so track the live
+            // values through the change notifications instead.
+            window.PositionChanged += (_, args) => _mainWindowPosition = args.Point;
+            window.SizeChanged += (_, args) => _mainWindowSize = new PixelSize(
+                (int)args.NewSize.Width,
+                (int)args.NewSize.Height);
+            window.Closing += (_, _) => SaveMainWindowPlacement(window);
+            window.PropertyChanged += (_, change) =>
+            {
+                if (change.Property == Avalonia.Controls.Window.WindowStateProperty)
+                {
+                    SaveMainWindowPlacement(window);
+                }
+            };
         }
 
         _vault = vault;
@@ -371,6 +388,10 @@ public partial class App : Application
         viewModel.LockRequested += LockVault;
         autoLock.LockTriggered += _ => LockVault();
 
+        // Geometry before the first show so the window never appears at the default
+        // spot and then jumps; the screens are validated afterwards.
+        ApplyMainWindowPlacement(window);
+
         // Tray mode (auto-start / StartMinimized): the window exists and stays
         // open, but is not shown; the tray icon and hotkey bring it back.
         if (_startMinimizedOnLaunch && !_startMinimizedConsumed)
@@ -386,10 +407,93 @@ public partial class App : Application
             window.Activate();
         }
 
+        EnsureMainWindowOnScreen(window);
+        if (_preferences.MainWindowMaximized)
+        {
+            window.WindowState = WindowState.Maximized;
+        }
+
         unlockWindow?.Close();
 
         ApplyScreenGuard(window);
         UpdateFloatingBall();
+    }
+
+    /// <summary>
+    /// Restores the remembered main-window rectangle. Called before the window is
+    /// shown, so it never appears at the default location first.
+    /// </summary>
+    private void ApplyMainWindowPlacement(MainWindow window)
+    {
+        if (!WindowPlacement.TryParse(_preferences.MainWindowBounds, out var position, out var size))
+        {
+            return;
+        }
+
+        window.WindowStartupLocation = WindowStartupLocation.Manual;
+        window.Position = position;
+        window.Width = size.Width;
+        window.Height = size.Height;
+    }
+
+    /// <summary>
+    /// Falls back to a centred window when the remembered rectangle no longer
+    /// overlaps any screen (monitor removed, resolution changed, undocked).
+    /// </summary>
+    private static void EnsureMainWindowOnScreen(MainWindow window)
+    {
+        if (window.WindowState == WindowState.Maximized)
+        {
+            return;
+        }
+
+        var screens = window.Screens;
+        var areas = screens.All
+            .Select(screen => screen.WorkingArea)
+            .Select(area => new Rect(area.X, area.Y, area.Width, area.Height))
+            .ToList();
+
+        var size = new PixelSize((int)window.Width, (int)window.Height);
+        if (areas.Count == 0 || WindowPlacement.IsVisibleOnScreens(window.Position, size, areas))
+        {
+            return;
+        }
+
+        var target = screens.Primary ?? screens.All.FirstOrDefault();
+        if (target is null)
+        {
+            return;
+        }
+
+        var working = target.WorkingArea;
+        window.Position = new PixelPoint(
+            working.X + Math.Max(0, (working.Width - size.Width) / 2),
+            working.Y + Math.Max(0, (working.Height - size.Height) / 2));
+    }
+
+    /// <summary>Persists the current rectangle (and maximized state) of the window.</summary>
+    private void SaveMainWindowPlacement(MainWindow window)
+    {
+        // While maximized (or minimized) the live size is not the restored one, so
+        // keep the rectangle that was last seen in the normal state.
+        var bounds = window.WindowState == WindowState.Normal
+            ? WindowPlacement.Format(
+                _mainWindowPosition ?? window.Position,
+                _mainWindowSize ?? new PixelSize((int)window.Width, (int)window.Height))
+            : _preferences.MainWindowBounds;
+
+        var maximized = window.WindowState == WindowState.Maximized;
+        if (bounds == _preferences.MainWindowBounds && maximized == _preferences.MainWindowMaximized)
+        {
+            return;
+        }
+
+        _preferences = _preferences with
+        {
+            MainWindowBounds = bounds,
+            MainWindowMaximized = maximized,
+        };
+        SavePreferences();
     }
 
     private void LockVault()
