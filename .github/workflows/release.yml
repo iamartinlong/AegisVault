@@ -105,7 +105,39 @@ jobs:
           dotnet publish src/AegisVault.App/AegisVault.App.csproj
           -c Release -r ${{ matrix.rid }} -p:PublishAot=true
 
-      - name: Package
+      # REL-1: 7z kept the paths it was given, so packing "$PUBLISH_DIR"/* nested
+      # the whole workspace path (v0.2.0/v0.3.0 zips extracted to
+      # src/.../publish/). Windows packages through Compress-Archive and asserts
+      # the entries stayed flat; the runner's bash `tar` is GNU tar, which has no
+      # -a (bsdtar only exists in PowerShell's PATH).
+      - name: Package (Windows zip)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $publish = "src/AegisVault.App/bin/Release/net10.0/${{ matrix.rid }}/publish"
+          New-Item -ItemType Directory -Force -Path artifacts | Out-Null
+          Get-ChildItem -Path $publish -Filter *.pdb -Recurse | Remove-Item -Force
+          Copy-Item LICENSE, THIRD-PARTY-NOTICES.md -Destination $publish
+          $name = "AegisVault-${{ matrix.rid }}-${{ github.ref_name }}"
+          $zip = "artifacts/$name.zip"
+          Compress-Archive -Path "$publish/*" -DestinationPath $zip -Force
+
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $archive = [System.IO.Compression.ZipFile]::OpenRead((Resolve-Path $zip))
+          try { $entries = @($archive.Entries | ForEach-Object { $_.FullName }) }
+          finally { $archive.Dispose() }
+          if ($entries -match 'src/') {
+            throw "the zip contains the workspace path: $($entries -join ', ')"
+          }
+          if ($entries -notcontains 'AegisVault.App.exe') {
+            throw "the zip is not flat: AegisVault.App.exe is missing at the root"
+          }
+
+          $hash = (Get-FileHash -Algorithm SHA256 $zip).Hash.ToLower()
+          "$hash  artifacts/$name.zip" | Set-Content -Encoding ascii "artifacts/SHA256SUMS-${{ matrix.rid }}"
+
+      - name: Package (tar.gz)
+        if: runner.os != 'Windows'
         shell: bash
         run: |
           set -euo pipefail
@@ -114,20 +146,8 @@ jobs:
           find "$PUBLISH_DIR" -name '*.pdb' -delete
           cp LICENSE THIRD-PARTY-NOTICES.md "$PUBLISH_DIR/"
           OUT_NAME="AegisVault-${{ matrix.rid }}-${{ github.ref_name }}"
-          if [ "${{ runner.os }}" = "Windows" ]; then
-            # REL-1: 7z keeps the paths it is given, so packing "$PUBLISH_DIR"/*
-            # nested the whole workspace path (v0.2.0/v0.3.0 zips extracted to
-            # src/.../publish/). Use bsdtar with -C, the same idiom as the
-            # tar.gz branch, and assert the entries stayed flat.
-            tar -a -c -f "$GITHUB_WORKSPACE/artifacts/${OUT_NAME}.zip" -C "$PUBLISH_DIR" .
-            if tar -t -f "$GITHUB_WORKSPACE/artifacts/${OUT_NAME}.zip" | grep -q "$PUBLISH_DIR"; then
-              echo "::error::${OUT_NAME}.zip still contains the workspace path"
-              exit 1
-            fi
-          else
-            tar -czf "artifacts/${OUT_NAME}.tar.gz" -C "$PUBLISH_DIR" .
-          fi
-          shasum -a 256 artifacts/* > "artifacts/SHA256SUMS-${{ matrix.rid }}" || sha256sum artifacts/* > "artifacts/SHA256SUMS-${{ matrix.rid }}"
+          tar -czf "artifacts/${OUT_NAME}.tar.gz" -C "$PUBLISH_DIR" .
+          shasum -a 256 "artifacts/${OUT_NAME}.tar.gz" > "artifacts/SHA256SUMS-${{ matrix.rid }}"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
