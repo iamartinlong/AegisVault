@@ -339,6 +339,162 @@ public sealed class MainWindowTests
         }
     });
 
+    [Fact]
+    public Task CategoryRowLabelClickSelectsParentsAndFiltersTheBranch() => Headless.Run(() =>
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "aegis-ui-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            using var vault = Core.Services.VaultService.CreateNew(
+                Path.Combine(directory, "vault.aegis"),
+                "master password"u8.ToArray(),
+                new Core.Services.VaultOptions
+                {
+                    Kdf = new Core.Models.KdfParameters
+                    {
+                        Algorithm = Core.Models.KdfParameters.AlgorithmArgon2id,
+                        Iterations = 3,
+                        MemoryBytes = 8L * 1024 * 1024,
+                    },
+                });
+
+            var work = vault.AddCategory("Work");
+            var servers = vault.AddCategory("Servers", parentId: work.Id);
+            vault.AddEntry(new Core.Models.PasswordEntry { Title = "Direct", CategoryId = work.Id });
+            vault.AddEntry(new Core.Models.PasswordEntry { Title = "Nested", CategoryId = servers.Id });
+
+            using var viewModel = new ViewModels.MainViewModel(vault);
+            var window = new MainWindow { DataContext = viewModel };
+            window.Show();
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+
+            var tree = CategoryTree(window);
+
+            // A parent with children used to be unselectable (AtomUI treats it as a
+            // submenu header and only toggles it), so its own entries could never be
+            // listed. The label area now selects it and filters the whole branch.
+            ClickAt(window, CategoryLabel(tree, "Work")!, 12);
+
+            Assert.Equal("Work", viewModel.SelectedCategory?.DisplayName);
+            Assert.Equal(
+                ["Direct", "Nested"],
+                viewModel.FilteredEntries.Select(entry => entry.Title).OrderBy(title => title));
+
+            // Leaves keep selecting exactly as before.
+            ClickAt(window, CategoryLabel(tree, "Servers")!, 12);
+
+            Assert.Equal("Servers", viewModel.SelectedCategory?.DisplayName);
+            Assert.Equal(["Nested"], viewModel.FilteredEntries.Select(entry => entry.Title));
+
+            window.Close();
+        }
+        finally
+        {
+            try
+            {
+                Directory.Delete(directory, recursive: true);
+            }
+            catch (IOException)
+            {
+            }
+        }
+    });
+
+    [Fact]
+    public Task CategoryRowArrowKeepsTogglingWithoutSelecting() => Headless.Run(() =>
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "aegis-ui-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            using var vault = Core.Services.VaultService.CreateNew(
+                Path.Combine(directory, "vault.aegis"),
+                "master password"u8.ToArray(),
+                new Core.Services.VaultOptions
+                {
+                    Kdf = new Core.Models.KdfParameters
+                    {
+                        Algorithm = Core.Models.KdfParameters.AlgorithmArgon2id,
+                        Iterations = 3,
+                        MemoryBytes = 8L * 1024 * 1024,
+                    },
+                });
+
+            var work = vault.AddCategory("Work");
+            vault.AddCategory("Servers", parentId: work.Id);
+
+            using var viewModel = new ViewModels.MainViewModel(vault);
+            var window = new MainWindow { DataContext = viewModel };
+            window.Show();
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+
+            var tree = CategoryTree(window);
+            ClickAt(window, CategoryLabel(tree, "Work")!, 12);
+            Assert.Equal("Work", viewModel.SelectedCategory?.DisplayName);
+
+            // The arrow column stays with the NavMenu: it collapses the branch and
+            // must not change the filter. The arrow transform follows IsSubMenuOpen,
+            // so it reports the toggle without racing the collapse animation.
+            var arrow = CategoryArrow(tree, "Work");
+            var expanded = arrow.RenderTransform;
+            Assert.NotNull(expanded);
+
+            var header = CategoryHeader(tree, "Work");
+            var point = header.TranslatePoint(
+                new Point(header.Bounds.Width - 4, header.Bounds.Height / 2),
+                window) ?? throw new InvalidOperationException("The header is not connected to the window.");
+            window.MouseDown(point, MouseButton.Left);
+            window.MouseUp(point, MouseButton.Left);
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+
+            Assert.NotSame(expanded, arrow.RenderTransform);
+            Assert.Equal("Work", viewModel.SelectedCategory?.DisplayName);
+
+            window.Close();
+        }
+        finally
+        {
+            try
+            {
+                Directory.Delete(directory, recursive: true);
+            }
+            catch (IOException)
+            {
+            }
+        }
+    });
+
+    private static AtomUI.Desktop.Controls.NavMenu CategoryTree(Window window)
+        => window.GetVisualDescendants().OfType<AtomUI.Desktop.Controls.NavMenu>()
+            .First(candidate => (candidate.GetValue(AutomationProperties.AutomationIdProperty) as string) == "CategoryTree");
+
+    private static Control? CategoryLabel(Visual root, string displayName)
+        => root.GetVisualDescendants().OfType<Border>()
+            .FirstOrDefault(border => border.Classes.Contains("categoryRowLabel") &&
+                                      border.DataContext is ViewModels.CategoryNavNode node &&
+                                      node.Item.DisplayName == displayName);
+
+    private static Control CategoryHeader(Visual root, string displayName)
+        => root.GetVisualDescendants().OfType<Control>()
+            .First(candidate => candidate.GetType().Name == "InlineNavMenuItemHeader" &&
+                                candidate.DataContext is ViewModels.CategoryNavNode node &&
+                                node.Item.DisplayName == displayName);
+
+    private static Control CategoryArrow(Visual root, string displayName)
+        => CategoryHeader(root, displayName).GetVisualDescendants().OfType<Control>()
+            .First(candidate => candidate.Name == "RowArrow");
+
+    private static void ClickAt(Window window, Control target, double? x = null)
+    {
+        var point = target.TranslatePoint(
+            new Point(x ?? target.Bounds.Width / 2, target.Bounds.Height / 2),
+            window) ?? throw new InvalidOperationException("The target is not connected to the window.");
+        window.MouseDown(point, MouseButton.Left);
+        window.MouseUp(point, MouseButton.Left);
+        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+    }
+
     private static List<AtomUIMenuItem> ReadRadioItems(
         AtomUI.Desktop.Controls.DropdownButton button,
         string groupName)

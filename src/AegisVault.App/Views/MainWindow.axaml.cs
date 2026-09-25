@@ -355,6 +355,42 @@ public partial class MainWindow : Window
     /// Per-row "…" menu. The row itself expands or selects the node, so every
     /// category action lives in this flyout instead of inline buttons.
     /// </summary>
+    /// <summary>
+    /// Category rows select from their label area (parents included — AtomUI treats a
+    /// row with children as a submenu header and would only toggle it). Marking the
+    /// press handled keeps the NavMenu's row activation out of the way, while the
+    /// arrow column and the row padding still reach the control and toggle.
+    /// </summary>
+    private void OnCategoryRowLabelPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+        {
+            return;
+        }
+
+        e.Handled = true;
+        SelectCategoryRow(sender);
+    }
+
+    private void OnCategoryRowLabelKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key is not (Key.Enter or Key.Space))
+        {
+            return;
+        }
+
+        e.Handled = true;
+        SelectCategoryRow(sender);
+    }
+
+    private void SelectCategoryRow(object? sender)
+    {
+        if (sender is Control { DataContext: CategoryNavNode node } && DataContext is MainViewModel viewModel)
+        {
+            viewModel.SelectedCategoryNode = node;
+        }
+    }
+
     private void OnCategoryActionsClicked(object? sender, RoutedEventArgs e)
     {
         if (sender is not Button { DataContext: CategoryNavNode node } button ||

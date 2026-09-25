@@ -29,37 +29,53 @@
              The view assigns it to every CategoryNavNode (AtomUI falls back to a
              TreeDataTemplate otherwise, which would render the node itself). -->
         <DataTemplate x:Key="CategoryRowTemplate" DataType="vm:CategoryNavNode" x:DataType="vm:CategoryNavNode">
-            <Grid ColumnDefinitions="Auto,*,Auto,Auto">
-                <Ellipse Grid.Column="0"
-                         Width="8" Height="8"
-                         Margin="4,0,12,0"
-                         VerticalAlignment="Center"
-                         Fill="{Binding Item, Converter={StaticResource CategoryDotConverter}}" />
-                <TextBlock Grid.Column="1"
-                           AutomationProperties.AutomationId="CategoryNameText"
-                           Text="{Binding Item.DisplayName}"
-                           FontSize="13"
-                           TextTrimming="CharacterEllipsis"
-                           VerticalAlignment="Center" />
-                <StackPanel Grid.Column="2"
-                            Classes="categoryActions"
-                            Orientation="Horizontal"
-                            Spacing="0"
-                            VerticalAlignment="Center">
-                    <atom:Button ButtonType="Text"
-                                 AutomationProperties.AutomationId="CategoryActionsButton"
-                                 Icon="{antd:AntDesignIconProvider EllipsisOutlined}"
-                                 ToolTip.Tip="{loc:Str Main_CategoryActionsTooltip}"
-                                 Click="OnCategoryActionsClicked" />
-                </StackPanel>
-                <TextBlock Grid.Column="3"
-                           AutomationProperties.AutomationId="CategoryCountText"
-                           Text="{Binding Item.Count}"
-                           FontSize="11"
-                           Opacity="0.5"
-                           Margin="6,0,0,0"
-                           VerticalAlignment="Center" />
-            </Grid>
+            <!-- The label area selects the category (parents included), while the row's
+                 arrow column stays with the NavMenu and keeps toggling. The Border marks
+                 the pointer press as handled so AtomUI's row activation never runs; the
+                 "…" button inside shields itself the same way. -->
+            <Border Classes="categoryRowLabel"
+                    Background="Transparent"
+                    BorderBrush="Transparent"
+                    BorderThickness="1"
+                    CornerRadius="6"
+                    Focusable="True"
+                    Cursor="Hand"
+                    HorizontalAlignment="Stretch"
+                    AutomationProperties.Name="{Binding Item.DisplayName}"
+                    PointerPressed="OnCategoryRowLabelPressed"
+                    KeyDown="OnCategoryRowLabelKeyDown">
+                <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                    <Ellipse Grid.Column="0"
+                             Width="8" Height="8"
+                             Margin="4,0,12,0"
+                             VerticalAlignment="Center"
+                             Fill="{Binding Item, Converter={StaticResource CategoryDotConverter}}" />
+                    <TextBlock Grid.Column="1"
+                               AutomationProperties.AutomationId="CategoryNameText"
+                               Text="{Binding Item.DisplayName}"
+                               FontSize="13"
+                               TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center" />
+                    <StackPanel Grid.Column="2"
+                                Classes="categoryActions"
+                                Orientation="Horizontal"
+                                Spacing="0"
+                                VerticalAlignment="Center">
+                        <atom:Button ButtonType="Text"
+                                     AutomationProperties.AutomationId="CategoryActionsButton"
+                                     Icon="{antd:AntDesignIconProvider EllipsisOutlined}"
+                                     ToolTip.Tip="{loc:Str Main_CategoryActionsTooltip}"
+                                     Click="OnCategoryActionsClicked" />
+                    </StackPanel>
+                    <TextBlock Grid.Column="3"
+                               AutomationProperties.AutomationId="CategoryCountText"
+                               Text="{Binding Item.Count}"
+                               FontSize="11"
+                               Opacity="0.5"
+                               Margin="6,0,0,0"
+                               VerticalAlignment="Center" />
+                </Grid>
+            </Border>
         </DataTemplate>
     </Window.Resources>
 
@@ -140,6 +156,11 @@
             <Setter Property="FontSize" Value="12" />
             <Setter Property="Opacity" Value="0.6" />
             <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <!-- Category row label: keyboard focus must stay visible without shifting layout
+             (the transparent 1px border is always reserved). -->
+        <Style Selector="Border.categoryRowLabel:focus">
+            <Setter Property="BorderBrush" Value="{atom:SharedTokenResource ColorPrimary}" />
         </Style>
     </Window.Styles>
 
