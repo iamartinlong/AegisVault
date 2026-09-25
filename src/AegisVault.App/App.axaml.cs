@@ -319,7 +319,8 @@ public partial class App : Application
             vault,
             clipboard,
             searchDebounce: TimeSpan.FromMilliseconds(120),
-            healthDebounce: TimeSpan.FromMilliseconds(200));
+            healthDebounce: TimeSpan.FromMilliseconds(200),
+            openDebounce: TimeSpan.FromSeconds(2));
         viewModel.ThemePreference = _preferences.Theme;
         viewModel.LanguagePreference = _preferences.Language;
         viewModel.AttachAppearanceCallbacks(ApplyTheme, ApplyLanguage);

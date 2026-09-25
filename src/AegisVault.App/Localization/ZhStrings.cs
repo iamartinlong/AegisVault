@@ -79,6 +79,7 @@ internal static class ZhStrings
         ["Main_Categories"] = "分类",
         ["Main_CategoryAll"] = "全部条目",
         ["Main_CategoryFavorites"] = "收藏",
+        ["Main_CategoryRecent"] = "最近",
         ["Main_CategorySecurity"] = "安全",
         ["Main_CategoryStale"] = "待更新",
         ["Main_CategoryRecycleBin"] = "回收站",

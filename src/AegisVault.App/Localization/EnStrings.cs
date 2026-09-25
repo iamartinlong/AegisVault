@@ -79,6 +79,7 @@ internal static class EnStrings
         ["Main_Categories"] = "Categories",
         ["Main_CategoryAll"] = "All items",
         ["Main_CategoryFavorites"] = "Favorites",
+        ["Main_CategoryRecent"] = "Recent",
         ["Main_CategorySecurity"] = "Security",
         ["Main_CategoryStale"] = "Stale",
         ["Main_CategoryRecycleBin"] = "Recycle bin",

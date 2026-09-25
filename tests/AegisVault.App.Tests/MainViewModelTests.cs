@@ -496,6 +496,68 @@ public sealed class MainViewModelTests : IDisposable
     });
 
     [Fact]
+    public Task RecentViewTracksOpenedEntriesAndLimitsToTen() => Headless.Run(() =>
+    {
+        var start = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        var clock = new MutableTimeProvider(start);
+        using var vault = VaultService.CreateNew(_vaultPath, Password, FastOptions, clock);
+        for (var i = 1; i <= 12; i++)
+        {
+            vault.AddEntry(new PasswordEntry { Title = $"E{i:D2}" });
+        }
+
+        using var viewModel = new MainViewModel(vault, timeProvider: clock);
+        Assert.DoesNotContain(viewModel.Categories, category => category.Key == "recent");
+
+        for (var i = 1; i <= 12; i++)
+        {
+            clock.Now = start.AddMinutes(i);
+            viewModel.SelectedEntry = vault.Entries.Single(entry => entry.Title == $"E{i:D2}");
+        }
+
+        // Opening entries adds the row and never touches UpdatedAt.
+        Assert.Contains(viewModel.Categories, category => category.Key == "recent");
+        Assert.All(vault.Entries, entry => Assert.NotNull(entry.LastOpenedAt));
+        Assert.All(vault.Entries, entry => Assert.Equal(start, entry.UpdatedAt));
+
+        viewModel.SelectViewCommand.Execute("recent");
+
+        Assert.True(viewModel.IsViewRecent);
+        Assert.Equal(10, viewModel.FilteredEntries.Count);
+        Assert.Equal("E12", viewModel.FilteredEntries[0].Title);
+        Assert.DoesNotContain(viewModel.FilteredEntries, entry => entry.Title is "E01" or "E02");
+    });
+
+    [Fact]
+    public Task SelectingAnEntryDoesNotChangeItsUpdatedAt() => Headless.Run(() =>
+    {
+        using var vault = CreateVaultWithEntries();
+        using var viewModel = new MainViewModel(vault);
+
+        var entry = vault.Entries.Single(candidate => candidate.Title == "GitHub");
+        viewModel.SelectedEntry = entry;
+
+        var reloaded = vault.Entries.Single(candidate => candidate.Id == entry.Id);
+        Assert.NotNull(reloaded.LastOpenedAt);
+        Assert.Equal(entry.UpdatedAt, reloaded.UpdatedAt);
+    });
+
+    [Fact]
+    public Task RecycledEntriesAreNotMarkedAsOpened() => Headless.Run(() =>
+    {
+        using var vault = CreateVaultWithEntries();
+        using var viewModel = new MainViewModel(vault);
+
+        vault.DeleteEntry(vault.Entries.First().Id);
+        viewModel.ReloadFromVault();
+        viewModel.SelectViewCommand.Execute("recycle");
+        viewModel.SelectedEntry = viewModel.FilteredEntries[0];
+
+        Assert.All(vault.DeletedEntries, entry => Assert.Null(entry.LastOpenedAt));
+        Assert.DoesNotContain(viewModel.Categories, category => category.Key == "recent");
+    });
+
+    [Fact]
     public Task ComputesTotpForSelectedEntry() => Headless.Run(() =>
     {
         using var vault = CreateVaultWithEntries();
@@ -1172,6 +1234,13 @@ public sealed class MainViewModelTests : IDisposable
         });
         vault.AddEntry(new PasswordEntry { Title = "Mail", Username = "me@example.com" });
         return vault;
+    }
+
+    private sealed class MutableTimeProvider(DateTimeOffset now) : TimeProvider
+    {
+        public DateTimeOffset Now { get; set; } = now;
+
+        public override DateTimeOffset GetUtcNow() => Now;
     }
 
     private sealed class RecordingUrlLauncher : IUrlLauncher

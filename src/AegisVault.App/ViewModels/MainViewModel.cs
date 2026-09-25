@@ -53,10 +53,14 @@ public partial class MainViewModel : ObservableObject, IDisposable
 {
     private const string AllCategoryKey = "all";
     private const string FavoritesCategoryKey = "favorites";
+    private const string RecentCategoryKey = "recent";
     private const string WeakCategoryKey = "weak";
     private const string StaleCategoryKey = "old";
     private const string RecycleBinCategoryKey = "recycle";
     private const string CategoryKeyPrefix = "cat:";
+
+    /// <summary>How many entries the "recent" smart view shows.</summary>
+    private const int RecentViewLimit = 10;
 
     private readonly VaultService _vault;
     private readonly ClipboardService? _clipboard;
@@ -64,9 +68,19 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private readonly DispatcherTimer _totpTimer;
     private readonly DispatcherTimer _toastTimer;
     private readonly DispatcherTimer _undoTimer;
+    private readonly DispatcherTimer? _openTimer;
     private readonly DispatcherTimer? _searchTimer;
     private readonly DispatcherTimer? _healthTimer;
     private Guid? _lastDeletedId;
+    private Guid? _pendingOpenedId;
+
+    /// <summary>
+    /// Last-viewed timestamps keyed by entry id ("recent" smart view). Seeded from
+    /// the vault's persisted <see cref="PasswordEntry.LastOpenedAt"/> and updated
+    /// in memory immediately, so the view is responsive without re-encrypting an
+    /// entry on every selection.
+    /// </summary>
+    private readonly Dictionary<Guid, DateTimeOffset> _openedAt = [];
     private int _healthRevision;
     private bool _disposed;
     private bool _loadingEditor;
@@ -85,7 +99,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
         TimeProvider? timeProvider = null,
         IUrlLauncher? urlLauncher = null,
         TimeSpan? searchDebounce = null,
-        TimeSpan? healthDebounce = null)
+        TimeSpan? healthDebounce = null,
+        TimeSpan? openDebounce = null)
     {
         _vault = vault;
         _clipboard = clipboard;
@@ -96,8 +111,20 @@ public partial class MainViewModel : ObservableObject, IDisposable
         FilteredEntries = [];
         Categories = [];
 
+        foreach (var entry in vault.Entries)
+        {
+            if (entry.LastOpenedAt is { } opened)
+            {
+                _openedAt[entry.Id] = opened;
+            }
+        }
+
         _searchTimer = CreateDebounceTimer(searchDebounce ?? TimeSpan.Zero, ApplyFilter);
         _healthTimer = CreateDebounceTimer(healthDebounce ?? TimeSpan.Zero, StartHealthAnalysis);
+
+        // "Recently opened" is written back with a debounce so arrowing through
+        // the list does not re-encrypt an entry per keystroke.
+        _openTimer = CreateDebounceTimer(openDebounce ?? TimeSpan.Zero, FlushOpenedEntry);
 
         // The sidebar shows up immediately; the health analysis (the expensive
         // part on large vaults) runs on a background thread and backfills.
@@ -481,6 +508,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     public bool IsViewFavorites => SelectedCategory?.Key == FavoritesCategoryKey;
 
+    public bool IsViewRecent => SelectedCategory?.Key == RecentCategoryKey;
+
     public bool IsViewSecurity => SelectedCategory?.Key == WeakCategoryKey;
 
     public bool IsViewStale => SelectedCategory?.Key == StaleCategoryKey;
@@ -532,6 +561,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         ApplyFilter();
         OnPropertyChanged(nameof(IsViewAll));
         OnPropertyChanged(nameof(IsViewFavorites));
+        OnPropertyChanged(nameof(IsViewRecent));
         OnPropertyChanged(nameof(IsViewSecurity));
         OnPropertyChanged(nameof(IsViewStale));
         OnPropertyChanged(nameof(IsViewRecycleBin));
@@ -563,6 +593,61 @@ public partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(ShowSelectEntryHint));
         OnPropertyChanged(nameof(ShowStartupGuide));
         OnPropertyChanged(nameof(DeletedAtDisplay));
+
+        // Viewing an entry (live list or quick access) is what counts as "opened";
+        // recycled entries do not update the recent view.
+        if (value is not null && !IsViewRecycleBin)
+        {
+            RecordOpened(value.Id);
+        }
+    }
+
+    /// <summary>Queues a "last opened" write for the selected entry.</summary>
+    private void RecordOpened(Guid id)
+    {
+        // The sidebar count only moves when an entry is opened for the first time.
+        var isNew = !_openedAt.ContainsKey(id);
+        _openedAt[id] = _timeProvider.GetUtcNow();
+        _pendingOpenedId = id;
+
+        if (_openTimer is null)
+        {
+            FlushOpenedEntry();
+        }
+        else
+        {
+            _openTimer.Stop();
+            _openTimer.Start();
+        }
+
+        if (isNew)
+        {
+            // Adds the "recent" row the first time and keeps its count current.
+            RefreshCategories();
+        }
+    }
+
+    /// <summary>
+    /// Persists the pending "last opened" timestamp. Deliberately goes through
+    /// <see cref="VaultService.MarkEntryOpened"/> so UpdatedAt (and therefore the
+    /// stale-health view and the recently-updated sort) is unaffected.
+    /// </summary>
+    private void FlushOpenedEntry()
+    {
+        _openTimer?.Stop();
+        if (_pendingOpenedId is not { } id)
+        {
+            return;
+        }
+
+        _pendingOpenedId = null;
+
+        // Best effort: the entry may have been deleted or recycled meanwhile, and
+        // the session may already be gone on the shutdown path.
+        if (_vault.IsUnlocked)
+        {
+            _vault.MarkEntryOpened(id);
+        }
     }
 
     partial void OnStartupGuideDismissedChanged(bool value)
@@ -991,6 +1076,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void Lock()
     {
+        FlushOpenedEntry();
         ClearUndoDelete();
         _vault.Lock();
         LockRequested?.Invoke();
@@ -1013,8 +1099,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public void Dispose()
     {
         _disposed = true;
+
+        // Persist a pending "last opened" before the session goes away.
+        FlushOpenedEntry();
         _searchTimer?.Stop();
         _healthTimer?.Stop();
+        _openTimer?.Stop();
         _totpTimer.Stop();
         _toastTimer.Stop();
         _undoTimer.Stop();
@@ -1153,12 +1243,23 @@ public partial class MainViewModel : ObservableObject, IDisposable
             true,
             Entries.Count(entry => entry.IsFavorite)));
 
+        // Only offered once something has been opened (same rule as weak/stale).
+        var recentCount = Entries.Count(entry => _openedAt.ContainsKey(entry.Id));
+        if (recentCount > 0)
+        {
+            Categories.Add(new CategoryItem(
+                RecentCategoryKey,
+                Loc.T("Main_CategoryRecent"),
+                null,
+                false,
+                recentCount));
+        }
+
         var issueCount = _health.IssueCount;
         if (issueCount > 0)
         {
             Categories.Add(new CategoryItem(WeakCategoryKey, Loc.T("Main_CategorySecurity"), null, false, issueCount));
         }
-
         if (_health.OldCount > 0)
         {
             Categories.Add(new CategoryItem(StaleCategoryKey, Loc.T("Main_CategoryStale"), null, false, _health.OldCount));
@@ -1744,6 +1845,15 @@ public partial class MainViewModel : ObservableObject, IDisposable
             ordered = _vault.DeletedEntries
                 .Where(entry => MatchesSearch(entry, query))
                 .OrderByDescending(static entry => entry.DeletedAt);
+        }
+        else if (IsViewRecent)
+        {
+            // Fixed order (most recently viewed first, top N) — the sort toggle
+            // does not apply to this view.
+            ordered = Entries
+                .Where(entry => _openedAt.ContainsKey(entry.Id) && MatchesSearch(entry, query))
+                .OrderByDescending(entry => _openedAt[entry.Id])
+                .Take(RecentViewLimit);
         }
         else
         {
