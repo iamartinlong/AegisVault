@@ -116,6 +116,9 @@ public partial class App : Application
         var splash = new SplashWindow(_preferences.Theme);
         _splash = splash;
         var splashShownAt = Stopwatch.GetTimestamp();
+        var startupClock = Stopwatch.StartNew();
+        long shellMilliseconds = 0;
+        long vaultMilliseconds = 0;
 
         try
         {
@@ -133,10 +136,16 @@ public partial class App : Application
             InitializeTray();
             InitializeHotKey();
             await YieldFrameAsync();
+            shellMilliseconds = startupClock.ElapsedMilliseconds;
 
             splash.SetStatus(Loc.T("Splash_OpeningVault"), 0.75);
             await ShowUnlockAsync(desktop);
+            vaultMilliseconds = startupClock.ElapsedMilliseconds - shellMilliseconds;
             await CloseSplashAsync(splash, splashShownAt);
+
+            StartupLog.Append(
+                $"started in {startupClock.ElapsedMilliseconds}ms " +
+                $"(shell {shellMilliseconds}ms, vault {vaultMilliseconds}ms, theme {_preferences.Theme})");
         }
         catch (Exception exception)
         {
