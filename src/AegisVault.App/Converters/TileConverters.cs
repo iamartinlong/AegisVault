@@ -87,6 +87,8 @@ public sealed class CategoryIconConverter : IValueConverter
                 "favorites" => "StarOutlined",
                 "weak" => "SafetyCertificateOutlined",
                 "old" => "ClockCircleOutlined",
+                "recent" => "HistoryOutlined",
+                "recycle" => "DeleteOutlined",
                 _ => "AppstoreOutlined",
             },
         };

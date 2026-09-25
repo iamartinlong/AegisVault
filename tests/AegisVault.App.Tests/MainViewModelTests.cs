@@ -476,6 +476,26 @@ public sealed class MainViewModelTests : IDisposable
     });
 
     [Fact]
+    public Task DeleteThenOpenBinThenEmpty() => Headless.Run(() =>
+    {
+        using var vault = CreateVaultWithEntries();
+        using var viewModel = new MainViewModel(vault);
+
+        viewModel.SelectedEntry = vault.Entries.First();
+        viewModel.DeleteEntryCommand.Execute(null);
+        viewModel.SelectViewCommand.Execute("recycle");
+
+        Assert.True(viewModel.IsViewRecycleBin);
+        Assert.Single(viewModel.FilteredEntries);
+
+        var purged = viewModel.EmptyRecycleBin();
+
+        Assert.Equal(1, purged);
+        Assert.Empty(vault.DeletedEntries);
+        Assert.DoesNotContain(viewModel.Categories, category => category.Key == "recycle");
+    });
+
+    [Fact]
     public Task ComputesTotpForSelectedEntry() => Headless.Run(() =>
     {
         using var vault = CreateVaultWithEntries();
