@@ -162,6 +162,46 @@ public sealed class SettingsViewModelTests : IDisposable
     });
 
     [Fact]
+    public Task ExportCsvWritesLiveEntriesOnly() => Headless.Run(() =>
+    {
+        using var vault = VaultService.CreateNew(_vaultPath, Password, FastOptions);
+        var config = new SecureConfigService(vault);
+        vault.AddEntry(new PasswordEntry { Title = "GitHub", Username = "octocat", Password = "s3cret" });
+        var recycled = vault.AddEntry(new PasswordEntry { Title = "Recycled" });
+        vault.DeleteEntry(recycled.Id);
+
+        var viewModel = new SettingsViewModel(vault, config, null, null, "system");
+        var path = Path.Combine(_directory, "export.csv");
+        viewModel.ExportCsvTo(path);
+
+        var csv = File.ReadAllText(path);
+        Assert.Contains("GitHub", csv);
+        Assert.DoesNotContain("Recycled", csv);
+        Assert.NotEqual(string.Empty, viewModel.StatusMessage);
+    });
+
+    [Fact]
+    public Task ExportEncryptedRoundTripsThroughTheCoreReader() => Headless.Run(async () =>
+    {
+        using var vault = VaultService.CreateNew(_vaultPath, Password, FastOptions);
+        var config = new SecureConfigService(vault);
+        var category = vault.AddCategory("Work");
+        vault.AddEntry(new PasswordEntry { Title = "GitHub", Password = "s3cret", CategoryId = category.Id });
+
+        var viewModel = new SettingsViewModel(vault, config, null, null, "system");
+        var path = Path.Combine(_directory, "export.json");
+        await viewModel.ExportEncryptedToAsync(path, "portable passphrase");
+
+        var payload = VaultExportService.ImportEncrypted(
+            File.ReadAllBytes(path),
+            "portable passphrase"u8.ToArray());
+
+        Assert.Equal("GitHub", Assert.Single(payload.Entries!).Title);
+        Assert.Equal("Work", Assert.Single(payload.Categories!).Name);
+        Assert.NotEqual(string.Empty, viewModel.StatusMessage);
+    });
+
+    [Fact]
     public Task SettingsWindowCanBeConstructed() => Headless.Run(() =>
     {
         using var vault = VaultService.CreateNew(_vaultPath, Password, FastOptions);

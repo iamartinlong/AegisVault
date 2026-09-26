@@ -52,7 +52,9 @@ public partial class TextPromptWindow : Window
         string initialText,
         Func<string, string?>? validator = null,
         string? initialColor = null,
-        bool showColorPicker = false)
+        bool showColorPicker = false,
+        bool isPassword = false,
+        string? note = null)
         : this()
     {
         Title = title;
@@ -60,6 +62,19 @@ public partial class TextPromptWindow : Window
         LabelText.Text = label;
         InputBox.Text = initialText;
         _validator = validator;
+
+        if (isPassword)
+        {
+            // Masked input with the built-in reveal toggle (used for export passphrases).
+            InputBox.PasswordChar = '●';
+            InputBox.IsEnableRevealButton = true;
+        }
+
+        if (!string.IsNullOrEmpty(note))
+        {
+            NoteText.Text = note;
+            NoteText.IsVisible = true;
+        }
 
         if (!showColorPicker)
         {

@@ -340,6 +340,55 @@ public partial class SettingsViewModel : ObservableObject
     public Task<ImportResult> ImportCsvFromAsync(string path)
         => CsvImportFlow.RunAsync(_vault, path, message => StatusMessage = message, _imported);
 
+    /// <summary>
+    /// Writes a plaintext CSV of the live entries (the recycle bin is excluded).
+    /// Callers must warn the user: the file holds passwords in the clear.
+    /// </summary>
+    public void ExportCsvTo(string path)
+    {
+        try
+        {
+            var csv = VaultCsvExporter.Export(_vault.Entries, _vault.Categories);
+
+            // A BOM keeps Excel and other tools from misreading non-ASCII titles.
+            File.WriteAllText(path, csv, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
+            StatusMessage = Loc.T("Settings_StatusExportDone");
+        }
+        catch (Exception exception) when (exception is ObjectDisposedException or InvalidOperationException)
+        {
+            StatusMessage = Loc.T("Settings_StatusSessionLocked");
+        }
+        catch (Exception)
+        {
+            StatusMessage = Loc.T("Settings_StatusExportFailed");
+        }
+    }
+
+    /// <summary>Writes a passphrase-protected JSON export (live entries + categories).</summary>
+    public async Task ExportEncryptedToAsync(string path, string passphrase)
+    {
+        // Snapshot on the UI thread; the vault lists must not be enumerated from a worker.
+        var entries = _vault.Entries.ToList();
+        var categories = _vault.Categories.ToList();
+        var passphraseBytes = Encoding.UTF8.GetBytes(passphrase);
+        try
+        {
+            // Argon2id over the default parameters takes about a second: keep it
+            // off the UI thread so the settings window stays responsive.
+            var bytes = await Task.Run(() => VaultExportService.ExportEncrypted(entries, categories, passphraseBytes));
+            await File.WriteAllBytesAsync(path, bytes);
+            StatusMessage = Loc.T("Settings_StatusExportDone");
+        }
+        catch (Exception)
+        {
+            StatusMessage = Loc.T("Settings_StatusExportFailed");
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(passphraseBytes);
+        }
+    }
+
     [RelayCommand]
     private void OpenDataFolder()
     {

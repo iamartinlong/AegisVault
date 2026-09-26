@@ -182,12 +182,20 @@
                 <Border Classes="card" Padding="18,16">
                     <StackPanel Spacing="12">
                         <TextBlock Text="{loc:Str Settings_SectionData}" FontSize="14" FontWeight="SemiBold" />
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <atom:Button Content="{loc:Str Settings_BackupTo}" Click="OnBackupClicked" />
-                            <atom:Button Content="{loc:Str Settings_ImportCsv}" Click="OnImportClicked" />
-                            <atom:Button Content="{loc:Str Settings_OpenDataFolder}" Command="{Binding OpenDataFolderCommand}" />
+                        <StackPanel Spacing="8">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <atom:Button Content="{loc:Str Settings_BackupTo}" Click="OnBackupClicked" />
+                                <atom:Button Content="{loc:Str Settings_ImportCsv}" Click="OnImportClicked" />
+                                <atom:Button Content="{loc:Str Settings_OpenDataFolder}" Command="{Binding OpenDataFolderCommand}" />
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <atom:Button Content="{loc:Str Settings_ExportCsv}" Click="OnExportCsvClicked" />
+                                <atom:Button Content="{loc:Str Settings_ExportEncrypted}" Click="OnExportEncryptedClicked" />
+                            </StackPanel>
                         </StackPanel>
                         <TextBlock Text="{loc:Str Settings_ImportHint}"
+                                   FontSize="12" Opacity="0.6" TextWrapping="Wrap" />
+                        <TextBlock Text="{loc:Str Settings_ExportHint}"
                                    FontSize="12" Opacity="0.6" TextWrapping="Wrap" />
                     </StackPanel>
                 </Border>

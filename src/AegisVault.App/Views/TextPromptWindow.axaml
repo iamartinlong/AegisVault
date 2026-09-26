@@ -18,6 +18,11 @@
         <StackPanel Grid.Row="1" Margin="20" Spacing="12">
             <TextBlock x:Name="LabelText" Classes="field" />
             <atom:LineEdit x:Name="InputBox" />
+            <TextBlock x:Name="NoteText"
+                       FontSize="12"
+                       Opacity="0.6"
+                       TextWrapping="Wrap"
+                       IsVisible="False" />
 
             <!-- Optional colour row (category editor only): the eight presets are
                  tiled for one-click picking, while a custom colour is mixed in an
