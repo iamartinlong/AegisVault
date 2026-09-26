@@ -87,6 +87,16 @@ public static class VaultCsvImporter
             var folder = Get(fields, map, ["folder"]);
             var favorite = Get(fields, map, ["favorite"]);
 
+            // Extra columns written by VaultCsvExporter; absent in other exports.
+            var phone = Get(fields, map, ["phone"]);
+            var email = Get(fields, map, ["email"]);
+            var appId = Get(fields, map, ["app_id"]);
+            var secret = Get(fields, map, ["secret"]);
+            var apiKey = Get(fields, map, ["api_key"]);
+            var urls = Get(fields, map, ["urls"])
+                .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .ToList();
+
             if (title.Length == 0 && username.Length == 0 && password.Length == 0)
             {
                 skipped++;
@@ -104,7 +114,13 @@ public static class VaultCsvImporter
                 Title = title.Length == 0 ? username : title,
                 Username = username,
                 Password = password,
-                Url = url,
+                Url = urls.Count > 0 ? urls[0] : url,
+                Urls = urls,
+                Phone = phone,
+                Email = email,
+                AppId = appId,
+                Secret = secret,
+                ApiKey = apiKey,
                 Notes = notes,
                 TotpSecret = totp,
                 Tags = tags,
